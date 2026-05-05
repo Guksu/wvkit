@@ -44,5 +44,8 @@ docs/.vitepress/cache/
 .claude/
 CLAUDE.md
 
+# Local test apps (iOS/Android WebView 수동 테스트용)
+test-apps/
+
 # Misc
 *.tgz
