@@ -1,1 +1,1 @@
-// Vue composables will be exported here
+export { useSafeArea } from './components/safe-area';

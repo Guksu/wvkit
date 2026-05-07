@@ -1,1 +1,1 @@
-// React adapters will be exported here
+export { useSafeArea } from './components/safe-area';
