@@ -1,3 +1,5 @@
 export type { WebviewHeadlessError } from './errors';
 export { createSafeArea } from './components/safe-area';
 export type { SafeAreaInsets, SafeAreaOptions, SafeAreaInstance } from './components/safe-area';
+export { createScrollLock } from './components/scroll-lock';
+export type { ScrollLockOptions, ScrollLockInstance } from './components/scroll-lock';
