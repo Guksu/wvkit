@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useSafeArea, useScrollLock } from '@wvkit/react';
+import { useSafeArea, useScrollLock, useVirtualKeyboard } from '@wvkit/react';
 
 function SafeAreaDemo() {
   const { top, right, bottom, left } = useSafeArea();
@@ -18,9 +18,6 @@ function SafeAreaDemo() {
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: 12, background: '#e8f5e9', padding: `${top}px 12px ${bottom}px`, borderRadius: 4 }}>
-        <span style={{ fontSize: 13, color: '#2e7d32' }}>safe area inset만큼 padding 적용됨</span>
-      </div>
     </section>
   );
 }
@@ -34,27 +31,49 @@ function ScrollLockDemo() {
         상태: <strong style={{ color: isLocked ? '#c62828' : '#2e7d32' }}>{isLocked ? '잠금' : '해제'}</strong>
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button
-          onClick={lock}
-          disabled={isLocked}
-          style={{ padding: '8px 16px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 4, cursor: isLocked ? 'not-allowed' : 'pointer', opacity: isLocked ? 0.5 : 1 }}
-        >
+        <button onClick={lock} disabled={isLocked}
+          style={{ padding: '8px 16px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 4, opacity: isLocked ? 0.5 : 1 }}>
           스크롤 잠금
         </button>
-        <button
-          onClick={unlock}
-          disabled={!isLocked}
-          style={{ padding: '8px 16px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: 4, cursor: !isLocked ? 'not-allowed' : 'pointer', opacity: !isLocked ? 0.5 : 1 }}
-        >
+        <button onClick={unlock} disabled={!isLocked}
+          style={{ padding: '8px 16px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: 4, opacity: !isLocked ? 0.5 : 1 }}>
           스크롤 해제
         </button>
       </div>
-      <p style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
-        잠금 상태에서 페이지 스크롤을 시도해보세요 (body 스크롤이 완전히 차단됩니다)
-      </p>
-      {Array.from({ length: 20 }, (_, i) => (
-        <p key={i} style={{ margin: '4px 0', fontSize: 13, color: '#999' }}>스크롤 테스트 콘텐츠 {i + 1}</p>
+      {Array.from({ length: 15 }, (_, i) => (
+        <p key={i} style={{ margin: '4px 0', fontSize: 13, color: '#bbb' }}>스크롤 테스트 {i + 1}</p>
       ))}
+    </section>
+  );
+}
+
+function VirtualKeyboardDemo() {
+  const { isOpen, keyboardHeight } = useVirtualKeyboard();
+  return (
+    <section>
+      <h2 style={{ margin: '0 0 8px' }}>useVirtualKeyboard</h2>
+      <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: 12 }}>
+        <tbody>
+          <tr>
+            <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold', width: 120 }}>isOpen</td>
+            <td style={{ padding: '6px 12px', border: '1px solid #ddd', color: isOpen ? '#c62828' : '#2e7d32', fontWeight: 'bold' }}>
+              {String(isOpen)}
+            </td>
+          </tr>
+          <tr>
+            <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold' }}>keyboardHeight</td>
+            <td style={{ padding: '6px 12px', border: '1px solid #ddd' }}>{keyboardHeight}px</td>
+          </tr>
+        </tbody>
+      </table>
+      <input
+        type="text"
+        placeholder="탭해서 키보드 열기"
+        style={{ width: '100%', padding: '10px 12px', fontSize: 16, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }}
+      />
+      <p style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
+        인풋에 포커스하면 isOpen / keyboardHeight가 갱신됩니다
+      </p>
     </section>
   );
 }
@@ -66,6 +85,8 @@ function App() {
       <SafeAreaDemo />
       <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
       <ScrollLockDemo />
+      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <VirtualKeyboardDemo />
     </div>
   );
 }
