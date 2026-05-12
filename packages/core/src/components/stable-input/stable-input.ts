@@ -55,13 +55,25 @@ export function createStableInput(
   });
 
   addListener(container, 'click', () => {
-    hiddenInput.focus();
+    hiddenInput.focus({ preventScroll: true });
   });
 
-  // iOS: touchend 에서 preventDefault 후 즉시 focus — 300ms 딜레이 없이 키보드 열림
+  // iOS: touchend 에서 preventDefault 후 즉시 focus — 300ms 딜레이 없이 키보드 열림.
+  // getBoundingClientRect 경계 검사: iOS 히트 영역 자동 확장(~40px)으로 container 밖
+  // 터치도 이벤트를 수신할 수 있어 시각적 영역 밖 탭을 명시적으로 걸러냄.
   addListener(container, 'touchend', (e) => {
+    const touch = (e as TouchEvent).changedTouches?.[0];
+    if (touch) {
+      const rect = container.getBoundingClientRect();
+      if (
+        touch.clientX < rect.left ||
+        touch.clientX > rect.right ||
+        touch.clientY < rect.top ||
+        touch.clientY > rect.bottom
+      ) return;
+    }
     (e as TouchEvent).preventDefault();
-    hiddenInput.focus();
+    hiddenInput.focus({ preventScroll: true });
   }, { passive: false });
 
   // 숨김 → 디스플레이 값 동기화
@@ -108,7 +120,7 @@ export function createStableInput(
     });
   }
 
-  function focus() { hiddenInput.focus(); }
+  function focus() { hiddenInput.focus({ preventScroll: true }); }
   function blur() { hiddenInput.blur(); }
 
   function setValue(value: string) {

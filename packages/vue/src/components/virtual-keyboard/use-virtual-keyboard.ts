@@ -13,7 +13,7 @@ export function useVirtualKeyboard(options: UseVirtualKeyboardOptions = {}) {
 
   onMounted(() => {
     instance = createVirtualKeyboard({
-      threshold: options.threshold,
+      ...(options.threshold !== undefined && { threshold: options.threshold }),
       onChange: ({ isOpen: open, keyboardHeight: height }) => {
         isOpen.value = open;
         keyboardHeight.value = height;

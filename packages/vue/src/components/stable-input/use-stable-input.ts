@@ -8,7 +8,18 @@ export function useStableInput(options: StableInputOptions = {}) {
 
   onMounted(() => {
     if (!containerRef.value) return;
-    instance = createStableInput(containerRef.value, options);
+    instance = createStableInput(containerRef.value, {
+      ...(options.type !== undefined && { type: options.type }),
+      ...(options.placeholder !== undefined && { placeholder: options.placeholder }),
+      ...(options.inputMode !== undefined && { inputMode: options.inputMode }),
+      ...(options.autocomplete !== undefined && { autocomplete: options.autocomplete }),
+      ...(options.suppressLayoutShift !== undefined && { suppressLayoutShift: options.suppressLayoutShift }),
+      ...(options.scrollAnchor !== undefined && { scrollAnchor: options.scrollAnchor }),
+      onChange: (v) => options.onChange?.(v),
+      onFocus: () => options.onFocus?.(),
+      onBlur: () => options.onBlur?.(),
+      onSubmit: (v) => options.onSubmit?.(v),
+    });
   });
 
   onUnmounted(() => {

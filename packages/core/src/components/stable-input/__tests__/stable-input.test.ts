@@ -113,6 +113,55 @@ describe('createStableInput', () => {
     instance.destroy();
   });
 
+  it('[BUG-02] click 시 hiddenInput.focus가 preventScroll:true로 호출된다', () => {
+    const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+    const instance = createStableInput(container, {});
+    container.dispatchEvent(new MouseEvent('click'));
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    instance.destroy();
+  });
+
+  it('[BUG-01] container 영역 밖 touchend는 포커스를 트리거하지 않는다', () => {
+    const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+    const instance = createStableInput(container, {});
+
+    vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      top: 100, bottom: 200, left: 50, right: 150,
+      width: 100, height: 100, x: 50, y: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    // changedTouches를 직접 주입 (TouchEvent 생성자 환경 의존성 우회)
+    const outsideTouch = new Event('touchend', { bubbles: true });
+    Object.defineProperty(outsideTouch, 'changedTouches', {
+      value: [{ clientX: 100, clientY: 50 }], // clientY=50 < rect.top=100
+    });
+    container.dispatchEvent(outsideTouch);
+
+    expect(focusSpy).not.toHaveBeenCalled();
+    instance.destroy();
+  });
+
+  it('[BUG-01] container 영역 내 touchend는 preventScroll:true로 포커스를 트리거한다', () => {
+    const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+    const instance = createStableInput(container, {});
+
+    vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+      top: 100, bottom: 200, left: 50, right: 150,
+      width: 100, height: 100, x: 50, y: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    const insideTouch = new Event('touchend', { bubbles: true });
+    Object.defineProperty(insideTouch, 'changedTouches', {
+      value: [{ clientX: 100, clientY: 150 }], // 경계 안
+    });
+    container.dispatchEvent(insideTouch);
+
+    expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    instance.destroy();
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // @ts-expect-error — SSR 시뮬레이션
