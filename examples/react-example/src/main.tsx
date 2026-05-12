@@ -1,6 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useSafeArea, useScrollLock, useVirtualKeyboard } from '@wvkit/react';
+import { useSafeArea, useScrollLock, useVirtualKeyboard, useStableInput, StableInputDisplay } from '@wvkit/react';
+import { useState } from 'react';
 
 function SafeAreaDemo() {
   const { top, right, bottom, left } = useSafeArea();
@@ -40,7 +41,7 @@ function ScrollLockDemo() {
           스크롤 해제
         </button>
       </div>
-      {Array.from({ length: 15 }, (_, i) => (
+      {Array.from({ length: 10 }, (_, i) => (
         <p key={i} style={{ margin: '4px 0', fontSize: 13, color: '#bbb' }}>스크롤 테스트 {i + 1}</p>
       ))}
     </section>
@@ -56,9 +57,7 @@ function VirtualKeyboardDemo() {
         <tbody>
           <tr>
             <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold', width: 120 }}>isOpen</td>
-            <td style={{ padding: '6px 12px', border: '1px solid #ddd', color: isOpen ? '#c62828' : '#2e7d32', fontWeight: 'bold' }}>
-              {String(isOpen)}
-            </td>
+            <td style={{ padding: '6px 12px', border: '1px solid #ddd', color: isOpen ? '#c62828' : '#2e7d32', fontWeight: 'bold' }}>{String(isOpen)}</td>
           </tr>
           <tr>
             <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold' }}>keyboardHeight</td>
@@ -66,14 +65,70 @@ function VirtualKeyboardDemo() {
           </tr>
         </tbody>
       </table>
-      <input
-        type="text"
-        placeholder="탭해서 키보드 열기"
-        style={{ width: '100%', padding: '10px 12px', fontSize: 16, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }}
-      />
-      <p style={{ marginTop: 8, fontSize: 12, color: '#888' }}>
-        인풋에 포커스하면 isOpen / keyboardHeight가 갱신됩니다
+      <input type="text" placeholder="탭해서 키보드 열기"
+        style={{ width: '100%', padding: '10px 12px', fontSize: 16, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }} />
+    </section>
+  );
+}
+
+function StableInputDemo() {
+  const [value, setValue] = useState('');
+  const [log, setLog] = useState<string[]>([]);
+
+  const addLog = (msg: string) => setLog((prev) => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 4)]);
+
+  const inputProps = useStableInput({
+    placeholder: '여기를 탭해서 입력',
+    onChange: (v) => { setValue(v); },
+    onFocus: () => addLog('onFocus'),
+    onBlur: () => addLog('onBlur'),
+    onSubmit: (v) => addLog(`onSubmit: "${v}"`),
+    suppressLayoutShift: true,
+    scrollAnchor: 'bottom',
+  });
+
+  return (
+    <section>
+      <h2 style={{ margin: '0 0 8px' }}>StableInput</h2>
+      <p style={{ margin: '0 0 8px', fontSize: 12, color: '#888' }}>
+        포커스 시 레이아웃 이동 없음 확인 (iOS WebView)
       </p>
+
+      {/* 스타일은 소비자가 직접 적용 */}
+      <StableInputDisplay
+        {...inputProps}
+        style={{
+          display: 'block',
+          width: '100%',
+          border: '2px solid #ddd',
+          borderRadius: 8,
+          padding: '10px 12px',
+          fontSize: 16,
+          boxSizing: 'border-box',
+          cursor: 'text',
+        }}
+      />
+
+      <p style={{ margin: '8px 0 4px', fontSize: 13 }}>value: <code>{value || '(비어있음)'}</code></p>
+
+      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <button onClick={() => inputProps.focus()}
+          style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
+          focus()
+        </button>
+        <button onClick={() => { inputProps.setValue('Hello!'); setValue('Hello!'); }}
+          style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
+          setValue("Hello!")
+        </button>
+      </div>
+
+      {log.length > 0 && (
+        <div style={{ marginTop: 12, background: '#f5f5f5', borderRadius: 4, padding: 8 }}>
+          {log.map((entry, i) => (
+            <p key={i} style={{ margin: '2px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{entry}</p>
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -87,6 +142,9 @@ function App() {
       <ScrollLockDemo />
       <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
       <VirtualKeyboardDemo />
+      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <StableInputDemo />
+      <div style={{ height: 200 }} />
     </div>
   );
 }
