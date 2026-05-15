@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { useSafeArea, useScrollLock, useVirtualKeyboard, useStableInput, StableInputDisplay } from '@wvkit/react';
 import { useState } from 'react';
+import { ScrollContainerDemo } from './ScrollContainerDemo';
 
 function SafeAreaDemo() {
   const { top, right, bottom, left } = useSafeArea();
@@ -144,6 +145,8 @@ function App() {
       <VirtualKeyboardDemo />
       <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
       <StableInputDemo />
+      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
+      <ScrollContainerDemo />
       <div style={{ height: 200 }} />
     </div>
   );
