@@ -13,3 +13,9 @@ export type {
   ScrollContainerOptions,
   ScrollContainerInstance,
 } from './components/scroll-container';
+export { createPullToRefresh } from './components/pull-to-refresh';
+export type {
+  PullToRefreshState,
+  PullToRefreshOptions,
+  PullToRefreshInstance,
+} from './components/pull-to-refresh';

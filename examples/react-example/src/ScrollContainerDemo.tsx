@@ -15,20 +15,39 @@ import type { ScrollContainerDirection } from '@wvkit/react';
 
 const PANEL_COUNT = 6;
 const PANEL_LABELS = ['Hello', 'World', 'Three', 'Four', 'Five', 'Six'];
+// 패널별 내부 콘텐츠 높이 배율 (컨테이너 높이 대비). 가로 swipe + 패널별 독립 세로 스크롤 검증용.
+const PANEL_CONTENT_MULTIPLIERS = [1, 2, 4, 1, 8, 1.5];
 
 function buildPanels(): HTMLElement[] {
   return Array.from({ length: PANEL_COUNT }, (_, i) => {
     const el = document.createElement('div');
     el.style.width = '100%';
     el.style.height = '100%';
-    el.style.display = 'flex';
-    el.style.flexDirection = 'column';
-    el.style.alignItems = 'center';
-    el.style.justifyContent = 'center';
     el.style.background = `hsl(${(i * 360) / PANEL_COUNT}, 60%, 70%)`;
     el.style.color = '#fff';
     el.style.fontFamily = 'monospace';
     el.style.userSelect = 'none';
+    // 내부 세로 스크롤 허용. touch-action: pan-y 로 vertical 제스처는 브라우저가 처리,
+    // 부모 ScrollContainer의 horizontal 제스처와 자연 분리.
+    el.style.overflowY = 'auto';
+    el.style.overflowX = 'hidden';
+    el.style.touchAction = 'pan-y';
+
+    const multiplier = PANEL_CONTENT_MULTIPLIERS[i] ?? 1;
+
+    // 내부 콘텐츠: 컨테이너의 multiplier 배수 높이
+    const inner = document.createElement('div');
+    inner.style.minHeight = `${multiplier * 100}%`;
+    inner.style.padding = '20px';
+    inner.style.boxSizing = 'border-box';
+    inner.style.display = 'flex';
+    inner.style.flexDirection = 'column';
+    inner.style.gap = '16px';
+    inner.style.alignItems = 'center';
+
+    // 헤더: 인덱스 + 라벨 + 스크롤 길이 안내
+    const header = document.createElement('div');
+    header.style.textAlign = 'center';
 
     const num = document.createElement('div');
     num.textContent = String(i);
@@ -39,11 +58,46 @@ function buildPanels(): HTMLElement[] {
     const label = document.createElement('div');
     label.textContent = PANEL_LABELS[i] ?? `Panel ${i}`;
     label.style.fontSize = '18px';
-    label.style.marginTop = '12px';
-    label.style.opacity = '0.8';
+    label.style.marginTop = '8px';
+    label.style.opacity = '0.85';
 
-    el.appendChild(num);
-    el.appendChild(label);
+    const scrollHint = document.createElement('div');
+    scrollHint.textContent =
+      multiplier <= 1 ? '세로 스크롤 없음' : `세로 스크롤 ${multiplier}× (위/아래로 드래그)`;
+    scrollHint.style.fontSize = '11px';
+    scrollHint.style.marginTop = '6px';
+    scrollHint.style.opacity = '0.7';
+
+    header.appendChild(num);
+    header.appendChild(label);
+    header.appendChild(scrollHint);
+    inner.appendChild(header);
+
+    // 스크롤 가시화: multiplier가 1보다 크면 일렬로 번호 박스 추가
+    if (multiplier > 1) {
+      const itemCount = Math.max(0, Math.round((multiplier - 1) * 6));
+      for (let k = 1; k <= itemCount; k++) {
+        const item = document.createElement('div');
+        item.textContent = `item ${k}`;
+        item.style.width = '70%';
+        item.style.padding = '10px 14px';
+        item.style.background = 'rgba(0,0,0,0.18)';
+        item.style.borderRadius = '6px';
+        item.style.fontSize = '13px';
+        item.style.textAlign = 'center';
+        inner.appendChild(item);
+      }
+
+      // 끝 표시
+      const tail = document.createElement('div');
+      tail.textContent = '— end —';
+      tail.style.fontSize = '11px';
+      tail.style.opacity = '0.6';
+      tail.style.marginTop = '8px';
+      inner.appendChild(tail);
+    }
+
+    el.appendChild(inner);
     return el;
   });
 }
