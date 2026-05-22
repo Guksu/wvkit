@@ -31,7 +31,7 @@ function App() {
         <header style={headerStyle}>
           <div style={headerInner}>
             <div style={logoArea}>
-              <span style={logoBadge}>wvkit</span>
+              <span style={logoBadge}>wvkit<span style={logoAccent}>.</span></span>
               <span style={logoSub}>{tr.header.sub}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -106,81 +106,90 @@ function App() {
 
 const appStyle: React.CSSProperties = {
   minHeight: '100vh',
-  background: '#f3f4f6',
-  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
-  color: '#111827',
+  background: '#f5f4f1',
+  fontFamily: "'Space Grotesk', system-ui, sans-serif",
+  color: '#111111',
 };
 
 const headerStyle: React.CSSProperties = {
   position: 'sticky', top: 0, zIndex: 100,
-  background: '#fff', borderBottom: '1px solid #e5e7eb',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+  background: '#111111',
 };
 
 const headerInner: React.CSSProperties = {
   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-  padding: '14px 16px 10px', maxWidth: 600, margin: '0 auto',
+  padding: '14px 20px 12px', maxWidth: 640, margin: '0 auto',
 };
 
-const logoArea: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10 };
+const logoArea: React.CSSProperties = { display: 'flex', alignItems: 'baseline', gap: 10 };
 
 const logoBadge: React.CSSProperties = {
-  background: '#4f46e5', color: '#fff', fontSize: 14, fontWeight: 700,
-  padding: '3px 10px', borderRadius: 6, letterSpacing: '-0.02em',
+  color: '#fff', fontSize: 18, fontWeight: 800,
+  letterSpacing: '-0.04em', lineHeight: 1,
+  fontFamily: "'Space Grotesk', system-ui, sans-serif",
 };
 
-const logoSub: React.CSSProperties = { fontSize: 12, color: '#9ca3af', fontWeight: 500 };
+const logoAccent: React.CSSProperties = { color: '#e86035' };
+
+const logoSub: React.CSSProperties = {
+  fontSize: 11, color: '#888', fontWeight: 500,
+  letterSpacing: '0.02em',
+};
 
 const langToggle: React.CSSProperties = {
-  display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 2, gap: 2,
+  display: 'flex', background: '#222', borderRadius: 6, padding: 2, gap: 2,
 };
 
 const langBtn: React.CSSProperties = {
-  padding: '4px 10px', fontSize: 12, fontWeight: 600,
-  border: 'none', borderRadius: 6, background: 'transparent',
-  color: '#9ca3af', cursor: 'pointer', fontFamily: 'inherit',
-  transition: 'all 0.15s',
+  padding: '4px 10px', fontSize: 11, fontWeight: 700,
+  border: 'none', borderRadius: 4, background: 'transparent',
+  color: '#666', cursor: 'pointer', fontFamily: 'inherit',
+  letterSpacing: '0.04em', transition: 'all 0.12s',
 };
 
 const langBtnActive: React.CSSProperties = {
-  background: '#fff', color: '#4f46e5',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+  background: '#e86035', color: '#fff',
 };
 
 const githubLink: React.CSSProperties = {
-  fontSize: 13, color: '#4f46e5', textDecoration: 'none',
-  fontWeight: 600, padding: '6px 12px', background: '#eef2ff', borderRadius: 8,
+  fontSize: 12, color: '#ccc', textDecoration: 'none',
+  fontWeight: 600, padding: '6px 12px',
+  border: '1px solid #333', borderRadius: 6,
+  letterSpacing: '0.02em', transition: 'border-color 0.12s',
 };
 
 const tabBarWrapper: React.CSSProperties = {
   overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+  background: '#1a1a1a', borderBottom: '1px solid #2a2a2a',
 };
 
 const tabBar: React.CSSProperties = {
-  display: 'flex', padding: '0 16px', maxWidth: 600, margin: '0 auto', gap: 2,
+  display: 'flex', padding: '8px 20px', maxWidth: 640, margin: '0 auto', gap: 4,
 };
 
 const tabBtn: React.CSSProperties = {
-  flexShrink: 0, padding: '8px 14px', fontSize: 13, fontWeight: 500,
-  border: 'none', borderBottom: '2px solid transparent', background: 'transparent',
-  color: '#6b7280', cursor: 'pointer', fontFamily: 'inherit',
-  whiteSpace: 'nowrap', transition: 'color 0.15s, border-color 0.15s',
+  flexShrink: 0, padding: '6px 14px', fontSize: 12, fontWeight: 600,
+  border: 'none', borderRadius: 5, background: 'transparent',
+  color: '#666', cursor: 'pointer', fontFamily: 'inherit',
+  whiteSpace: 'nowrap', letterSpacing: '0.01em',
+  transition: 'background 0.12s, color 0.12s',
 };
 
 const tabBtnActive: React.CSSProperties = {
-  color: '#4f46e5', borderBottomColor: '#4f46e5', fontWeight: 600,
+  background: '#e86035', color: '#fff',
 };
 
 const mainStyle: React.CSSProperties = {
-  maxWidth: 600, margin: '0 auto', padding: '20px 16px 40px',
+  maxWidth: 640, margin: '0 auto', padding: '24px 20px 48px',
+  display: 'flex', flexDirection: 'column', gap: 16,
 };
 
 const footerStyle: React.CSSProperties = {
   textAlign: 'center', padding: '24px 16px', fontSize: 12,
-  color: '#9ca3af', borderTop: '1px solid #e5e7eb', background: '#fff',
+  color: '#9c9890', borderTop: '1px solid #e8e5e0', background: '#f5f4f1',
 };
 
-const footerLink: React.CSSProperties = { color: '#4f46e5', textDecoration: 'none' };
+const footerLink: React.CSSProperties = { color: '#e86035', textDecoration: 'none' };
 
 /* ─── mount ─── */
 

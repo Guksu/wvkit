@@ -15,7 +15,6 @@ export function DemoCard({ title, description, note, children }: DemoCardProps) 
         <p style={cardDesc}>{description}</p>
         {note && (
           <div style={noteStyle}>
-            <span style={{ marginRight: 6 }}>📱</span>
             {note}
           </div>
         )}
@@ -35,7 +34,7 @@ export function DataRow({ label, value, valueColor }: DataRowProps) {
   return (
     <div style={rowStyle}>
       <span style={rowLabel}>{label}</span>
-      <span style={{ ...rowValue, color: valueColor ?? '#111827' }}>{value}</span>
+      <span style={{ ...rowValue, color: valueColor ?? '#111111' }}>{value}</span>
     </div>
   );
 }
@@ -66,11 +65,11 @@ export function ControlItem({ label, children, span }: ControlItemProps) {
 export const inputStyle: CSSProperties = {
   padding: '6px 8px',
   fontSize: 13,
-  border: '1.5px solid #e5e7eb',
+  border: '1.5px solid #ddd9d3',
   borderRadius: 6,
-  fontFamily: 'inherit',
+  fontFamily: "'JetBrains Mono', monospace",
   background: '#fff',
-  color: '#111827',
+  color: '#111111',
   outline: 'none',
 };
 
@@ -89,67 +88,68 @@ export const checkboxRowStyle: CSSProperties = {
 
 const cardStyle: CSSProperties = {
   background: '#fff',
-  borderRadius: 16,
-  border: '1px solid #e5e7eb',
+  borderRadius: 12,
+  border: '1px solid #e8e5e0',
   overflow: 'hidden',
-  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
 };
 
 const cardHeader: CSSProperties = {
-  padding: '20px 20px 0',
+  padding: '24px 24px 0',
 };
 
 const cardTitle: CSSProperties = {
-  margin: '0 0 6px',
-  fontSize: 18,
-  fontWeight: 700,
-  color: '#111827',
-  letterSpacing: '-0.02em',
+  margin: '0 0 8px',
+  fontSize: 22,
+  fontWeight: 800,
+  color: '#111111',
+  letterSpacing: '-0.03em',
+  lineHeight: 1.1,
+  fontFamily: "'Space Grotesk', system-ui, sans-serif",
 };
 
 const cardDesc: CSSProperties = {
-  margin: '0 0 0',
-  fontSize: 13,
-  color: '#6b7280',
-  lineHeight: 1.6,
+  margin: 0,
+  fontSize: 14,
+  color: '#6b6860',
+  lineHeight: 1.65,
 };
 
 const noteStyle: CSSProperties = {
-  marginTop: 10,
-  padding: '8px 10px',
-  background: '#fffbeb',
-  border: '1px solid #fde68a',
-  borderRadius: 8,
+  marginTop: 14,
+  padding: '10px 14px',
+  borderLeft: '3px solid #e86035',
+  background: '#fdf6f2',
   fontSize: 12,
-  color: '#92400e',
-  lineHeight: 1.5,
+  color: '#5c3520',
+  lineHeight: 1.6,
 };
 
 const cardBody: CSSProperties = {
-  padding: 20,
+  padding: 24,
 };
 
 const rowStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  padding: '8px 12px',
-  background: '#f9fafb',
-  borderRadius: 8,
-  border: '1px solid #f3f4f6',
+  padding: '9px 12px',
+  background: '#f5f4f1',
+  borderRadius: 6,
+  border: '1px solid #e8e5e0',
 };
 
 const rowLabel: CSSProperties = {
-  fontSize: 12,
+  fontSize: 11,
   fontWeight: 600,
-  color: '#6b7280',
-  fontFamily: 'monospace',
+  color: '#9c9890',
+  fontFamily: "'JetBrains Mono', monospace",
+  letterSpacing: '0.02em',
 };
 
 const rowValue: CSSProperties = {
   fontSize: 13,
-  fontWeight: 700,
-  fontFamily: 'monospace',
+  fontWeight: 600,
+  fontFamily: "'JetBrains Mono', monospace",
 };
 
 const controlGridStyle: CSSProperties = {
@@ -157,23 +157,24 @@ const controlGridStyle: CSSProperties = {
   gridTemplateColumns: 'repeat(2, 1fr)',
   gap: 10,
   padding: 14,
-  background: '#f9fafb',
-  borderRadius: 10,
-  border: '1px solid #e5e7eb',
-  marginBottom: 16,
+  background: '#f5f4f1',
+  borderRadius: 8,
+  border: '1px solid #e8e5e0',
+  marginBottom: 20,
 };
 
 const controlItemStyle: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
-  gap: 4,
+  gap: 5,
   cursor: 'default',
 };
 
 const controlLabel: CSSProperties = {
-  fontSize: 11,
-  fontWeight: 600,
-  color: '#6b7280',
+  fontSize: 10,
+  fontWeight: 700,
+  color: '#9c9890',
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.07em',
+  fontFamily: "'JetBrains Mono', monospace",
 };
