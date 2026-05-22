@@ -32,9 +32,9 @@ interface DataRowProps {
 
 export function DataRow({ label, value, valueColor }: DataRowProps) {
   return (
-    <div style={rowStyle}>
+    <div style={rowStyle} data-testid={`row-${label}`}>
       <span style={rowLabel}>{label}</span>
-      <span style={{ ...rowValue, color: valueColor ?? '#111111' }}>{value}</span>
+      <span style={{ ...rowValue, color: valueColor ?? '#111111' }} data-testid={`row-${label}-value`}>{value}</span>
     </div>
   );
 }

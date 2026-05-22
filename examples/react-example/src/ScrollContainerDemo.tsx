@@ -88,7 +88,7 @@ function ScrollContainerInstance(props: DemoOptions) {
 
   return (
     <>
-      <div ref={containerRef} style={canvasStyle} />
+      <div ref={containerRef} style={canvasStyle} data-testid="sc-canvas" />
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
         <DataRow label="activeIndex" value={String(activeIndex)} />
