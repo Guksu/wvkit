@@ -1,160 +1,197 @@
-import { StrictMode } from 'react';
+import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useSafeArea, useScrollLock, useVirtualKeyboard, useStableInput, StableInputDisplay } from '@guksu/wvkit-react';
-import { useState } from 'react';
 import { ScrollContainerDemo } from './ScrollContainerDemo';
 import { PullToRefreshDemo } from './PullToRefreshDemo';
+import { StableInputDemo } from './StableInputDemo';
+import { VirtualKeyboardDemo } from './VirtualKeyboardDemo';
+import { SafeAreaDemo } from './SafeAreaDemo';
+import { ScrollLockDemo } from './ScrollLockDemo';
 
-function SafeAreaDemo() {
-  const { top, right, bottom, left } = useSafeArea();
-  const rows: [string, number][] = [['top', top], ['right', right], ['bottom', bottom], ['left', left]];
-  return (
-    <section>
-      <h2 style={{ margin: '0 0 8px' }}>useSafeArea</h2>
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <tbody>
-          {rows.map(([key, value]) => (
-            <tr key={key}>
-              <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold', width: 80 }}>{key}</td>
-              <td style={{ padding: '6px 12px', border: '1px solid #ddd' }}>{value}px</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
+const TABS = [
+  { id: 'scroll-container', label: 'ScrollContainer' },
+  { id: 'pull-to-refresh', label: 'PullToRefresh' },
+  { id: 'stable-input', label: 'StableInput' },
+  { id: 'virtual-keyboard', label: 'VirtualKeyboard' },
+  { id: 'safe-area', label: 'SafeArea' },
+  { id: 'scroll-lock', label: 'ScrollLock' },
+] as const;
 
-function ScrollLockDemo() {
-  const { lock, unlock, isLocked } = useScrollLock();
-  return (
-    <section>
-      <h2 style={{ margin: '0 0 8px' }}>useScrollLock</h2>
-      <p style={{ margin: '0 0 12px', fontSize: 13, color: '#555' }}>
-        상태: <strong style={{ color: isLocked ? '#c62828' : '#2e7d32' }}>{isLocked ? '잠금' : '해제'}</strong>
-      </p>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={lock} disabled={isLocked}
-          style={{ padding: '8px 16px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 4, opacity: isLocked ? 0.5 : 1 }}>
-          스크롤 잠금
-        </button>
-        <button type="button" onClick={unlock} disabled={!isLocked}
-          style={{ padding: '8px 16px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: 4, opacity: !isLocked ? 0.5 : 1 }}>
-          스크롤 해제
-        </button>
-      </div>
-      {Array.from({ length: 10 }, (_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: 데모용 고정 길이 정적 리스트 (재정렬 없음)
-        <p key={`scroll-test-${i}`} style={{ margin: '4px 0', fontSize: 13, color: '#bbb' }}>스크롤 테스트 {i + 1}</p>
-      ))}
-    </section>
-  );
-}
-
-function VirtualKeyboardDemo() {
-  const { isOpen, keyboardHeight } = useVirtualKeyboard();
-  return (
-    <section>
-      <h2 style={{ margin: '0 0 8px' }}>useVirtualKeyboard</h2>
-      <table style={{ borderCollapse: 'collapse', width: '100%', marginBottom: 12 }}>
-        <tbody>
-          <tr>
-            <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold', width: 120 }}>isOpen</td>
-            <td style={{ padding: '6px 12px', border: '1px solid #ddd', color: isOpen ? '#c62828' : '#2e7d32', fontWeight: 'bold' }}>{String(isOpen)}</td>
-          </tr>
-          <tr>
-            <td style={{ padding: '6px 12px', border: '1px solid #ddd', fontWeight: 'bold' }}>keyboardHeight</td>
-            <td style={{ padding: '6px 12px', border: '1px solid #ddd' }}>{keyboardHeight}px</td>
-          </tr>
-        </tbody>
-      </table>
-      <input type="text" placeholder="탭해서 키보드 열기"
-        style={{ width: '100%', padding: '10px 12px', fontSize: 16, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box' }} />
-    </section>
-  );
-}
-
-function StableInputDemo() {
-  const [value, setValue] = useState('');
-  const [log, setLog] = useState<string[]>([]);
-
-  const addLog = (msg: string) => setLog((prev) => [`${new Date().toLocaleTimeString()} ${msg}`, ...prev.slice(0, 4)]);
-
-  const inputProps = useStableInput({
-    placeholder: '여기를 탭해서 입력',
-    onChange: (v) => { setValue(v); },
-    onFocus: () => addLog('onFocus'),
-    onBlur: () => addLog('onBlur'),
-    onSubmit: (v) => addLog(`onSubmit: "${v}"`),
-    suppressLayoutShift: true,
-    scrollAnchor: 'bottom',
-  });
-
-  return (
-    <section>
-      <h2 style={{ margin: '0 0 8px' }}>StableInput</h2>
-      <p style={{ margin: '0 0 8px', fontSize: 12, color: '#888' }}>
-        포커스 시 레이아웃 이동 없음 확인 (iOS WebView)
-      </p>
-
-      {/* 스타일은 소비자가 직접 적용 */}
-      <StableInputDisplay
-        {...inputProps}
-        style={{
-          display: 'block',
-          width: '100%',
-          border: '2px solid #ddd',
-          borderRadius: 8,
-          padding: '10px 12px',
-          fontSize: 16,
-          boxSizing: 'border-box',
-          cursor: 'text',
-        }}
-      />
-
-      <p style={{ margin: '8px 0 4px', fontSize: 13 }}>value: <code>{value || '(비어있음)'}</code></p>
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <button type="button" onClick={() => inputProps.focus()}
-          style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
-          focus()
-        </button>
-        <button type="button" onClick={() => { inputProps.setValue('Hello!'); setValue('Hello!'); }}
-          style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
-          setValue("Hello!")
-        </button>
-      </div>
-
-      {log.length > 0 && (
-        <div style={{ marginTop: 12, background: '#f5f5f5', borderRadius: 4, padding: 8 }}>
-          {log.map((entry) => (
-            <p key={entry} style={{ margin: '2px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{entry}</p>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
+type TabId = (typeof TABS)[number]['id'];
 
 function App() {
+  const [activeTab, setActiveTab] = useState<TabId>('scroll-container');
+
   return (
-    <div style={{ fontFamily: 'monospace', padding: '16px', maxWidth: 480, margin: '0 auto' }}>
-      <h1 style={{ marginBottom: 24 }}>wvkit 데모</h1>
-      <SafeAreaDemo />
-      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <ScrollLockDemo />
-      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <VirtualKeyboardDemo />
-      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <StableInputDemo />
-      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <ScrollContainerDemo />
-      <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid #eee' }} />
-      <PullToRefreshDemo />
-      <div style={{ height: 200 }} />
+    <div style={appStyle}>
+      <header style={headerStyle}>
+        <div style={headerInner}>
+          <div style={logoArea}>
+            <span style={logoBadge}>wvkit</span>
+            <span style={logoSub}>WebView UI Primitives</span>
+          </div>
+          <a
+            href="https://github.com/Guksu/wvkit"
+            target="_blank"
+            rel="noreferrer"
+            style={githubLink}
+          >
+            GitHub
+          </a>
+        </div>
+
+        <div style={tabBarWrapper}>
+          <div style={tabBar}>
+            {TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                style={{
+                  ...tabBtn,
+                  ...(activeTab === tab.id ? tabBtnActive : {}),
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </header>
+
+      <main style={mainStyle}>
+        {activeTab === 'scroll-container' && <ScrollContainerDemo />}
+        {activeTab === 'pull-to-refresh' && <PullToRefreshDemo />}
+        {activeTab === 'stable-input' && <StableInputDemo />}
+        {activeTab === 'virtual-keyboard' && <VirtualKeyboardDemo />}
+        {activeTab === 'safe-area' && <SafeAreaDemo />}
+        {activeTab === 'scroll-lock' && <ScrollLockDemo />}
+      </main>
+
+      <footer style={footerStyle}>
+        <span>MIT License · </span>
+        <a href="https://www.npmjs.com/package/@guksu/wvkit-core" target="_blank" rel="noreferrer" style={footerLink}>
+          npm
+        </a>
+        <span> · </span>
+        <a href="https://github.com/Guksu/wvkit" target="_blank" rel="noreferrer" style={footerLink}>
+          GitHub
+        </a>
+      </footer>
     </div>
   );
 }
+
+const appStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  background: '#f3f4f6',
+  fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+  color: '#111827',
+};
+
+const headerStyle: React.CSSProperties = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 100,
+  background: '#fff',
+  borderBottom: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+};
+
+const headerInner: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '14px 16px 10px',
+  maxWidth: 600,
+  margin: '0 auto',
+};
+
+const logoArea: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+};
+
+const logoBadge: React.CSSProperties = {
+  background: '#4f46e5',
+  color: '#fff',
+  fontSize: 14,
+  fontWeight: 700,
+  padding: '3px 10px',
+  borderRadius: 6,
+  letterSpacing: '-0.02em',
+};
+
+const logoSub: React.CSSProperties = {
+  fontSize: 12,
+  color: '#9ca3af',
+  fontWeight: 500,
+};
+
+const githubLink: React.CSSProperties = {
+  fontSize: 13,
+  color: '#4f46e5',
+  textDecoration: 'none',
+  fontWeight: 600,
+  padding: '6px 12px',
+  background: '#eef2ff',
+  borderRadius: 8,
+};
+
+const tabBarWrapper: React.CSSProperties = {
+  overflowX: 'auto',
+  WebkitOverflowScrolling: 'touch',
+  scrollbarWidth: 'none',
+};
+
+const tabBar: React.CSSProperties = {
+  display: 'flex',
+  padding: '0 16px',
+  maxWidth: 600,
+  margin: '0 auto',
+  gap: 2,
+};
+
+const tabBtn: React.CSSProperties = {
+  flexShrink: 0,
+  padding: '8px 14px',
+  fontSize: 13,
+  fontWeight: 500,
+  border: 'none',
+  borderBottom: '2px solid transparent',
+  background: 'transparent',
+  color: '#6b7280',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+  whiteSpace: 'nowrap',
+  transition: 'color 0.15s, border-color 0.15s',
+};
+
+const tabBtnActive: React.CSSProperties = {
+  color: '#4f46e5',
+  borderBottomColor: '#4f46e5',
+  fontWeight: 600,
+};
+
+const mainStyle: React.CSSProperties = {
+  maxWidth: 600,
+  margin: '0 auto',
+  padding: '20px 16px 40px',
+};
+
+const footerStyle: React.CSSProperties = {
+  textAlign: 'center',
+  padding: '24px 16px',
+  fontSize: 12,
+  color: '#9ca3af',
+  borderTop: '1px solid #e5e7eb',
+  background: '#fff',
+};
+
+const footerLink: React.CSSProperties = {
+  color: '#4f46e5',
+  textDecoration: 'none',
+};
 
 const root = document.getElementById('root');
 if (!root) throw new Error('#root element not found');
