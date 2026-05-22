@@ -34,17 +34,18 @@ function ScrollLockDemo() {
         상태: <strong style={{ color: isLocked ? '#c62828' : '#2e7d32' }}>{isLocked ? '잠금' : '해제'}</strong>
       </p>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={lock} disabled={isLocked}
+        <button type="button" onClick={lock} disabled={isLocked}
           style={{ padding: '8px 16px', background: '#c62828', color: '#fff', border: 'none', borderRadius: 4, opacity: isLocked ? 0.5 : 1 }}>
           스크롤 잠금
         </button>
-        <button onClick={unlock} disabled={!isLocked}
+        <button type="button" onClick={unlock} disabled={!isLocked}
           style={{ padding: '8px 16px', background: '#2e7d32', color: '#fff', border: 'none', borderRadius: 4, opacity: !isLocked ? 0.5 : 1 }}>
           스크롤 해제
         </button>
       </div>
       {Array.from({ length: 10 }, (_, i) => (
-        <p key={i} style={{ margin: '4px 0', fontSize: 13, color: '#bbb' }}>스크롤 테스트 {i + 1}</p>
+        // biome-ignore lint/suspicious/noArrayIndexKey: 데모용 고정 길이 정적 리스트 (재정렬 없음)
+        <p key={`scroll-test-${i}`} style={{ margin: '4px 0', fontSize: 13, color: '#bbb' }}>스크롤 테스트 {i + 1}</p>
       ))}
     </section>
   );
@@ -114,11 +115,11 @@ function StableInputDemo() {
       <p style={{ margin: '8px 0 4px', fontSize: 13 }}>value: <code>{value || '(비어있음)'}</code></p>
 
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-        <button onClick={() => inputProps.focus()}
+        <button type="button" onClick={() => inputProps.focus()}
           style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
           focus()
         </button>
-        <button onClick={() => { inputProps.setValue('Hello!'); setValue('Hello!'); }}
+        <button type="button" onClick={() => { inputProps.setValue('Hello!'); setValue('Hello!'); }}
           style={{ padding: '6px 12px', border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' }}>
           setValue("Hello!")
         </button>
@@ -126,8 +127,8 @@ function StableInputDemo() {
 
       {log.length > 0 && (
         <div style={{ marginTop: 12, background: '#f5f5f5', borderRadius: 4, padding: 8 }}>
-          {log.map((entry, i) => (
-            <p key={i} style={{ margin: '2px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{entry}</p>
+          {log.map((entry) => (
+            <p key={entry} style={{ margin: '2px 0', fontSize: 12, color: '#555', fontFamily: 'monospace' }}>{entry}</p>
           ))}
         </div>
       )}

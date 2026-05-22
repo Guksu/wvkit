@@ -47,7 +47,7 @@ export function createVirtualKeyboard(options: VirtualKeyboardOptions = {}): Vir
   }
 
   function destroy() {
-    listeners.forEach((off) => off());
+    for (const off of listeners) off();
     listeners.length = 0;
   }
 

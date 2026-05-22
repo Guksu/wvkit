@@ -102,7 +102,7 @@ describe('createPullToRefresh — initialization', () => {
 describe('createPullToRefresh — SSR guard', () => {
   it('window가 undefined일 때 noop 인스턴스 반환', () => {
     const originalWindow = globalThis.window;
-    delete (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = undefined;
     try {
       const sc = createPullToRefresh({} as HTMLElement, { onRefresh: () => {} });
       expect(sc.getState()).toBe('idle');

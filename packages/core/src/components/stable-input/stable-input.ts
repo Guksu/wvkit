@@ -107,7 +107,8 @@ export function createStableInput(
       const anchor = options.scrollAnchor ?? 'bottom';
       if (anchor === 'none') return;
 
-      const vp = window.visualViewport!;
+      const vp = window.visualViewport;
+      if (!vp) return;
       if (anchor === 'bottom') {
         const containerRect = container.getBoundingClientRect();
         const overflow = containerRect.bottom - vp.height;
@@ -131,7 +132,7 @@ export function createStableInput(
   function getValue() { return hiddenInput.value; }
 
   function destroy() {
-    listeners.forEach((off) => off());
+    for (const off of listeners) off();
     listeners.length = 0;
     displayInput.remove();
     hiddenInput.remove();

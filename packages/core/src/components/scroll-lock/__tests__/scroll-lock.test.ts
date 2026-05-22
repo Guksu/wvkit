@@ -110,8 +110,8 @@ describe('createScrollLock', () => {
 
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
-    // @ts-expect-error — SSR 시뮬레이션
-    delete globalThis.window;
+    // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입
+    (globalThis as { window?: unknown }).window = undefined;
     const instance = createScrollLock();
     expect(instance.isLocked).toBe(false);
     expect(() => instance.lock()).not.toThrow();

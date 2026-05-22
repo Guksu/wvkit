@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { createVirtualKeyboard } from '../virtual-keyboard';
 
 function mockVisualViewport(height: number) {
@@ -104,8 +104,8 @@ describe('createVirtualKeyboard', () => {
 
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
-    // @ts-expect-error — SSR 시뮬레이션
-    delete globalThis.window;
+    // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입
+    (globalThis as { window?: unknown }).window = undefined;
     const instance = createVirtualKeyboard();
     expect(instance.isOpen).toBe(false);
     expect(instance.keyboardHeight).toBe(0);

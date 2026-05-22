@@ -28,10 +28,10 @@ export function createSafeArea(options: SafeAreaOptions = {}): SafeAreaInstance 
   function readInsets(): SafeAreaInsets {
     const cs = getComputedStyle(sentinel);
     return {
-      top: parseFloat(cs.paddingTop) || 0,
-      right: parseFloat(cs.paddingRight) || 0,
-      bottom: parseFloat(cs.paddingBottom) || 0,
-      left: parseFloat(cs.paddingLeft) || 0,
+      top: Number.parseFloat(cs.paddingTop) || 0,
+      right: Number.parseFloat(cs.paddingRight) || 0,
+      bottom: Number.parseFloat(cs.paddingBottom) || 0,
+      left: Number.parseFloat(cs.paddingLeft) || 0,
     };
   }
 
@@ -54,7 +54,7 @@ export function createSafeArea(options: SafeAreaOptions = {}): SafeAreaInstance 
   addListener(window, 'resize', handleChange);
 
   function destroy() {
-    listeners.forEach((off) => off());
+    for (const off of listeners) off();
     listeners.length = 0;
     sentinel.remove();
   }

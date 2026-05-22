@@ -1,4 +1,4 @@
-import { type RefObject, type CSSProperties } from 'react';
+import type { RefObject, CSSProperties } from 'react';
 
 export interface StableInputDisplayProps {
   containerRef: RefObject<HTMLDivElement | null>;

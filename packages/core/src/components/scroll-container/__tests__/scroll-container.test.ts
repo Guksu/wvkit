@@ -93,7 +93,7 @@ describe('createScrollContainer — SSR guard', () => {
     // 호출 직전 window를 제거 → SSR 분기 진입, 호출 직후 복구하여 다른 테스트에 영향 없음.
     // typeof window === 'undefined' 체크는 글로벌 식별자 window가 undefined일 때 true.
     // (validateOptions는 SSR 환경에서도 동작하므로 유효한 옵션을 전달 — 빈 panels는 throw 됨)
-    delete (globalThis as { window?: unknown }).window;
+    (globalThis as { window?: unknown }).window = undefined;
     try {
       const sc = createScrollContainer({} as HTMLElement, {
         direction: 'horizontal',

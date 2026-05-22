@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
-import { defineComponent, ref } from 'vue';
+import { defineComponent, } from 'vue';
 import { useStableInput } from '../use-stable-input';
 
 function mountWithComposable(options = {}) {

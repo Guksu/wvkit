@@ -45,6 +45,7 @@ export function usePullToRefresh(options: PullToRefreshOptions): {
   const [distance, setDistance] = useState<number>(0);
   const [progress, setProgress] = useState<number>(0);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 의도적 빈 배열 — 옵션은 ref(optionsRef)로 최신값 추적하고 인스턴스 라이프사이클은 마운트/언마운트에만 묶는다.
   useEffect(() => {
     if (!containerRef.current) return;
     const initOpts = optionsRef.current;
@@ -77,8 +78,6 @@ export function usePullToRefresh(options: PullToRefreshOptions): {
         instanceRef.current = null;
       }
     };
-    // 의존성 빈 배열: 옵션은 ref로 최신값 추적, 인스턴스는 마운트/언마운트에만 묶음
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const trigger = useCallback((): Promise<void> => {
