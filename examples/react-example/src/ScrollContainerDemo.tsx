@@ -2,12 +2,13 @@ import { useMemo, useState } from 'react';
 import { useScrollContainer } from '@guksu/wvkit-react';
 import type { ScrollContainerDirection } from '@guksu/wvkit-react';
 import { DemoCard, ControlGrid, ControlItem, DataRow, inputStyle, selectStyle, checkboxRowStyle } from './ui';
+import { useLang } from './LangContext';
 
 const PANEL_COUNT = 6;
 const PANEL_LABELS = ['Hello', 'World', 'Three', 'Four', 'Five', 'Six'];
 const PANEL_CONTENT_MULTIPLIERS = [1, 2, 4, 1, 8, 1.5];
 
-function buildPanels(): HTMLElement[] {
+function buildPanels(noScroll: string, verticalScroll: (n: number) => string, end: string): HTMLElement[] {
   return Array.from({ length: PANEL_COUNT }, (_, i) => {
     const el = document.createElement('div');
     Object.assign(el.style, {
@@ -34,7 +35,7 @@ function buildPanels(): HTMLElement[] {
     Object.assign(label.style, { fontSize: '18px', fontWeight: '600', opacity: '0.85' });
 
     const hint = document.createElement('div');
-    hint.textContent = multiplier <= 1 ? '세로 스크롤 없음' : `세로 스크롤 ${multiplier}×`;
+    hint.textContent = multiplier <= 1 ? noScroll : verticalScroll(multiplier);
     Object.assign(hint.style, { fontSize: '11px', opacity: '0.65', marginTop: '2px' });
 
     inner.appendChild(num);
@@ -53,7 +54,7 @@ function buildPanels(): HTMLElement[] {
         inner.appendChild(item);
       }
       const tail = document.createElement('div');
-      tail.textContent = '— end —';
+      tail.textContent = end;
       Object.assign(tail.style, { fontSize: '11px', opacity: '0.55', marginTop: '4px' });
       inner.appendChild(tail);
     }
@@ -64,22 +65,25 @@ function buildPanels(): HTMLElement[] {
 }
 
 interface DemoOptions {
-  direction: ScrollContainerDirection;
-  overscan: number;
-  snapThreshold: number;
-  resistance: number;
-  minZoom: number;
-  maxZoom: number;
-  enablePinchZoom: boolean;
+  direction: ScrollContainerDirection; overscan: number;
+  snapThreshold: number; resistance: number;
+  minZoom: number; maxZoom: number; enablePinchZoom: boolean;
 }
 
 function ScrollContainerInstance(props: DemoOptions) {
-  const panels = useMemo(() => buildPanels(), []);
+  const { tr } = useLang();
+  const sc = tr.scrollContainer;
+  const panels = useMemo(
+    () => buildPanels(sc.noScroll, sc.verticalScroll, sc.end),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollContainer({
-    direction: props.direction, panels,
-    initialIndex: 0, overscan: props.overscan,
-    snapThreshold: props.snapThreshold, resistance: props.resistance,
-    minZoom: props.minZoom, maxZoom: props.maxZoom, enablePinchZoom: props.enablePinchZoom,
+    direction: props.direction, panels, initialIndex: 0,
+    overscan: props.overscan, snapThreshold: props.snapThreshold,
+    resistance: props.resistance, minZoom: props.minZoom,
+    maxZoom: props.maxZoom, enablePinchZoom: props.enablePinchZoom,
   });
 
   return (
@@ -92,7 +96,7 @@ function ScrollContainerInstance(props: DemoOptions) {
         <DataRow label="direction" value={props.direction} />
       </div>
 
-      <p style={sectionLabel}>scrollTo</p>
+      <p style={sectionLabel}>{tr.scrollTo}</p>
       <div style={btnGrid}>
         {[0, 2, PANEL_COUNT - 1].map((idx) => (
           <button key={`a-${idx}`} type="button" onClick={() => scrollTo(idx, { animated: true })} style={actionBtn}>
@@ -106,7 +110,7 @@ function ScrollContainerInstance(props: DemoOptions) {
         ))}
       </div>
 
-      <p style={sectionLabel}>zoomTo</p>
+      <p style={sectionLabel}>{tr.zoomTo}</p>
       <div style={btnGrid}>
         {[1, 2, 3].map((z) => (
           <button key={`za-${z}`} type="button" onClick={() => zoomTo(z, { animated: true })} style={actionBtn}>
@@ -132,82 +136,71 @@ export function ScrollContainerDemo() {
   const [maxZoom, setMaxZoom] = useState(3);
   const [enablePinchZoom, setEnablePinchZoom] = useState(true);
 
+  const { tr } = useLang();
+  const s = tr.scrollContainer;
+  const c = tr.controls;
+
   const remountKey = [direction, overscan, snapThreshold, resistance, minZoom, maxZoom, enablePinchZoom].join('|');
 
   return (
-    <DemoCard
-      title="ScrollContainer"
-      description="Three.js CSS3DRenderer 기반의 가로/세로 뷰포트 페이저. 축 고정 pan, 스냅, 엣지 저항, 핀치 줌, 패널 가상화를 제공합니다."
-      note="드래그로 패널 전환 · 두 손가락 핀치 줌 · 옵션 변경 시 자동 재마운트"
-    >
+    <DemoCard title={s.title} description={s.description} note={s.note}>
       <ControlGrid>
-        <ControlItem label="direction">
+        <ControlItem label={c.direction}>
           <select value={direction} onChange={(e) => setDirection(e.target.value as ScrollContainerDirection)} style={selectStyle}>
             <option value="horizontal">horizontal</option>
             <option value="vertical">vertical</option>
             <option value="both">both</option>
           </select>
         </ControlItem>
-        <ControlItem label={`overscan: ${overscan}`}>
+        <ControlItem label={c.overscan(overscan)}>
           <input type="range" min={0} max={3} step={1} value={overscan}
             onChange={(e) => setOverscan(Number(e.target.value))} />
         </ControlItem>
-        <ControlItem label="snapThreshold">
+        <ControlItem label={c.snapThreshold}>
           <input type="number" min={0.05} max={1} step={0.05} value={snapThreshold}
             onChange={(e) => setSnapThreshold(Number(e.target.value))} style={inputStyle} />
         </ControlItem>
-        <ControlItem label="resistance">
+        <ControlItem label={c.resistance}>
           <input type="number" min={0} max={1} step={0.05} value={resistance}
             onChange={(e) => setResistance(Number(e.target.value))} style={inputStyle} />
         </ControlItem>
-        <ControlItem label="minZoom">
+        <ControlItem label={c.minZoom}>
           <input type="number" min={0.1} max={5} step={0.1} value={minZoom}
             onChange={(e) => setMinZoom(Number(e.target.value))} style={inputStyle} />
         </ControlItem>
-        <ControlItem label="maxZoom">
+        <ControlItem label={c.maxZoom}>
           <input type="number" min={0.1} max={10} step={0.5} value={maxZoom}
             onChange={(e) => setMaxZoom(Number(e.target.value))} style={inputStyle} />
         </ControlItem>
-        <ControlItem label="enablePinchZoom" span>
+        <ControlItem label={c.enablePinchZoom} span>
           <label style={checkboxRowStyle}>
             <input type="checkbox" checked={enablePinchZoom} onChange={(e) => setEnablePinchZoom(e.target.checked)} />
-            <span style={{ fontSize: 13 }}>{enablePinchZoom ? 'true' : 'false'}</span>
+            <span style={{ fontSize: 13 }}>{String(enablePinchZoom)}</span>
           </label>
         </ControlItem>
       </ControlGrid>
 
-      <ScrollContainerInstance
-        key={remountKey}
-        direction={direction} overscan={overscan} snapThreshold={snapThreshold}
-        resistance={resistance} minZoom={minZoom} maxZoom={maxZoom} enablePinchZoom={enablePinchZoom}
-      />
+      <ScrollContainerInstance key={remountKey} direction={direction} overscan={overscan}
+        snapThreshold={snapThreshold} resistance={resistance}
+        minZoom={minZoom} maxZoom={maxZoom} enablePinchZoom={enablePinchZoom} />
     </DemoCard>
   );
 }
 
 const canvasStyle: React.CSSProperties = {
-  width: '100%', height: 320,
-  position: 'relative', background: '#111',
-  overflow: 'hidden', touchAction: 'none', borderRadius: 10,
+  width: '100%', height: 320, position: 'relative',
+  background: '#111', overflow: 'hidden', touchAction: 'none', borderRadius: 10,
 };
-
 const sectionLabel: React.CSSProperties = {
-  margin: '16px 0 6px',
-  fontSize: 11, fontWeight: 700, color: '#9ca3af',
-  textTransform: 'uppercase', letterSpacing: '0.06em',
+  margin: '16px 0 6px', fontSize: 11, fontWeight: 700,
+  color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em',
 };
-
-const btnGrid: React.CSSProperties = {
-  display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6,
-};
-
+const btnGrid: React.CSSProperties = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 };
 const actionBtn: React.CSSProperties = {
   padding: '8px 4px', fontSize: 11, fontWeight: 600,
   border: 'none', borderRadius: 8, background: '#4f46e5',
   color: '#fff', cursor: 'pointer', fontFamily: 'inherit',
 };
-
 const actionBtnOutline: React.CSSProperties = {
-  background: '#fff', color: '#4f46e5',
-  border: '1.5px solid #4f46e5',
+  background: '#fff', color: '#4f46e5', border: '1.5px solid #4f46e5',
 };

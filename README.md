@@ -7,6 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/@guksu/wvkit-vue?label=%40wvkit%2Fvue)](https://www.npmjs.com/package/@guksu/wvkit-vue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)](https://www.typescriptlang.org/)
+[![Demo](https://img.shields.io/badge/demo-live-4f46e5)](https://guksu.github.io/wvkit/)
 
 > Headless UI primitives for WebView — solving layout, scroll, and input problems that general-purpose UI libraries ignore.
 

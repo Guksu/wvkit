@@ -7,6 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/@guksu/wvkit-vue?label=%40wvkit%2Fvue)](https://www.npmjs.com/package/@guksu/wvkit-vue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)](https://www.typescriptlang.org/)
+[![데모](https://img.shields.io/badge/데모-라이브-4f46e5)](https://guksu.github.io/wvkit/)
 
 > WebView에 최적화된 헤드리스 UI 프리미티브 — 일반 UI 라이브러리가 무시하는 레이아웃·스크롤·인풋 문제를 해결합니다.
 
