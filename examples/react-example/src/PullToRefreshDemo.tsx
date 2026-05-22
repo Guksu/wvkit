@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
-import { usePullToRefresh } from '@wvkit/react';
-import type { PullToRefreshState } from '@wvkit/react';
+import { usePullToRefresh } from '@guksu/wvkit-react';
+import type { PullToRefreshState } from '@guksu/wvkit-react';
 
 /**
  * PullToRefresh 데모.

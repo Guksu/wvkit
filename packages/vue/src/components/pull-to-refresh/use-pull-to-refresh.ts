@@ -1,10 +1,10 @@
 import { onMounted, onUnmounted, ref, type Ref } from 'vue';
-import { createPullToRefresh } from '@wvkit/core';
+import { createPullToRefresh } from '@guksu/wvkit-core';
 import type {
   PullToRefreshInstance,
   PullToRefreshOptions,
   PullToRefreshState,
-} from '@wvkit/core';
+} from '@guksu/wvkit-core';
 
 /**
  * Vue 3 어댑터 — core `createPullToRefresh`를 감싸는 컴포저블.

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { createVirtualKeyboard } from '@wvkit/core';
-import type { VirtualKeyboardState } from '@wvkit/core';
+import { createVirtualKeyboard } from '@guksu/wvkit-core';
+import type { VirtualKeyboardState } from '@guksu/wvkit-core';
 
 interface UseVirtualKeyboardOptions {
   threshold?: number;

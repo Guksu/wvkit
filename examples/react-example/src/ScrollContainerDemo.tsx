@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { useScrollContainer } from '@wvkit/react';
-import type { ScrollContainerDirection } from '@wvkit/react';
+import { useScrollContainer } from '@guksu/wvkit-react';
+import type { ScrollContainerDirection } from '@guksu/wvkit-react';
 
 /**
  * ScrollContainer 데모.

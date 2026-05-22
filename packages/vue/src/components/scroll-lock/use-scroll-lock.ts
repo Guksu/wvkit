@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { createScrollLock } from '@wvkit/core';
-import type { ScrollLockInstance } from '@wvkit/core';
+import { createScrollLock } from '@guksu/wvkit-core';
+import type { ScrollLockInstance } from '@guksu/wvkit-core';
 
 export function useScrollLock() {
   const isLocked = ref(false);

@@ -1,5 +1,5 @@
 {
-  "name": "@wvkit/react",
+  "name": "@guksu/wvkit-react",
   "version": "0.2.0",
   "description": "Headless UI primitives for WebView — React adapter (hooks + components)",
   "type": "module",
@@ -53,7 +53,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@wvkit/core": "workspace:*"
+    "@guksu/wvkit-core": "workspace:*"
   },
   "peerDependencies": {
     "react": ">=18.0.0",

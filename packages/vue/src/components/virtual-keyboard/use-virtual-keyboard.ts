@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { createVirtualKeyboard } from '@wvkit/core';
-import type { VirtualKeyboardInstance } from '@wvkit/core';
+import { createVirtualKeyboard } from '@guksu/wvkit-core';
+import type { VirtualKeyboardInstance } from '@guksu/wvkit-core';
 
 interface UseVirtualKeyboardOptions {
   threshold?: number;

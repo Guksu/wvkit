@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { createPullToRefresh } from '@wvkit/core';
+import { createPullToRefresh } from '@guksu/wvkit-core';
 import type {
   PullToRefreshInstance,
   PullToRefreshOptions,
   PullToRefreshState,
-} from '@wvkit/core';
+} from '@guksu/wvkit-core';
 
 /**
  * React 어댑터 — core `createPullToRefresh`를 감싸는 훅.

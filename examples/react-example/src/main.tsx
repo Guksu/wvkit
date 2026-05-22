@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { useSafeArea, useScrollLock, useVirtualKeyboard, useStableInput, StableInputDisplay } from '@wvkit/react';
+import { useSafeArea, useScrollLock, useVirtualKeyboard, useStableInput, StableInputDisplay } from '@guksu/wvkit-react';
 import { useState } from 'react';
 import { ScrollContainerDemo } from './ScrollContainerDemo';
 import { PullToRefreshDemo } from './PullToRefreshDemo';

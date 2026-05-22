@@ -13,4 +13,4 @@ export type {
   PullToRefreshInstance,
   PullToRefreshOptions,
   PullToRefreshState,
-} from '@wvkit/core';
+} from '@guksu/wvkit-core';

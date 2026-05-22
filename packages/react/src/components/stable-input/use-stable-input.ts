@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { createStableInput } from '@wvkit/core';
-import type { StableInputOptions, StableInputInstance } from '@wvkit/core';
+import { createStableInput } from '@guksu/wvkit-core';
+import type { StableInputOptions, StableInputInstance } from '@guksu/wvkit-core';
 
 export function useStableInput(options: StableInputOptions = {}) {
   const containerRef = useRef<HTMLDivElement>(null);

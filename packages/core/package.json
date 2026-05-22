@@ -1,5 +1,5 @@
 {
-  "name": "@wvkit/core",
+  "name": "@guksu/wvkit-core",
   "version": "0.2.0",
   "description": "Headless UI primitives for WebView — framework-agnostic core (Vanilla JS)",
   "type": "module",

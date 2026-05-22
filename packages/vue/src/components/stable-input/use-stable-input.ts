@@ -1,6 +1,6 @@
 import { ref, onMounted, onUnmounted } from 'vue';
-import { createStableInput } from '@wvkit/core';
-import type { StableInputOptions, StableInputInstance } from '@wvkit/core';
+import { createStableInput } from '@guksu/wvkit-core';
+import type { StableInputOptions, StableInputInstance } from '@guksu/wvkit-core';
 
 export function useStableInput(options: StableInputOptions = {}) {
   const containerRef = ref<HTMLElement | null>(null);

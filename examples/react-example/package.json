@@ -9,8 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@wvkit/core": "workspace:*",
-    "@wvkit/react": "workspace:*",
+    "@guksu/wvkit-core": "workspace:*",
+    "@guksu/wvkit-react": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

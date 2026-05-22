@@ -2,9 +2,9 @@
 
 [한국어](README.ko.md)
 
-[![npm version](https://img.shields.io/npm/v/@wvkit/core?label=%40wvkit%2Fcore)](https://www.npmjs.com/package/@wvkit/core)
-[![npm version](https://img.shields.io/npm/v/@wvkit/react?label=%40wvkit%2Freact)](https://www.npmjs.com/package/@wvkit/react)
-[![npm version](https://img.shields.io/npm/v/@wvkit/vue?label=%40wvkit%2Fvue)](https://www.npmjs.com/package/@wvkit/vue)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-core?label=%40wvkit%2Fcore)](https://www.npmjs.com/package/@guksu/wvkit-core)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-react?label=%40wvkit%2Freact)](https://www.npmjs.com/package/@guksu/wvkit-react)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-vue?label=%40wvkit%2Fvue)](https://www.npmjs.com/package/@guksu/wvkit-vue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)](https://www.typescriptlang.org/)
 
@@ -44,7 +44,7 @@ wvkit handles all of these. Each component exposes only **behavior** — no defa
 ### Core (Vanilla JS / framework-agnostic)
 
 ```bash
-npm install @wvkit/core
+npm install @guksu/wvkit-core
 # ScrollContainer requires three as a peer dependency
 npm install three
 ```
@@ -52,14 +52,14 @@ npm install three
 ### React
 
 ```bash
-npm install @wvkit/react @wvkit/core
+npm install @guksu/wvkit-react @guksu/wvkit-core
 npm install three        # required by ScrollContainer
 ```
 
 ### Vue 3
 
 ```bash
-npm install @wvkit/vue @wvkit/core
+npm install @guksu/wvkit-vue @guksu/wvkit-core
 npm install three        # required by ScrollContainer
 ```
 
@@ -73,7 +73,7 @@ npm install three        # required by ScrollContainer
 
 **Core**
 ```ts
-import { createPullToRefresh } from '@wvkit/core';
+import { createPullToRefresh } from '@guksu/wvkit-core';
 
 const ptr = createPullToRefresh(containerEl, {
   onRefresh: async () => {
@@ -94,7 +94,7 @@ ptr.destroy();
 
 **React**
 ```tsx
-import { usePullToRefresh } from '@wvkit/react';
+import { usePullToRefresh } from '@guksu/wvkit-react';
 
 function Feed() {
   const { containerRef, state, distance, progress, trigger } = usePullToRefresh({
@@ -116,7 +116,7 @@ function Feed() {
 **Vue**
 ```vue
 <script setup lang="ts">
-import { usePullToRefresh } from '@wvkit/vue';
+import { usePullToRefresh } from '@guksu/wvkit-vue';
 
 const { containerRef, state, distance, progress } = usePullToRefresh({
   onRefresh: async () => { await fetchFeed(); },
@@ -139,7 +139,7 @@ const { containerRef, state, distance, progress } = usePullToRefresh({
 
 **Core**
 ```ts
-import { createStableInput } from '@wvkit/core';
+import { createStableInput } from '@guksu/wvkit-core';
 
 const input = createStableInput(containerEl, {
   placeholder: 'Search…',
@@ -156,7 +156,7 @@ input.destroy();
 
 **React**
 ```tsx
-import { useStableInput, StableInputDisplay } from '@wvkit/react';
+import { useStableInput, StableInputDisplay } from '@guksu/wvkit-react';
 
 function SearchBar() {
   const inputProps = useStableInput({
@@ -171,7 +171,7 @@ function SearchBar() {
 **Vue**
 ```vue
 <script setup lang="ts">
-import { useStableInput } from '@wvkit/vue';
+import { useStableInput } from '@guksu/wvkit-vue';
 
 const { containerRef, value, isFocused, focus, blur, setValue } = useStableInput({
   onChange: (v) => search(v),
@@ -184,7 +184,7 @@ const { containerRef, value, isFocused, focus, blur, setValue } = useStableInput
 ### ScrollContainer
 
 ```ts
-import { createScrollContainer } from '@wvkit/core';
+import { createScrollContainer } from '@guksu/wvkit-core';
 
 const sc = createScrollContainer(rootEl, {
   direction: 'horizontal',
@@ -208,7 +208,7 @@ sc.destroy();
 
 ```ts
 // Virtual keyboard state
-import { createVirtualKeyboard } from '@wvkit/core';
+import { createVirtualKeyboard } from '@guksu/wvkit-core';
 const kb = createVirtualKeyboard(el, {
   onKeyboardChange: ({ isOpen, keyboardHeight }) => {
     bottomBar.style.transform = isOpen ? `translateY(-${keyboardHeight}px)` : '';
@@ -216,7 +216,7 @@ const kb = createVirtualKeyboard(el, {
 });
 
 // Safe area insets
-import { createSafeArea } from '@wvkit/core';
+import { createSafeArea } from '@guksu/wvkit-core';
 const sa = createSafeArea(el, {
   onChange: ({ top, bottom }) => {
     header.style.paddingTop = `${top}px`;
@@ -225,7 +225,7 @@ const sa = createSafeArea(el, {
 });
 
 // Scroll lock
-import { createScrollLock } from '@wvkit/core';
+import { createScrollLock } from '@guksu/wvkit-core';
 const lock = createScrollLock(el, {});
 lock.lock();
 lock.unlock();

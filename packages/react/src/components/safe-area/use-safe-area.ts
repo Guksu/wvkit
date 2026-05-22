@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { createSafeArea } from '@wvkit/core';
-import type { SafeAreaInsets } from '@wvkit/core';
+import { createSafeArea } from '@guksu/wvkit-core';
+import type { SafeAreaInsets } from '@guksu/wvkit-core';
 
 const INITIAL_INSETS: SafeAreaInsets = { top: 0, right: 0, bottom: 0, left: 0 };
 
