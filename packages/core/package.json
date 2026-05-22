@@ -1,7 +1,7 @@
 {
   "name": "@wvkit/core",
-  "version": "0.0.0",
-  "description": "WebView 헤드리스 UI — Vanilla JS 코어",
+  "version": "0.1.0",
+  "description": "Headless UI primitives for WebView — framework-agnostic core (Vanilla JS)",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -14,7 +14,36 @@
     }
   },
   "sideEffects": false,
-  "files": ["dist"],
+  "files": ["dist", "README.md"],
+  "license": "MIT",
+  "author": {
+    "name": "Guksu",
+    "url": "https://github.com/Guksu"
+  },
+  "homepage": "https://github.com/Guksu/wvkit#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Guksu/wvkit.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/Guksu/wvkit/issues"
+  },
+  "keywords": [
+    "webview",
+    "headless",
+    "ui",
+    "scroll",
+    "scroll-container",
+    "pull-to-refresh",
+    "stable-input",
+    "safe-area",
+    "virtual-keyboard",
+    "ios",
+    "android",
+    "wkwebview",
+    "typescript"
+  ],
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -28,7 +57,7 @@
   },
   "peerDependenciesMeta": {
     "three": {
-      "optional": false
+      "optional": true
     }
   },
   "devDependencies": {
