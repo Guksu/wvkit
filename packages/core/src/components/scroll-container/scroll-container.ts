@@ -265,14 +265,15 @@ export function createScrollContainer(
     for (const panel of options.panels) {
       panel.style.display = '';
     }
-    if (renderer.domElement.parentNode === root) {
-      root.removeChild(renderer.domElement);
+    // m-3: parentNode === root 동등성 비교를 존재성으로 완화 — 외부에서 renderer.domElement를
+    // 다른 컨테이너로 옮긴 경우에도 detach가 보장됨.
+    const parent = renderer.domElement.parentNode;
+    if (parent) {
+      parent.removeChild(renderer.domElement);
     }
-    while (scene.children.length > 0) {
-      const child = scene.children[0];
-      if (!child) break;
-      scene.remove(child);
-    }
+    // m-4: scene이 보유한 CSS3DObject 참조를 일괄 해제. camera/renderer 자체는 클로저 GC가 처리 —
+    // destroy 이후 외부에서 더 이상 접근하지 않으므로 명시적 null 할당 없이도 회수됨.
+    scene.clear();
   }
 
   return {

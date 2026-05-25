@@ -293,12 +293,16 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   }
 
   // --- 포인터 이벤트 핸들러 ---
+  // m-5: 캡처된 pointerId를 추적해 destroy 시점에 남은 캡처를 일괄 release.
+  const capturedPointerIds = new Set<number>();
+
   function onPointerDown(ev: PointerEvent): void {
     // 사용자 입력 시작 → 진행 중 트윈 취소
     cancelAnimationInternal();
     pointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     try {
       root.setPointerCapture(ev.pointerId);
+      capturedPointerIds.add(ev.pointerId);
     } catch {
       // happy-dom 등 일부 환경은 setPointerCapture 미지원 — 무시
     }
@@ -329,6 +333,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     } catch {
       // 캡처되지 않았던 경우 등 — 무시
     }
+    capturedPointerIds.delete(ev.pointerId);
     if (pinchStart) {
       endPinch();
       // 한 손가락이 남았으면 pan으로 복귀
@@ -421,6 +426,15 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
 
   function destroy(): void {
     cancelAnimationInternal();
+    // m-5: 진행 중 제스처 중간에 destroy되면 setPointerCapture가 누수 — 남은 모든 캡처를 명시 release.
+    for (const pid of capturedPointerIds) {
+      try {
+        root.releasePointerCapture(pid);
+      } catch {
+        // 이미 해제됐거나 미지원 환경 — 무시
+      }
+    }
+    capturedPointerIds.clear();
     for (const off of listeners) off();
     listeners.length = 0;
     pointers.clear();
