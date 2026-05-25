@@ -1,6 +1,6 @@
 {
   "name": "@guksu/wvkit-vue",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Headless UI primitives for WebView — Vue 3 adapter (composables + renderless components)",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -14,7 +14,10 @@
     }
   },
   "sideEffects": false,
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "license": "MIT",
   "author": {
     "name": "Guksu",
