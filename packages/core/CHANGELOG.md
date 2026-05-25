@@ -1,5 +1,17 @@
 # @guksu/wvkit-core
 
+## 0.3.1
+
+### Patch Changes
+
+- fix(scroll-container): destroy 시 누수 경로 3건 정리 (P3 polish)
+
+  - **m-3**: `destroy()`의 `renderer.domElement.parentNode === root` 동등성 체크를 존재성 체크로 완화 — 외부에서 renderer를 다른 컨테이너로 옮긴 뒤 destroy 호출 시 detach 누락되던 버그 수정.
+  - **m-4**: destroy 끝에서 `scene.clear()`로 보유 중인 CSS3DObject 참조를 일괄 해제. camera/renderer 자체는 클로저 GC로 회수되므로 명시적 null 할당은 없음.
+  - **m-5**: CameraControl이 setPointerCapture된 pointerId를 Set으로 트래킹하고, destroy 시점에 남은 모든 캡처를 `releasePointerCapture`로 명시 해제 — 진행 중 제스처가 있는 상태로 컴포넌트가 unmount될 때 capture 누수 방지.
+
+  행동 변화 없음 (기존 정상 destroy 시퀀스에서 동작 동일). 외부 API 변경 없음.
+
 ## 0.3.0
 
 ### Minor Changes
