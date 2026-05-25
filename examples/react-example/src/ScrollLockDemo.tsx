@@ -11,16 +11,32 @@ export function ScrollLockDemo() {
     <DemoCard title={s.title} description={s.description}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <div style={{ ...dot, background: isLocked ? '#ef4444' : '#22c55e' }} />
-        <span style={{ fontSize: 14, fontWeight: 600, color: isLocked ? '#ef4444' : '#22c55e' }}>
+        <span
+          style={{ fontSize: 14, fontWeight: 600, color: isLocked ? '#ef4444' : '#22c55e' }}
+          data-testid="lock-status"
+          data-locked={isLocked ? 'true' : 'false'}
+        >
           {isLocked ? s.locked : s.unlocked}
         </span>
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" onClick={lock} disabled={isLocked} style={{ ...btn, ...btnDanger, opacity: isLocked ? 0.4 : 1 }}>
+        <button
+          type="button"
+          onClick={lock}
+          disabled={isLocked}
+          style={{ ...btn, ...btnDanger, opacity: isLocked ? 0.4 : 1 }}
+          data-testid="lock-btn"
+        >
           lock()
         </button>
-        <button type="button" onClick={unlock} disabled={!isLocked} style={{ ...btn, ...btnSuccess, opacity: !isLocked ? 0.4 : 1 }}>
+        <button
+          type="button"
+          onClick={unlock}
+          disabled={!isLocked}
+          style={{ ...btn, ...btnSuccess, opacity: !isLocked ? 0.4 : 1 }}
+          data-testid="unlock-btn"
+        >
           unlock()
         </button>
       </div>

@@ -24,32 +24,35 @@ export function StableInputDemo() {
 
   return (
     <DemoCard title={s.title} description={s.description} note={s.note}>
-      <StableInputDisplay
-        {...inputProps}
-        style={{
-          display: 'block', width: '100%',
-          border: '1.5px solid #e5e7eb', borderRadius: 8,
-          padding: '12px 14px', fontSize: 16,
-          boxSizing: 'border-box', fontFamily: 'inherit',
-          cursor: 'text', background: '#fff',
-        }}
-      />
+      <div data-testid="stable-input-display">
+        <StableInputDisplay
+          {...inputProps}
+          style={{
+            display: 'block', width: '100%',
+            border: '1.5px solid #e5e7eb', borderRadius: 8,
+            padding: '12px 14px', fontSize: 16,
+            boxSizing: 'border-box', fontFamily: 'inherit',
+            cursor: 'text', background: '#fff',
+          }}
+        />
+      </div>
 
       <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <button type="button" onClick={() => inputProps.focus()} style={btn}>
+        <button type="button" onClick={() => inputProps.focus()} style={btn} data-testid="stable-input-focus">
           focus()
         </button>
         <button
           type="button"
           onClick={() => { inputProps.setValue('Hello, WebView!'); setValue('Hello, WebView!'); }}
           style={btn}
+          data-testid="stable-input-set"
         >
           {s.setValueBtn}
         </button>
       </div>
 
       {value && (
-        <p style={{ marginTop: 12, fontSize: 13, color: '#374151' }}>
+        <p style={{ marginTop: 12, fontSize: 13, color: '#374151' }} data-testid="stable-input-value">
           value: <code style={code}>{value}</code>
         </p>
       )}

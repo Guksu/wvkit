@@ -68,6 +68,7 @@ function App() {
                 <button
                   key={id}
                   type="button"
+                  data-testid={`tab-${id}`}
                   onClick={() => setActiveTab(id)}
                   style={{ ...tabBtn, ...(activeTab === id ? tabBtnActive : {}) }}
                 >

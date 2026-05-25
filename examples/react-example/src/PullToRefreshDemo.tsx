@@ -48,7 +48,7 @@ function PullToRefreshInstance(props: DemoOptions & { items: ListItem[]; onRefre
         }}>
           {indicatorText(state, progress)}
         </div>
-        <div ref={containerRef} style={listWrap}>
+        <div ref={containerRef} style={listWrap} data-testid="ptr-container">
           {props.items.map((item) => (
             <div key={item.id} style={{ ...listItem, color: item.id.startsWith('refresh-') ? '#4f46e5' : '#374151' }}>
               {item.label}
@@ -63,7 +63,12 @@ function PullToRefreshInstance(props: DemoOptions & { items: ListItem[]; onRefre
         <DataRow label="progress" value={progress.toFixed(2)} />
       </div>
 
-      <button type="button" onClick={() => { void trigger(); }} style={triggerBtn}>
+      <button
+        type="button"
+        onClick={() => { void trigger(); }}
+        style={triggerBtn}
+        data-testid="ptr-trigger"
+      >
         {s.triggerBtn}
       </button>
     </>

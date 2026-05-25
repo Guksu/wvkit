@@ -22,7 +22,7 @@ export function VirtualKeyboardDemo() {
         </div>
       )}
 
-      <input type="text" placeholder={s.placeholder} style={inputStyle} />
+      <input type="text" placeholder={s.placeholder} style={inputStyle} data-testid="vk-input" />
     </DemoCard>
   );
 }
