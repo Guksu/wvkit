@@ -36,10 +36,6 @@ coverage/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
-# Changesets
-.changeset/*.md
-!.changeset/config.json
-
 # Claude Code
 .claude/
 CLAUDE.md
