@@ -10,7 +10,15 @@ export function useStableInput(options: StableInputOptions = {}) {
 
   useEffect(() => {
     if (!containerRef.current) return;
-    instanceRef.current = createStableInput(containerRef.current, optionsRef.current);
+    // 사용자 콜백은 최신 ref 경유로 호출 — 마운트 시점 options 스냅샷을 그대로 넘기면
+    // 리렌더 이후 교체된 콜백 대신 stale closure가 호출된다 (다른 훅들과 동일한 wrap 패턴).
+    instanceRef.current = createStableInput(containerRef.current, {
+      ...optionsRef.current,
+      onChange: (v) => optionsRef.current.onChange?.(v),
+      onFocus: () => optionsRef.current.onFocus?.(),
+      onBlur: () => optionsRef.current.onBlur?.(),
+      onSubmit: (v) => optionsRef.current.onSubmit?.(v),
+    });
     return () => {
       instanceRef.current?.destroy();
       instanceRef.current = null;
