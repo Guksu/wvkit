@@ -282,9 +282,17 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     let newCameraX = pinchStart.worldAnchor.x - (midpoint.x - width / 2) / newZoom;
     let newCameraY = pinchStart.worldAnchor.y + (midpoint.y - height / 2) / newZoom;
 
-    // 축 제약: pan 성분은 축 위에만, 줌은 항상 적용
-    if (axis === 'x') newCameraY = pinchStart.cameraY;
-    else newCameraX = pinchStart.cameraX;
+    // 축 제약: pan 성분은 축 위에만, 줌은 항상 적용.
+    // 축 방향 성분에는 1손가락 pan과 동일하게 엣지 저항 적용 — 없으면 간격을 유지한
+    // 두 손가락 이동(two-finger pan)으로 카메라가 무제한 이탈해 콘텐츠가 화면 밖으로 사라진다.
+    const bounds = panBoundsAlongAxis();
+    if (axis === 'x') {
+      newCameraX = applyResistance(newCameraX, bounds.min, bounds.max, resistance);
+      newCameraY = pinchStart.cameraY;
+    } else {
+      newCameraY = applyResistance(newCameraY, bounds.min, bounds.max, resistance);
+      newCameraX = pinchStart.cameraX;
+    }
 
     camera.position.x = newCameraX;
     camera.position.y = newCameraY;
