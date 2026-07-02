@@ -344,8 +344,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     capturedPointerIds.delete(ev.pointerId);
     if (pinchStart) {
       endPinch();
-      // 한 손가락이 남았으면 pan으로 복귀
-      if (pointers.size === 1) {
+      // 남은 손가락 수에 따라 제스처 승계 — 2개 이상이면 pinch 재시작
+      // (3+ 손가락에서 하나만 떼어도 제스처가 죽어 카메라가 스냅 없이 방치되는 것 방지),
+      // 1개면 pan으로 복귀.
+      if (pointers.size >= 2) {
+        startPinch();
+      } else if (pointers.size === 1) {
         const remainingId = pointers.keys().next().value as number | undefined;
         if (remainingId !== undefined) startPan(remainingId);
       }
