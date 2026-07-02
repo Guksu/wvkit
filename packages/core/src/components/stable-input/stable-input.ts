@@ -95,7 +95,12 @@ export function createStableInput(
   });
 
   addListener(hiddenInput, 'keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Enter') {
+    const kev = e as KeyboardEvent;
+    // IME 조합 확정용 Enter는 제출로 취급하지 않음 — 한글 등 조합형 입력에서
+    // 마지막 글자를 확정하는 Enter로 onSubmit이 조기 발화하는 것을 방지.
+    // keyCode 229는 isComposing을 제대로 채우지 않는 구형 WebView/Safari 대응.
+    if (kev.isComposing || kev.keyCode === 229) return;
+    if (kev.key === 'Enter') {
       options.onSubmit?.(hiddenInput.value);
     }
   });
