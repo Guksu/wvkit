@@ -22,11 +22,19 @@ export function createVirtualKeyboard(options: VirtualKeyboardOptions = {}): Vir
   // 초기화 시점의 뷰포트 높이를 기준으로 키보드 높이를 추론.
   // iOS: window.innerHeight는 고정, visualViewport.height만 줄어듦.
   // Android: window.innerHeight도 줄어들지만 visualViewport.height가 더 신뢰할 수 있음.
-  const baseHeight = window.visualViewport?.height ?? window.innerHeight;
+  let baseHeight = window.visualViewport?.height ?? window.innerHeight;
+  let baseWidth = window.visualViewport?.width ?? window.innerWidth;
   const threshold = options.threshold ?? 100;
 
   function update() {
     const currentHeight = window.visualViewport?.height ?? window.innerHeight;
+    const currentWidth = window.visualViewport?.width ?? window.innerWidth;
+    // 키보드는 뷰포트 너비를 바꾸지 않는다 — 너비가 변했다면 회전/창 크기 변경이므로
+    // 기준 높이를 재설정해 높이 감소가 키보드로 오검출되는 것을 막는다.
+    if (currentWidth !== baseWidth) {
+      baseWidth = currentWidth;
+      baseHeight = currentHeight;
+    }
     const delta = Math.max(0, baseHeight - currentHeight);
     const newIsOpen = delta > threshold;
     // threshold 미만 변화는 키보드로 간주하지 않고 0으로 처리

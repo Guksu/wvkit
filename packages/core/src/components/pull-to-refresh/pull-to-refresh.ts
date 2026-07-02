@@ -51,6 +51,8 @@ export function createPullToRefresh(
   // --- 제스처 추적 ---
   let activeGestureId: number | null = null;
   let activeSource: 'touch' | 'pointer' | null = null;
+  /** 활성 pointer 제스처가 touch에서 합성된 것인지 (touchstart로의 소스 승계 판단용) */
+  let activePointerIsTouch = false;
   let startClientY: number | null = null;
   let currentDistance = 0;
 
@@ -131,6 +133,7 @@ export function createPullToRefresh(
   function clearGesture(): void {
     activeGestureId = null;
     activeSource = null;
+    activePointerIsTouch = false;
     startClientY = null;
   }
 
@@ -213,9 +216,17 @@ export function createPullToRefresh(
   function onTouchStart(ev: Event): void {
     const tev = ev as TouchEvent;
     if (tev.touches.length !== 1) return;
-    if (activeSource !== null) return;
     const touch = tev.touches.item(0);
     if (!touch) return;
+    // 실기기에서는 pointerdown이 touchstart보다 먼저 발화해 pointer 소스가 제스처를 선점한다.
+    // touch에서 합성된 pointer 제스처면 touch 소스로 승계 — 이후 touchmove의 preventDefault가
+    // 동작해야 pulling 중 native scroll이 차단된다.
+    if (activeSource === 'pointer' && activePointerIsTouch) {
+      activeSource = 'touch';
+      activeGestureId = touch.identifier;
+      return;
+    }
+    if (activeSource !== null) return;
     tryStart(touch.clientY, touch.identifier, 'touch');
   }
 
@@ -267,6 +278,7 @@ export function createPullToRefresh(
     // touch가 이미 활성화돼 있으면 pointer는 스킵 (touch에서 합성된 pointer 이중 처리 방지)
     if (activeSource !== null) return;
     if (tryStart(pev.clientY, pev.pointerId, 'pointer')) {
+      activePointerIsTouch = pev.pointerType === 'touch';
       try {
         root.setPointerCapture(pev.pointerId);
       } catch {

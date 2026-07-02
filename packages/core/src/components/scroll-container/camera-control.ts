@@ -86,6 +86,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     pointerId: number;
     activeIndex: number;
     lastMoveTime: number;
+    lastMoveInterval: number; // 직전 두 move 사이 간격(ms) — release 시 속도 계산의 분모
     lastDelta: number; // axis 방향, 카메라 단위
   };
   let panStart: PanState | null = null;
@@ -150,6 +151,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       pointerId,
       activeIndex: currentActiveIndex(),
       lastMoveTime: performance.now(),
+      lastMoveInterval: 0,
       lastDelta: 0,
     };
   }
@@ -185,6 +187,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     const prevValue = camera.position[axis];
     const newValue = axis === 'x' ? targetX : targetY;
     panStart.lastDelta = newValue - prevValue;
+    panStart.lastMoveInterval = Math.max(1, now - panStart.lastMoveTime);
     panStart.lastMoveTime = now;
 
     camera.position.x = targetX;
@@ -211,7 +214,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     // Y축은 음수 방향이 forward(인덱스 증가)이므로 부호 반전
     if (axis === 'y') dragRatio = -dragRatio;
 
-    const dt = Math.max(1, performance.now() - start.lastMoveTime);
+    // lastDelta는 "직전 move 한 번의 변위"이므로 분모도 move 간 간격이어야 한다.
+    // release가 마지막 move 직후(1~5ms)에 오면 (now - lastMoveTime)만 쓰는 계산은
+    // 속도를 수십 배 부풀려 마지막 순간의 미세 지터가 스냅 방향을 뒤집을 수 있다.
+    // move 간격을 하한으로 삼고, release가 지연될수록 기존처럼 자연 감쇠시킨다.
+    const sinceLastMove = performance.now() - start.lastMoveTime;
+    const dt = Math.max(1, start.lastMoveInterval, sinceLastMove);
     let velocityRatio = (start.lastDelta / panelSize) * (VELOCITY_SAMPLE_WINDOW_MS / dt);
     if (axis === 'y') velocityRatio = -velocityRatio;
 
@@ -274,9 +282,17 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     let newCameraX = pinchStart.worldAnchor.x - (midpoint.x - width / 2) / newZoom;
     let newCameraY = pinchStart.worldAnchor.y + (midpoint.y - height / 2) / newZoom;
 
-    // 축 제약: pan 성분은 축 위에만, 줌은 항상 적용
-    if (axis === 'x') newCameraY = pinchStart.cameraY;
-    else newCameraX = pinchStart.cameraX;
+    // 축 제약: pan 성분은 축 위에만, 줌은 항상 적용.
+    // 축 방향 성분에는 1손가락 pan과 동일하게 엣지 저항 적용 — 없으면 간격을 유지한
+    // 두 손가락 이동(two-finger pan)으로 카메라가 무제한 이탈해 콘텐츠가 화면 밖으로 사라진다.
+    const bounds = panBoundsAlongAxis();
+    if (axis === 'x') {
+      newCameraX = applyResistance(newCameraX, bounds.min, bounds.max, resistance);
+      newCameraY = pinchStart.cameraY;
+    } else {
+      newCameraY = applyResistance(newCameraY, bounds.min, bounds.max, resistance);
+      newCameraX = pinchStart.cameraX;
+    }
 
     camera.position.x = newCameraX;
     camera.position.y = newCameraY;
@@ -336,8 +352,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     capturedPointerIds.delete(ev.pointerId);
     if (pinchStart) {
       endPinch();
-      // 한 손가락이 남았으면 pan으로 복귀
-      if (pointers.size === 1) {
+      // 남은 손가락 수에 따라 제스처 승계 — 2개 이상이면 pinch 재시작
+      // (3+ 손가락에서 하나만 떼어도 제스처가 죽어 카메라가 스냅 없이 방치되는 것 방지),
+      // 1개면 pan으로 복귀.
+      if (pointers.size >= 2) {
+        startPinch();
+      } else if (pointers.size === 1) {
         const remainingId = pointers.keys().next().value as number | undefined;
         if (remainingId !== undefined) startPan(remainingId);
       }
