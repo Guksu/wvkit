@@ -109,5 +109,6 @@ interface VirtualKeyboardState {
 
 - 높이 기반 추론 방식: 분할 화면, 플로팅 키보드, 브라우저 툴바 변화가 오탐을 유발할 수 있습니다. `threshold`를 조정해 줄이세요.
 - `keyboardHeight`는 뷰포트 수축으로 계산한 추정값으로, 실제 네이티브 키보드 높이와 다를 수 있습니다.
-- `baseHeight`는 마운트 시점에 결정됩니다. 마운트 전에 WebView 크기가 변경되면 기준값이 부정확해질 수 있습니다.
+- `baseHeight`는 마운트 시점에 결정되지만 자가 회복합니다: 뷰포트가 기준보다 커지는 순간(예: 키보드 닫힘)마다 기준값이 갱신되므로, 키보드가 열린 상태에서 인스턴스를 생성해도 그 첫 세션만 감지하지 못합니다.
+- Android WebView가 `adjustPan` 모드(`android:windowSoftInputMode`)면 키보드가 열려도 뷰포트 크기가 변하지 않아 — `visualViewport`도 `window.resize`도 발화하지 않아 — 감지가 불가능합니다. 호스트 앱이 `adjustResize`를 사용해야 합니다.
 - SSR 환경에서는 항상 `{ isOpen: false, keyboardHeight: 0 }`을 반환합니다.

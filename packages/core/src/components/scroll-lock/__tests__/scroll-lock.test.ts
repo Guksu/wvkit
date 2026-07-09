@@ -108,6 +108,88 @@ describe('createScrollLock', () => {
     instance.destroy();
   });
 
+  it('lock 이전의 인라인 overflow 값이 unlock 시 그대로 복원된다', () => {
+    document.body.style.overflow = 'scroll';
+    document.body.style.overscrollBehavior = 'contain';
+    const instance = createScrollLock();
+    instance.lock();
+    expect(document.body.style.overflow).toBe('hidden');
+    instance.unlock();
+    expect(document.body.style.overflow).toBe('scroll');
+    expect(document.body.style.overscrollBehavior).toBe('contain');
+    instance.destroy();
+  });
+
+  describe('allowScrollWithin', () => {
+    function dispatchTouchMove(target: Element) {
+      const event = new Event('touchmove', { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event;
+    }
+
+    it('허용 영역 안에서 발생한 touchmove는 preventDefault되지 않는다', () => {
+      const modal = document.createElement('div');
+      modal.className = 'modal-body';
+      const inner = document.createElement('p');
+      modal.appendChild(inner);
+      document.body.appendChild(modal);
+
+      const instance = createScrollLock({ allowScrollWithin: '.modal-body' });
+      instance.lock();
+
+      expect(dispatchTouchMove(inner).defaultPrevented).toBe(false);
+
+      instance.destroy();
+      modal.remove();
+    });
+
+    it('허용 영역 밖에서 발생한 touchmove는 preventDefault된다', () => {
+      const modal = document.createElement('div');
+      modal.className = 'modal-body';
+      const outside = document.createElement('div');
+      document.body.appendChild(modal);
+      document.body.appendChild(outside);
+
+      const instance = createScrollLock({ allowScrollWithin: '.modal-body' });
+      instance.lock();
+
+      expect(dispatchTouchMove(outside).defaultPrevented).toBe(true);
+
+      instance.destroy();
+      modal.remove();
+      outside.remove();
+    });
+
+    it('엘리먼트로 지정해도 하위 영역의 touchmove가 허용된다', () => {
+      const modal = document.createElement('div');
+      const inner = document.createElement('p');
+      modal.appendChild(inner);
+      document.body.appendChild(modal);
+
+      const instance = createScrollLock({ allowScrollWithin: modal });
+      instance.lock();
+
+      expect(dispatchTouchMove(inner).defaultPrevented).toBe(false);
+      expect(dispatchTouchMove(document.body).defaultPrevented).toBe(true);
+
+      instance.destroy();
+      modal.remove();
+    });
+
+    it('옵션이 없으면 모든 touchmove가 preventDefault된다 (기존 동작 유지)', () => {
+      const el = document.createElement('div');
+      document.body.appendChild(el);
+
+      const instance = createScrollLock();
+      instance.lock();
+
+      expect(dispatchTouchMove(el).defaultPrevented).toBe(true);
+
+      instance.destroy();
+      el.remove();
+    });
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입

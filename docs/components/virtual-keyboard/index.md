@@ -109,5 +109,6 @@ interface VirtualKeyboardState {
 
 - Height-based inference: split-screen, floating keyboard, or browser toolbar changes can trigger false positives. Tune `threshold` to reduce these.
 - `keyboardHeight` is an estimate derived from viewport shrinkage — it may not exactly match the native keyboard height on all devices.
-- `baseHeight` is set on mount. If the WebView is resized before mount completes, the baseline may be incorrect.
+- `baseHeight` is set on mount, but self-heals: whenever the viewport grows past the baseline (e.g. the keyboard closes), the baseline is updated — so creating an instance while the keyboard is already open only misses that first keyboard session.
+- Android WebView in `adjustPan` mode (`android:windowSoftInputMode`) does not resize the viewport when the keyboard opens — neither `visualViewport` nor `window.resize` fires, so detection is impossible. The host app must use `adjustResize`.
 - In SSR environments all values are `{ isOpen: false, keyboardHeight: 0 }`.

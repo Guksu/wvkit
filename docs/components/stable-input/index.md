@@ -134,4 +134,5 @@ The display input gets `data-focused="true"` when the hidden input has focus. Us
 
 - Password managers and autofill may not recognize the hidden input. Set `autocomplete` explicitly (e.g., `'off'` or `'current-password'`).
 - IME composition (CJK input) works but the display input may lag by one composition cycle. For production CJK apps, test carefully.
+- Touches that move more than 10px between `touchstart` and `touchend` are treated as scroll gestures and do not focus the input — a scroll that starts and ends on the input will not open the keyboard.
 - `scrollAnchor` relies on `visualViewport` — no adjustment occurs on browsers that don't support it.
