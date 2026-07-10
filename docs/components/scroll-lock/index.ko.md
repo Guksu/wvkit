@@ -10,10 +10,10 @@ WebView 앱에서 모달이나 바텀 시트가 열릴 때, 뒤에 있는 페이
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core
+npm install @guksu/wvkit-core
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -22,7 +22,7 @@ pnpm add @wvkit/core
 ::: code-group
 
 ```js [Vanilla JS]
-import { createScrollLock } from '@wvkit/core';
+import { createScrollLock } from '@guksu/wvkit-core';
 
 const scrollLock = createScrollLock({
   onLock: () => console.log('잠금'),
@@ -40,7 +40,7 @@ scrollLock.destroy();
 ```
 
 ```tsx [React]
-import { useScrollLock } from '@wvkit/react';
+import { useScrollLock } from '@guksu/wvkit-react';
 
 function Modal({ isOpen, onClose }) {
   const { lock, unlock } = useScrollLock();
@@ -57,7 +57,7 @@ function Modal({ isOpen, onClose }) {
 ```vue [Vue]
 <script setup>
 import { watch } from 'vue';
-import { useScrollLock } from '@wvkit/vue';
+import { useScrollLock } from '@guksu/wvkit-vue';
 
 const props = defineProps(['isOpen']);
 const { lock, unlock } = useScrollLock();

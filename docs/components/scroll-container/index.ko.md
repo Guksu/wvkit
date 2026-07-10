@@ -23,15 +23,15 @@
 
 ## 설치
 
-`three`는 호스트 앱이 제공하는 peer dependency입니다. React/Vue 어댑터는 `@wvkit/core`에 의존하므로 `three`는 자연스럽게 transitively external로 처리됩니다 — 호스트 앱 레벨에서 한 번만 설치하세요.
+`three`는 호스트 앱이 제공하는 peer dependency입니다. React/Vue 어댑터는 `@guksu/wvkit-core`에 의존하므로 `three`는 자연스럽게 transitively external로 처리됩니다 — 호스트 앱 레벨에서 한 번만 설치하세요.
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core three
-# 프레임워크에 따라 @wvkit/react 또는 @wvkit/vue 추가
+npm install @guksu/wvkit-core three
+# 프레임워크에 따라 @guksu/wvkit-react 또는 @guksu/wvkit-vue 추가
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core three
+pnpm add @guksu/wvkit-core three
 ```
 :::
 
@@ -40,7 +40,7 @@ pnpm add @wvkit/core three
 ::: code-group
 
 ```js [Vanilla JS]
-import { createScrollContainer } from '@wvkit/core';
+import { createScrollContainer } from '@guksu/wvkit-core';
 
 const root = document.getElementById('viewport');
 const panels = Array.from({ length: 5 }, (_, i) => {
@@ -70,7 +70,7 @@ sc.destroy();
 
 ```tsx [React]
 import { useMemo } from 'react';
-import { useScrollContainer } from '@wvkit/react';
+import { useScrollContainer } from '@guksu/wvkit-react';
 
 function Carousel() {
   const panels = useMemo(
@@ -99,7 +99,7 @@ function Carousel() {
 
 ```vue [Vue]
 <script setup>
-import { useScrollContainer } from '@wvkit/vue';
+import { useScrollContainer } from '@guksu/wvkit-vue';
 
 const panels = Array.from({ length: 5 }, (_, i) => {
   const el = document.createElement('div');
@@ -180,9 +180,9 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 
 ## 번들 사이즈
 
-`three`는 `@wvkit/core`에 **번들되지 않습니다** — `external`로 선언되어 호스트 앱이 peer dependency로 제공해야 합니다.
+`three`는 `@guksu/wvkit-core`에 **번들되지 않습니다** — `external`로 선언되어 호스트 앱이 peer dependency로 제공해야 합니다.
 
-ScrollContainer가 사용하는 부분만 (코어 수학 + `CSS3DRenderer` + `OrthographicCamera`) 트리셰이킹할 때 `three`는 최종 번들에 약 **~150 KB gzipped** 정도 추가됩니다. `@wvkit/core` 자체는 약 25 KB (~10 KB gzipped) 추가. 정확한 수치는 번들러와 호스트 앱의 다른 Three.js 사용에 따라 다르며, 릴리스마다 changelog에서 측정·공지됩니다.
+ScrollContainer가 사용하는 부분만 (코어 수학 + `CSS3DRenderer` + `OrthographicCamera`) 트리셰이킹할 때 `three`는 최종 번들에 약 **~150 KB gzipped** 정도 추가됩니다. `@guksu/wvkit-core` 자체는 약 25 KB (~10 KB gzipped) 추가. 정확한 수치는 번들러와 호스트 앱의 다른 Three.js 사용에 따라 다르며, 릴리스마다 changelog에서 측정·공지됩니다.
 
 ## 알려진 제한사항
 

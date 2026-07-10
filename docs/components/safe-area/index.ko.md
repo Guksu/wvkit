@@ -10,10 +10,10 @@
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core
+npm install @guksu/wvkit-core
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -22,7 +22,7 @@ pnpm add @wvkit/core
 ::: code-group
 
 ```js [Vanilla JS]
-import { createSafeArea } from '@wvkit/core';
+import { createSafeArea } from '@guksu/wvkit-core';
 
 const instance = createSafeArea({
   onChange: ({ top, bottom, left, right }) => {
@@ -37,7 +37,7 @@ instance.destroy();
 ```
 
 ```tsx [React]
-import { useSafeArea } from '@wvkit/react';
+import { useSafeArea } from '@guksu/wvkit-react';
 
 function Layout({ children }) {
   const { top, bottom } = useSafeArea();
@@ -51,7 +51,7 @@ function Layout({ children }) {
 
 ```vue [Vue]
 <script setup>
-import { useSafeArea } from '@wvkit/vue';
+import { useSafeArea } from '@guksu/wvkit-vue';
 const insets = useSafeArea();
 </script>
 <template>

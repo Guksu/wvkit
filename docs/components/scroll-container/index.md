@@ -23,15 +23,15 @@ The `direction` option no longer means "swipe direction" — it constrains which
 
 ## Installation
 
-`three` is a peer dependency you provide in your host app. The React/Vue adapters depend on `@wvkit/core`, so `three` resolves transitively — install it once at the host level.
+`three` is a peer dependency you provide in your host app. The React/Vue adapters depend on `@guksu/wvkit-core`, so `three` resolves transitively — install it once at the host level.
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core three
-# add @wvkit/react or @wvkit/vue depending on framework
+npm install @guksu/wvkit-core three
+# add @guksu/wvkit-react or @guksu/wvkit-vue depending on framework
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core three
+pnpm add @guksu/wvkit-core three
 ```
 :::
 
@@ -40,7 +40,7 @@ pnpm add @wvkit/core three
 ::: code-group
 
 ```js [Vanilla JS]
-import { createScrollContainer } from '@wvkit/core';
+import { createScrollContainer } from '@guksu/wvkit-core';
 
 const root = document.getElementById('viewport');
 const panels = Array.from({ length: 5 }, (_, i) => {
@@ -70,7 +70,7 @@ sc.destroy();
 
 ```tsx [React]
 import { useMemo } from 'react';
-import { useScrollContainer } from '@wvkit/react';
+import { useScrollContainer } from '@guksu/wvkit-react';
 
 function Carousel() {
   const panels = useMemo(
@@ -99,7 +99,7 @@ function Carousel() {
 
 ```vue [Vue]
 <script setup>
-import { useScrollContainer } from '@wvkit/vue';
+import { useScrollContainer } from '@guksu/wvkit-vue';
 
 const panels = Array.from({ length: 5 }, (_, i) => {
   const el = document.createElement('div');
@@ -180,9 +180,9 @@ Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `snapThre
 
 ## Bundle Size
 
-`three` is **not bundled** into `@wvkit/core` — it is declared `external` and must be provided by your host app as a peer dependency.
+`three` is **not bundled** into `@guksu/wvkit-core` — it is declared `external` and must be provided by your host app as a peer dependency.
 
-When tree-shaken to only what `ScrollContainer` uses (core math + `CSS3DRenderer` + `OrthographicCamera`), `three` adds approximately **~150 KB gzipped** to your final bundle. `@wvkit/core` itself adds ~25 KB (~10 KB gzipped). Exact numbers depend on your bundler and other Three.js usage in the host app and will be measured per release in the published changelog.
+When tree-shaken to only what `ScrollContainer` uses (core math + `CSS3DRenderer` + `OrthographicCamera`), `three` adds approximately **~150 KB gzipped** to your final bundle. `@guksu/wvkit-core` itself adds ~25 KB (~10 KB gzipped). Exact numbers depend on your bundler and other Three.js usage in the host app and will be measured per release in the published changelog.
 
 ## Limitations
 

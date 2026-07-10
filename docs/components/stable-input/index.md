@@ -14,10 +14,10 @@ Because the hidden input is `position: fixed`, iOS does not scroll the page when
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core
+npm install @guksu/wvkit-core
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -26,7 +26,7 @@ pnpm add @wvkit/core
 ::: code-group
 
 ```js [Vanilla JS]
-import { createStableInput } from '@wvkit/core';
+import { createStableInput } from '@guksu/wvkit-core';
 
 const container = document.getElementById('search-container');
 const si = createStableInput(container, {
@@ -41,7 +41,7 @@ si.destroy();
 ```
 
 ```tsx [React]
-import { useStableInput, StableInputDisplay } from '@wvkit/react';
+import { useStableInput, StableInputDisplay } from '@guksu/wvkit-react';
 
 function SearchBar() {
   const inputProps = useStableInput({
@@ -66,7 +66,7 @@ function SearchBar() {
 
 ```vue [Vue]
 <script setup>
-import { useStableInput } from '@wvkit/vue';
+import { useStableInput } from '@guksu/wvkit-vue';
 
 const { containerRef, focus, setValue } = useStableInput({
   placeholder: 'Search…',

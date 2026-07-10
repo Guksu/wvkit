@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['react', 'react-dom', '@wvkit/core'],
+  external: ['react', 'react-dom', '@guksu/wvkit-core'],
 });

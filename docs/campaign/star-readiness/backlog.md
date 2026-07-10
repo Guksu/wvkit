@@ -9,10 +9,10 @@
 |----|------|------|------|------|
 | B-01 | CI에 e2e 잡 추가 — chromium+webkit 설치 → `pnpm test:e2e`, PR 게이트 승격, trace/report 아티팩트 업로드 | M | audit-e2e P0, audit-code P1, audit-docs P2 (3중 지적) | ✅ Sprint 1 |
 | B-02 | three 정적 로드 제거 — CJS `require('three')` 무가드로 three 없는 소비자 크래시. 동적 import 지연 로드 또는 subpath export 분리 | L | audit-code P0 (`dist/index.cjs:3`) | ⬜ |
-| B-03 | 패키지명 불일치 일괄 정정 — 문서 12파일 `@wvkit/*` import(복붙 시 npm 404) + README 배지 라벨 + CLAUDE.md 네이밍 규칙 + tsup external 오기 → 실배포명 `@guksu/wvkit-*`로 통일 | M | audit-docs P0-2·P1·P2, audit-code P1 | ⬜ |
+| B-03 | 패키지명 불일치 일괄 정정 — 문서 12파일 `@wvkit/*` import(복붙 시 npm 404) + README 배지 라벨 + CLAUDE.md 네이밍 규칙 + tsup external 오기 → 실배포명 `@guksu/wvkit-*`로 통일 | M | audit-docs P0-2·P1·P2, audit-code P1 | ✅ Sprint 3 |
 | B-04 | 문서 사이트 실물화 — VitePress 문법을 쓰는 고아 마크다운 12파일. VitePress 스캐폴드+i18n+배포 잡 추가 (또는 순수 GFM 다운그레이드 결정) | L | audit-docs P0-1 | ⬜ |
-| B-05 | CameraControl 핵심 수식 단위 검증 — 엣지저항·속도기반 스냅 방향·핀치 줌+앵커 보정·다지 승계 (branch 56.5%) | M | audit-unit P0 | ⬜ |
-| B-06 | StableInput `suppressLayoutShift`/`scrollAnchor` 단위 검증 — 존재 이유인 레이아웃 억제 로직 0% 커버 (`stable-input.ts:127-144`) | M | audit-unit P0 | ⬜ |
+| B-05 | CameraControl 핵심 수식 단위 검증 — 엣지저항·속도기반 스냅 방향·핀치 줌+앵커 보정·다지 승계 (branch 56.5%) | M | audit-unit P0 | ✅ Sprint 2 |
+| B-06 | StableInput `suppressLayoutShift`/`scrollAnchor` 단위 검증 — 존재 이유인 레이아웃 억제 로직 0% 커버 (`stable-input.ts:127-144`) | M | audit-unit P0 | ✅ Sprint 2 |
 | B-07 | 한글 IME 조합 Enter 가드 테스트 — `isComposing || keyCode===229` 시 `onSubmit` 미발화 검증 (`stable-input.ts:119`) | S | audit-unit P0 | ✅ Sprint 1 |
 
 ## P1 — 품질·전환율 직결
@@ -22,8 +22,8 @@
 | B-08 | PTR TouchEvent 경로 + `activeSource` 소스 승계 단위 테스트 (`pull-to-refresh.ts:216-273` 미커버) | M | audit-unit P1 | ⬜ |
 | B-09 | 어댑터 테스트 실질화 — StrictMode 이중 마운트, rerender 시 options 반영, destroy 실효(리스너 제거) 단언 | M | audit-unit P1 | ⬜ |
 | B-10 | e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화 | M | audit-e2e P1 ×3 | ⬜ |
-| B-11 | `WebviewHeadlessError` 값 export — 현재 타입 전용이라 `instanceof` catch 불가 (`core/src/index.ts:1`) | S | audit-code P1 | ⬜ |
-| B-12 | three peer 범위 완화 — `^0.184.0` → 하한 범위(실측 후), @types/three 동반 조정 | S | audit-code P1 | ⬜ |
+| B-11 | `WebviewHeadlessError` 값 export — 현재 타입 전용이라 `instanceof` catch 불가 (`core/src/index.ts:1`) | S | audit-code P1 | ✅ Sprint 3 |
+| B-12 | three peer 범위 완화 — `^0.184.0` → 하한 범위(실측 후), @types/three 동반 조정 | S | audit-code P1 | ✅ Sprint 3 |
 | B-13 | destroy 후 `scrollTo`/`zoomTo` 가드 + 해당 껍데기 단언을 명시적 단언으로 강화 (`scroll-container.ts:220-243`) | S | audit-unit P1 | ⬜ |
 | B-14 | README 히어로 GIF 3~4종 + Documentation 링크 섹션 (현재 문서 진입로 0, GIF 0) | M | audit-docs P1 ×2 | ⬜ |
 | B-15 | 커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿 | S | audit-docs P1·P2 | ⬜ |

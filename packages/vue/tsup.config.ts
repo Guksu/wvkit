@@ -7,5 +7,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   treeshake: true,
-  external: ['vue', '@wvkit/core'],
+  external: ['vue', '@guksu/wvkit-core'],
 });

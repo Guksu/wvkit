@@ -9,18 +9,18 @@ WebView and iOS Safari ship with a native pull-to-refresh on the viewport plus e
 ## Installation
 
 ```sh
-pnpm add @wvkit/core
-# add @wvkit/react or @wvkit/vue depending on framework
+pnpm add @guksu/wvkit-core
+# add @guksu/wvkit-react or @guksu/wvkit-vue depending on framework
 ```
 
-No additional peer dependencies — `PullToRefresh` ships with zero runtime deps in `@wvkit/core`.
+No additional peer dependencies — `PullToRefresh` ships with zero runtime deps in `@guksu/wvkit-core`.
 
 ## Basic Usage
 
 ::: code-group
 
 ```js [Vanilla JS]
-import { createPullToRefresh } from '@wvkit/core';
+import { createPullToRefresh } from '@guksu/wvkit-core';
 
 const list = document.getElementById('list');
 const ptr = createPullToRefresh(list, {
@@ -37,7 +37,7 @@ ptr.destroy();
 ```
 
 ```tsx [React]
-import { usePullToRefresh } from '@wvkit/react';
+import { usePullToRefresh } from '@guksu/wvkit-react';
 
 function FeedList() {
   const { containerRef, state, distance, progress, trigger } = usePullToRefresh({
@@ -80,7 +80,7 @@ function FeedList() {
 
 ```vue [Vue]
 <script setup>
-import { usePullToRefresh } from '@wvkit/vue';
+import { usePullToRefresh } from '@guksu/wvkit-vue';
 
 const { containerRef, state, distance, progress, trigger } = usePullToRefresh({
   onRefresh: async () => {
