@@ -4,6 +4,8 @@ import {
   getActiveIndex,
   getActiveZoom,
   getDirection,
+  getSceneXShift,
+  getSceneYShift,
   swipeOnCanvas,
   pinchOnCanvas,
   waitForScrollSettle,
@@ -29,6 +31,29 @@ test.describe('ScrollContainer · S4 horizontal gesture', () => {
     await waitForScrollSettle(page, 0);
 
     expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  // G1 골든: horizontal 모드의 존재 이유 — 대각 입력의 Y 성분이 카메라에 누출되지 않는다.
+  test('@golden diagonal 드래그 → X만 스냅, scene Y-shift 불변', async ({ page }) => {
+    await gotoDemo(page);
+    expect(await getActiveIndex(page)).toBe(0);
+
+    const x0 = await getSceneXShift(page);
+    const y0 = await getSceneYShift(page);
+    expect(x0).not.toBeNull();
+    expect(y0).not.toBeNull();
+
+    // dy 동반 대각 드래그 — dx는 snapThreshold(0.3)를 확실히 초과
+    await swipeOnCanvas(page, -220, -120);
+    await waitForScrollSettle(page, 1);
+
+    expect(await getActiveIndex(page)).toBe(1);
+    const x1 = await getSceneXShift(page);
+    const y1 = await getSceneYShift(page);
+    // X는 패널 폭만큼 이동 (다음 패널) — 부호 무관하게 유의미한 이동량으로 단언
+    expect(Math.abs((x1 ?? 0) - (x0 ?? 0))).toBeGreaterThan(100);
+    // Y축 오염 없음
+    expect(Math.abs((y1 ?? 0) - (y0 ?? 0))).toBeLessThanOrEqual(0.5);
   });
 
   test('우측 드래그는 첫 패널에서 엣지 저항 후 0 유지', async ({ page }) => {

@@ -19,9 +19,9 @@
 
 | ID | 항목 | 규모 | 근거 | 상태 |
 |----|------|------|------|------|
-| B-08 | PTR TouchEvent 경로 + `activeSource` 소스 승계 단위 테스트 (`pull-to-refresh.ts:216-273` 미커버) | M | audit-unit P1 | ⬜ |
+| B-08 | PTR TouchEvent 경로 + `activeSource` 소스 승계 단위 테스트 (`pull-to-refresh.ts:216-273` 미커버) | M | audit-unit P1 | ✅ Sprint 5 |
 | B-09 | 어댑터 테스트 실질화 — StrictMode 이중 마운트, rerender 시 options 반영, destroy 실효(리스너 제거) 단언 | M | audit-unit P1 | ⬜ |
-| B-10 | e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화 | M | audit-e2e P1 ×3 | ⬜ |
+| B-10 | e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화 | M | audit-e2e P1 ×3 | ✅ Sprint 5 |
 | B-11 | `WebviewHeadlessError` 값 export — 현재 타입 전용이라 `instanceof` catch 불가 (`core/src/index.ts:1`) | S | audit-code P1 | ✅ Sprint 3 |
 | B-12 | three peer 범위 완화 — `^0.184.0` → 하한 범위(실측 후), @types/three 동반 조정 | S | audit-code P1 | ✅ Sprint 3 |
 | B-13 | destroy 후 `scrollTo`/`zoomTo` 가드 + 해당 껍데기 단언을 명시적 단언으로 강화 (`scroll-container.ts:220-243`) | S | audit-unit P1 | ✅ Sprint 4 |
