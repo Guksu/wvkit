@@ -67,3 +67,24 @@ describe('useStableInput (Vue)', () => {
     expect(composable.getValue()).toBe('');
   });
 });
+
+/**
+ * [B-09] 어댑터 실질화 — unmount(destroy) 후 displayInput/hiddenInput이
+ * document에서 완전히 제거되는지 수치로 단언한다 (기존 smoke는 감소만 확인).
+ */
+describe('useStableInput (Vue) [B-09] 실질 검증', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('[B-09] A10: unmount 후 document에 인풋이 0개다 (displayInput/hiddenInput.remove 실효)', async () => {
+    const { wrapper } = mountWithComposable({ placeholder: '검색…' });
+    await wrapper.vm.$nextTick();
+    // 마운트 시점 계약: display 1 + hidden 1 = 정확히 2개
+    expect(document.querySelectorAll('input').length).toBe(2);
+
+    wrapper.unmount();
+
+    expect(document.querySelectorAll('input').length).toBe(0);
+  });
+});

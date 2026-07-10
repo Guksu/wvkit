@@ -1,0 +1,72 @@
+name: Bug report
+description: Report a defect in @guksu/wvkit-core, @guksu/wvkit-react, or @guksu/wvkit-vue
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: dropdown
+    id: package
+    attributes:
+      label: Package
+      description: Which package is affected?
+      options:
+        - "@guksu/wvkit-core"
+        - "@guksu/wvkit-react"
+        - "@guksu/wvkit-vue"
+        - Multiple / not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The exact package version (check your lockfile).
+      placeholder: "0.3.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where does the bug occur? WebView bugs are often platform-specific.
+      options:
+        - iOS Safari
+        - iOS WKWebView (native app)
+        - Android Chrome
+        - Android WebView (native app)
+        - Samsung Internet
+        - Desktop browser
+        - SSR / Node.js
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: os-browser-version
+    attributes:
+      label: OS / browser version
+      placeholder: "iOS 17.5, Safari 17.5"
+    validations:
+      required: false
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps or a repro repository/CodeSandbox link.
+      placeholder: |
+        1. Create a ScrollContainer with 3 panels
+        2. Pinch zoom to 2.0
+        3. Swipe left
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happens instead? Include console errors or a screen recording if possible.
+    validations:
+      required: true

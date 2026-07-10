@@ -40,6 +40,21 @@ wvkit handles all of these. Each component exposes only **behavior** — no defa
 
 ---
 
+## Documentation
+
+In-depth docs for each component — problem background, architecture, full API reference, and known limitations:
+
+| Component | Docs |
+|-----------|------|
+| `ScrollContainer` | [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md) |
+| `StableInput` | [docs/components/stable-input/index.md](docs/components/stable-input/index.md) |
+| `PullToRefresh` | [docs/components/pull-to-refresh/index.md](docs/components/pull-to-refresh/index.md) |
+| `useVirtualKeyboard` | [docs/components/virtual-keyboard/index.md](docs/components/virtual-keyboard/index.md) |
+| `useSafeArea` | [docs/components/safe-area/index.md](docs/components/safe-area/index.md) |
+| `useScrollLock` | [docs/components/scroll-lock/index.md](docs/components/scroll-lock/index.md) |
+
+---
+
 ## Installation
 
 ### Core (Vanilla JS / framework-agnostic)
@@ -332,6 +347,8 @@ pnpm changeset
 pnpm changeset version
 pnpm changeset publish
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contribution guide (setup, testing, changeset workflow).
 
 ---
 
