@@ -1,6 +1,37 @@
 import type { Locator, Page } from '@playwright/test';
 
 /**
+ * `window.visualViewport`를 EventTarget 기반 fake로 교체 — 반드시 `page.goto` 전에 호출.
+ * stable-input.ts:126이 create 시점에 `window.visualViewport`를 capture하므로
+ * addInitScript(페이지 스크립트 실행 전)여야 한다.
+ * 제어: `window.__vvStub.setHeight(h)` → height 갱신 + `resize` dispatch (키보드 등장 시뮬).
+ */
+export async function installVisualViewportStub(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    class FakeVisualViewport extends EventTarget {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      offsetTop = 0;
+      offsetLeft = 0;
+      pageTop = 0;
+      pageLeft = 0;
+      scale = 1;
+    }
+    const fake = new FakeVisualViewport();
+    Object.defineProperty(window, 'visualViewport', {
+      value: fake,
+      configurable: true,
+    });
+    (window as unknown as { __vvStub: { setHeight(h: number): void } }).__vvStub = {
+      setHeight(h: number) {
+        fake.height = h;
+        fake.dispatchEvent(new Event('resize'));
+      },
+    };
+  });
+}
+
+/**
  * StableInput 데모 탭으로 이동하고 display 컨테이너가 마운트될 때까지 대기.
  */
 export async function gotoStableInputTab(page: Page): Promise<void> {

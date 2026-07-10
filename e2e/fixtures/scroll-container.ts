@@ -66,6 +66,21 @@ export async function getSceneXShift(page: Page): Promise<number | null> {
 }
 
 /**
+ * `getSceneXShift`의 Y 대칭 — 대각 입력의 Y 성분이 카메라 transform에 누출되는지 검출용.
+ * matrix3d translation y + `translate(x, y)` 2번째 그룹 합산.
+ */
+export async function getSceneYShift(page: Page): Promise<number | null> {
+  const t = await getSceneTransform(page);
+  if (!t) return null;
+  const m = parseMatrix3dTranslation(t);
+  if (!m) return null;
+  const translates = Array.from(t.matchAll(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/g));
+  let extraY = 0;
+  for (const tr of translates) extraY += Number.parseFloat(tr[2]);
+  return m.y + extraY;
+}
+
+/**
  * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (CSS3DRenderer는 visible=false 객체를 DOM에서 떼어냄).
  * buildPanels가 만든 패널의 첫 자식 <div>는 인덱스 텍스트를 담고 있어 그것으로 식별.
  */

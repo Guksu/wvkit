@@ -41,6 +41,7 @@
 | 3 | 실패 — B-03(패키지명 불일치 일괄 정정 — 문서 12파일 @wvkit/* import + README 배지 + CLAUDE.md 네이밍 규칙 + tsup external → 실배포명 @guksu/wvkit-*로 통일 (사용자 확정)), B-11(WebviewHeadlessError 값 export — 타입 전용이라 instanceof catch 불가 (core/src/index.ts:1)), B-12(three peer 범위 완화 — ^0.184.0 → 하한 범위(실측 후), @types/three 동반 조정) | qa PASS · 재작업 0회 |
 | (트리아지) | 리더 조사: 반복 2·3의 실패는 둘 다 scroll-container.api.spec의 **webkit 한정 settle 5s 타임아웃** — 단독 실행 4회 반복 28/28 통과 → 풀 스위트 병렬 부하 flake로 판정. 수정: settle timeout 5s→15s + verify `--retries=2`(CI 패리티) + 스크립트 args 파싱 결함(slug `undefined-` 오염) 수정. 수정 후 전체 재검증 그린(test/typecheck/lint/build 0 · e2e 186 passed) → Sprint 2·3 소급 그린, 스프린트별 분리 커밋·PR 출하 | 1차 run 중단은 안전장치 정상 동작. 2차 run은 Sprint 4부터 재개 |
 | 4 | 그린 — B-02(three 정적 로드 제거 — CJS require('three') 무가드 크래시 → 동적 import 지연 로드 또는 subpath export 분리), B-13(destroy 후 scrollTo/zoomTo 가드 추가 + 해당 껍데기 단언을 명시적 단언으로 강화) | qa PASS · 재작업 0회 |
+| 5 | 그린 — B-08(PTR TouchEvent 경로 + activeSource 소스 승계 단위 테스트 (pull-to-refresh.ts:216-273 미커버)), B-10(e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화) | qa PASS · 재작업 0회 |
 
 ## 5. 종료 보고
 

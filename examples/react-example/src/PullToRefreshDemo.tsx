@@ -82,6 +82,8 @@ export function PullToRefreshDemo() {
   const [enabled, setEnabled] = useState(true);
   const [disableOverscrollContain, setDisableOverscrollContain] = useState(false);
   const [items, setItems] = useState<ListItem[]>(INITIAL_ITEMS);
+  // e2e 계측용 — onRefresh 실제 발화 횟수 (touch+합성 pointer 이중처리 검출)
+  const [refreshCount, setRefreshCount] = useState(0);
 
   const { tr } = useLang();
   const s = tr.pullToRefresh;
@@ -90,6 +92,7 @@ export function PullToRefreshDemo() {
   const remountKey = [threshold, maxDistance, resistance, enabled, disableOverscrollContain].join('|');
 
   const handleRefresh = useCallback(async () => {
+    setRefreshCount((prev) => prev + 1);
     await new Promise<void>((r) => setTimeout(r, 1500));
     const now = new Date().toLocaleTimeString();
     setItems((prev) => [{ id: `refresh-${Date.now()}`, label: `Refreshed at ${now}` }, ...prev]);
@@ -131,6 +134,10 @@ export function PullToRefreshDemo() {
         enabled={enabled} disableOverscrollContain={disableOverscrollContain}
         items={items} onRefresh={handleRefresh}
       />
+
+      <div style={{ marginTop: 8 }}>
+        <DataRow label="refresh-count" value={String(refreshCount)} />
+      </div>
     </DemoCard>
   );
 }
