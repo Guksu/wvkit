@@ -9,18 +9,18 @@ WebView와 iOS Safari는 viewport에 native PTR + elastic bounce를 기본 탑�
 ## 설치
 
 ```sh
-pnpm add @wvkit/core
-# 프레임워크에 따라 @wvkit/react 또는 @wvkit/vue 추가
+pnpm add @guksu/wvkit-core
+# 프레임워크에 따라 @guksu/wvkit-react 또는 @guksu/wvkit-vue 추가
 ```
 
-추가 peer dependency 없음 — `PullToRefresh`는 `@wvkit/core`에 런타임 의존성 0개로 포함됩니다.
+추가 peer dependency 없음 — `PullToRefresh`는 `@guksu/wvkit-core`에 런타임 의존성 0개로 포함됩니다.
 
 ## 기본 사용법
 
 ::: code-group
 
 ```js [Vanilla JS]
-import { createPullToRefresh } from '@wvkit/core';
+import { createPullToRefresh } from '@guksu/wvkit-core';
 
 const list = document.getElementById('list');
 const ptr = createPullToRefresh(list, {
@@ -37,7 +37,7 @@ ptr.destroy();
 ```
 
 ```tsx [React]
-import { usePullToRefresh } from '@wvkit/react';
+import { usePullToRefresh } from '@guksu/wvkit-react';
 
 function FeedList() {
   const { containerRef, state, distance, progress, trigger } = usePullToRefresh({
@@ -80,7 +80,7 @@ function FeedList() {
 
 ```vue [Vue]
 <script setup>
-import { usePullToRefresh } from '@wvkit/vue';
+import { usePullToRefresh } from '@guksu/wvkit-vue';
 
 const { containerRef, state, distance, progress, trigger } = usePullToRefresh({
   onRefresh: async () => {

@@ -10,10 +10,10 @@ WebView apps need to know when the soft keyboard opens or closes to adjust layou
 
 ::: code-group
 ```sh [npm]
-npm install @wvkit/core
+npm install @guksu/wvkit-core
 ```
 ```sh [pnpm]
-pnpm add @wvkit/core
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -22,7 +22,7 @@ pnpm add @wvkit/core
 ::: code-group
 
 ```js [Vanilla JS]
-import { createVirtualKeyboard } from '@wvkit/core';
+import { createVirtualKeyboard } from '@guksu/wvkit-core';
 
 const instance = createVirtualKeyboard({
   onChange: ({ isOpen, keyboardHeight }) => {
@@ -35,7 +35,7 @@ instance.destroy();
 ```
 
 ```tsx [React]
-import { useVirtualKeyboard } from '@wvkit/react';
+import { useVirtualKeyboard } from '@guksu/wvkit-react';
 
 function ChatLayout() {
   const { isOpen, keyboardHeight } = useVirtualKeyboard();
@@ -49,7 +49,7 @@ function ChatLayout() {
 
 ```vue [Vue]
 <script setup>
-import { useVirtualKeyboard } from '@wvkit/vue';
+import { useVirtualKeyboard } from '@guksu/wvkit-vue';
 const { isOpen, keyboardHeight } = useVirtualKeyboard();
 </script>
 <template>

@@ -2,9 +2,9 @@
 
 [English](README.md)
 
-[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-core?label=%40wvkit%2Fcore)](https://www.npmjs.com/package/@guksu/wvkit-core)
-[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-react?label=%40wvkit%2Freact)](https://www.npmjs.com/package/@guksu/wvkit-react)
-[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-vue?label=%40wvkit%2Fvue)](https://www.npmjs.com/package/@guksu/wvkit-vue)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-core?label=%40guksu%2Fwvkit-core)](https://www.npmjs.com/package/@guksu/wvkit-core)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-react?label=%40guksu%2Fwvkit-react)](https://www.npmjs.com/package/@guksu/wvkit-react)
+[![npm version](https://img.shields.io/npm/v/@guksu/wvkit-vue?label=%40guksu%2Fwvkit-vue)](https://www.npmjs.com/package/@guksu/wvkit-vue)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6)](https://www.typescriptlang.org/)
 [![데모](https://img.shields.io/badge/데모-라이브-4f46e5)](https://guksu.github.io/wvkit/)
