@@ -36,6 +36,9 @@ coverage/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
 
+# Composed Pages site (demo root + docs subpath)
+/site/
+
 # Claude Code
 .claude/
 CLAUDE.md

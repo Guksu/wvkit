@@ -10,7 +10,7 @@
 | B-01 | CI에 e2e 잡 추가 — chromium+webkit 설치 → `pnpm test:e2e`, PR 게이트 승격, trace/report 아티팩트 업로드 | M | audit-e2e P0, audit-code P1, audit-docs P2 (3중 지적) | ✅ Sprint 1 |
 | B-02 | three 정적 로드 제거 — CJS `require('three')` 무가드로 three 없는 소비자 크래시. 동적 import 지연 로드 또는 subpath export 분리 | L | audit-code P0 (`dist/index.cjs:3`) | ✅ Sprint 4 |
 | B-03 | 패키지명 불일치 일괄 정정 — 문서 12파일 `@wvkit/*` import(복붙 시 npm 404) + README 배지 라벨 + CLAUDE.md 네이밍 규칙 + tsup external 오기 → 실배포명 `@guksu/wvkit-*`로 통일 | M | audit-docs P0-2·P1·P2, audit-code P1 | ✅ Sprint 3 |
-| B-04 | 문서 사이트 실물화 — VitePress 문법을 쓰는 고아 마크다운 12파일. VitePress 스캐폴드+i18n+배포 잡 추가 (또는 순수 GFM 다운그레이드 결정) | L | audit-docs P0-1 | ⬜ |
+| B-04 | 문서 사이트 실물화 — VitePress 문법을 쓰는 고아 마크다운 12파일. VitePress 스캐폴드+i18n+배포 잡 추가 (또는 순수 GFM 다운그레이드 결정) | L | audit-docs P0-1 | ✅ Sprint 7 |
 | B-05 | CameraControl 핵심 수식 단위 검증 — 엣지저항·속도기반 스냅 방향·핀치 줌+앵커 보정·다지 승계 (branch 56.5%) | M | audit-unit P0 | ✅ Sprint 2 |
 | B-06 | StableInput `suppressLayoutShift`/`scrollAnchor` 단위 검증 — 존재 이유인 레이아웃 억제 로직 0% 커버 (`stable-input.ts:127-144`) | M | audit-unit P0 | ✅ Sprint 2 |
 | B-07 | 한글 IME 조합 Enter 가드 테스트 — `isComposing || keyCode===229` 시 `onSubmit` 미발화 검증 (`stable-input.ts:119`) | S | audit-unit P0 | ✅ Sprint 1 |

@@ -43,6 +43,7 @@
 | 4 | 그린 — B-02(three 정적 로드 제거 — CJS require('three') 무가드 크래시 → 동적 import 지연 로드 또는 subpath export 분리), B-13(destroy 후 scrollTo/zoomTo 가드 추가 + 해당 껍데기 단언을 명시적 단언으로 강화) | qa PASS · 재작업 0회 |
 | 5 | 그린 — B-08(PTR TouchEvent 경로 + activeSource 소스 승계 단위 테스트 (pull-to-refresh.ts:216-273 미커버)), B-10(e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화) | qa PASS · 재작업 0회 |
 | 6 | 그린 — B-09(어댑터 테스트 실질화 — StrictMode 이중 마운트, rerender 시 options 반영, destroy 실효(리스너 제거) 단언), B-14b(README Documentation 링크 섹션 추가 (B-14의 실행 가능 부분 — GIF는 B-14a로 분리 보류)), B-15(커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿) | qa PASS · 재작업 0회 |
+| 7 | 그린 — B-04(문서 사이트 실물화 — VitePress 스캐폴드+i18n+배포 잡 추가 (고아 마크다운 12파일 실물화, 또는 순수 GFM 다운그레이드 결정)) | qa PASS · 재작업 0회 |
 
 ## 5. 종료 보고
 
