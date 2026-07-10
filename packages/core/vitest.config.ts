@@ -10,10 +10,14 @@ export default defineConfig({
       // 실측 스냅샷보다 약간 낮게 설정해 현재 상태를 즉시 통과시키되,
       // 커버리지가 하한 아래로 떨어지면 CI를 빨간불로 만든다.
       // threshold는 --coverage로 실행될 때만 평가된다(ci.yml Coverage gate 스텝).
+      // Sprint 2(core-behavior-tests) 램프: 실측 − 2~3%p.
+      // 실측(2026-07-10): camera-control branches 84.26 / functions 94.73,
+      //                   stable-input branches 92.59 / functions 85.71.
+      // stable-input functions는 플로어(≥85)가 실측−2~3%p보다 높아 플로어로 고정.
       thresholds: {
-        '**/camera-control.ts': { branches: 55, functions: 90 },
+        '**/camera-control.ts': { branches: 81, functions: 92 },
         '**/pull-to-refresh.ts': { branches: 80, functions: 85 },
-        '**/stable-input.ts': { branches: 85, functions: 75 },
+        '**/stable-input.ts': { branches: 90, functions: 85 },
       },
     },
   },
