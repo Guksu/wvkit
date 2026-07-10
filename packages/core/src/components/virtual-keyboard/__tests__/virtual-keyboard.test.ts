@@ -102,6 +102,32 @@ describe('createVirtualKeyboard', () => {
     instance.destroy();
   });
 
+  it('키보드가 열린 상태에서 생성돼도 키보드가 닫히면 기준 높이가 회복된다', () => {
+    clearVisualViewport();
+    const onChange = vi.fn();
+    const fullHeight = 800;
+    const setInnerHeight = (value: number) =>
+      Object.defineProperty(window, 'innerHeight', { value, writable: true, configurable: true });
+
+    // 키보드가 이미 열린(축소된) 뷰포트에서 인스턴스 생성 — baseHeight 오염 시나리오
+    setInnerHeight(fullHeight - 300);
+    const instance = createVirtualKeyboard({ onChange });
+
+    // 키보드 닫힘: 뷰포트가 기준보다 커짐 → 기준 높이가 전체 높이로 갱신돼야 함
+    setInnerHeight(fullHeight);
+    window.dispatchEvent(new Event('resize'));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(instance.isOpen).toBe(false);
+
+    // 이후 키보드가 다시 열리면 정상적으로 감지돼야 함 (수정 전에는 delta=0으로 감지 불능)
+    setInnerHeight(fullHeight - 300);
+    window.dispatchEvent(new Event('resize'));
+    expect(onChange).toHaveBeenCalledWith({ isOpen: true, keyboardHeight: 300 });
+
+    instance.destroy();
+    setInnerHeight(fullHeight);
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입

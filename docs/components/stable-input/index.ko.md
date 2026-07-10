@@ -133,4 +133,5 @@ const { containerRef, focus, setValue } = useStableInput({
 
 - 패스워드 매니저와 자동완성이 숨김 인풋을 인식하지 못할 수 있습니다. `autocomplete`를 명시적으로 설정하세요 (예: `'off'` 또는 `'current-password'`).
 - IME 조합 입력 (한/중/일)은 동작하지만 디스플레이 인풋이 한 조합 사이클 지연될 수 있습니다. 프로덕션 앱에서는 충분히 테스트하세요.
+- `touchstart`와 `touchend` 사이 이동 거리가 10px을 넘는 터치는 스크롤 제스처로 간주해 포커스하지 않습니다 — 인풋 위에서 시작해 인풋 위에서 끝난 스크롤로 키보드가 열리지 않습니다.
 - `scrollAnchor`는 `visualViewport`에 의존합니다 — 미지원 브라우저에서는 스크롤 조정이 이루어지지 않습니다.

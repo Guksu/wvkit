@@ -162,6 +162,68 @@ describe('createStableInput', () => {
     instance.destroy();
   });
 
+  describe('탭 / 스크롤 제스처 구분', () => {
+    function mockRect() {
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+        top: 100, bottom: 200, left: 50, right: 150,
+        width: 100, height: 100, x: 50, y: 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+    }
+
+    function dispatchTouch(type: 'touchstart' | 'touchend', x: number, y: number) {
+      const event = new Event(type, { bubbles: true, cancelable: true });
+      const touches = [{ clientX: x, clientY: y }];
+      Object.defineProperty(event, type === 'touchstart' ? 'touches' : 'changedTouches', {
+        value: touches,
+      });
+      container.dispatchEvent(event);
+      return event;
+    }
+
+    it('touchstart 대비 이동 거리가 slop 이내면 탭으로 간주해 포커스한다', () => {
+      const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+      const instance = createStableInput(container, {});
+      mockRect();
+
+      dispatchTouch('touchstart', 100, 150);
+      dispatchTouch('touchend', 104, 155);
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+      instance.destroy();
+    });
+
+    it('touchstart 대비 이동 거리가 slop을 넘으면 스크롤로 간주해 포커스하지 않는다', () => {
+      const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+      const instance = createStableInput(container, {});
+      mockRect();
+
+      // 인풋 위에서 시작한 스크롤이 인풋 위에서 끝나는 시나리오
+      dispatchTouch('touchstart', 100, 190);
+      const end = dispatchTouch('touchend', 100, 120);
+
+      expect(focusSpy).not.toHaveBeenCalled();
+      // 스크롤 제스처의 기본 동작(관성 등)도 막지 않아야 한다
+      expect(end.defaultPrevented).toBe(false);
+      instance.destroy();
+    });
+
+    it('스크롤로 무시된 뒤의 새로운 탭은 정상적으로 포커스한다', () => {
+      const focusSpy = vi.spyOn(HTMLInputElement.prototype, 'focus').mockImplementation(() => {});
+      const instance = createStableInput(container, {});
+      mockRect();
+
+      dispatchTouch('touchstart', 100, 190);
+      dispatchTouch('touchend', 100, 120);
+      expect(focusSpy).not.toHaveBeenCalled();
+
+      dispatchTouch('touchstart', 100, 150);
+      dispatchTouch('touchend', 100, 150);
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+      instance.destroy();
+    });
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입

@@ -58,12 +58,29 @@ export function createStableInput(
     hiddenInput.focus({ preventScroll: true });
   });
 
+  // 탭과 스크롤 제스처 구분: touchstart 좌표를 기록해 두고, touchend까지의
+  // 이동 거리가 TAP_SLOP을 넘으면 스크롤로 간주해 포커스하지 않는다.
+  // 없으면 인풋 위에서 시작한 리스트 스크롤이 끝날 때 키보드가 열리는 오동작 발생.
+  const TAP_SLOP = 10;
+  let touchStart: { x: number; y: number } | null = null;
+  addListener(container, 'touchstart', (e) => {
+    const touch = (e as TouchEvent).touches?.[0];
+    touchStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+  }, { passive: true });
+
   // iOS: touchend 에서 preventDefault 후 즉시 focus — 300ms 딜레이 없이 키보드 열림.
   // getBoundingClientRect 경계 검사: iOS 히트 영역 자동 확장(~40px)으로 container 밖
   // 터치도 이벤트를 수신할 수 있어 시각적 영역 밖 탭을 명시적으로 걸러냄.
   addListener(container, 'touchend', (e) => {
     const touch = (e as TouchEvent).changedTouches?.[0];
     if (touch) {
+      const start = touchStart;
+      touchStart = null;
+      if (
+        start &&
+        (Math.abs(touch.clientX - start.x) > TAP_SLOP ||
+          Math.abs(touch.clientY - start.y) > TAP_SLOP)
+      ) return;
       const rect = container.getBoundingClientRect();
       if (
         touch.clientX < rect.left ||

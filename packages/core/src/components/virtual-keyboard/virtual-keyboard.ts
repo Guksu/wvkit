@@ -35,6 +35,12 @@ export function createVirtualKeyboard(options: VirtualKeyboardOptions = {}): Vir
       baseWidth = currentWidth;
       baseHeight = currentHeight;
     }
+    // 키보드가 이미 열린 상태에서 생성되면 baseHeight가 축소된 높이로 잡힌다.
+    // 뷰포트가 기준보다 커지는 순간(키보드 닫힘)을 실제 전체 높이로 반영해
+    // 오염된 기준이 회전 전까지 남는 것을 방지.
+    if (currentHeight > baseHeight) {
+      baseHeight = currentHeight;
+    }
     const delta = Math.max(0, baseHeight - currentHeight);
     const newIsOpen = delta > threshold;
     // threshold 미만 변화는 키보드로 간주하지 않고 0으로 처리

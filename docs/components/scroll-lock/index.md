@@ -91,6 +91,7 @@ This prevents the page from jumping to the top when the modal is closed.
 |------|------|---------|-------------|
 | `onLock` | `() => void` | `undefined` | Called when scroll is locked |
 | `onUnlock` | `() => void` | `undefined` | Called when scroll is unlocked |
+| `allowScrollWithin` | `string \| HTMLElement` | `undefined` | Area (CSS selector or element) where touch scrolling stays enabled while locked — use it to keep a modal/bottom-sheet's inner scroll region working |
 
 ### Instance Methods
 
@@ -114,6 +115,8 @@ This prevents the page from jumping to the top when the modal is closed.
 
 ## Limitations
 
+- Without `allowScrollWithin`, every `touchmove` is prevented while locked — scrollable regions inside your modal will also freeze on touch devices. Pass the modal's scroll container to keep it working.
+- On iOS, a touch inside the allowed area can still rubber-band the page when the inner scroller is at its edge (overscroll chaining). Apply `overscroll-behavior: contain` to the allowed element to mitigate.
 - Directly modifies `document.body` styles — avoid combining with other libraries that also manipulate body styles while locked.
 - Multiple concurrent `createScrollLock` instances will conflict. Use a single instance and share it, or use a lock-count pattern at the application level.
 - In SSR environments all methods are no-ops.
