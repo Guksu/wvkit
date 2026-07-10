@@ -73,11 +73,8 @@ interface DemoOptions {
 function ScrollContainerInstance(props: DemoOptions) {
   const { tr } = useLang();
   const sc = tr.scrollContainer;
-  const panels = useMemo(
-    () => buildPanels(sc.noScroll, sc.verticalScroll, sc.end),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 패널은 최초 마운트 시점의 라벨로 1회만 빌드한다(언어 전환 시 재빌드하지 않음 — 데모 의도).
+  const panels = useMemo(() => buildPanels(sc.noScroll, sc.verticalScroll, sc.end), []);
 
   const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollContainer({
     direction: props.direction, panels, initialIndex: 0,
