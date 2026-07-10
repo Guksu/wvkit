@@ -366,20 +366,55 @@ describe('createScrollContainer — destroy', () => {
     expect(() => sc.destroy()).not.toThrow();
   });
 
-  it('subsequent scrollTo/zoomTo after destroy are silent', () => {
+  // TC-B13-1: destroy 후 scrollTo 는 완전 no-op — 상태·콜백·DOM 전부 불변
+  it('TC-B13-1: scrollTo after destroy is a full no-op (no throw, no callback, no state/DOM change)', () => {
     const onIndexChange = vi.fn();
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      onIndexChange,
+    });
+    sc.destroy();
+    expect(() => sc.scrollTo(1)).not.toThrow();
+    expect(onIndexChange).toHaveBeenCalledTimes(0);
+    expect(sc.getActiveIndex()).toBe(0);
+    // destroy 가 복원한 display 상태가 재변형되지 않아야 한다
+    for (const panel of panels) {
+      expect(panel.style.display).toBe('');
+    }
+  });
+
+  // TC-B13-2: destroy 후 zoomTo 도 완전 no-op
+  it('TC-B13-2: zoomTo after destroy is a full no-op (no throw, no callback, zoom unchanged)', () => {
     const onZoomChange = vi.fn();
     const sc = createScrollContainer(root, {
       direction: 'horizontal',
       panels: makePanels(3),
-      onIndexChange,
       onZoomChange,
     });
     sc.destroy();
-    // Calls don't throw; whether callbacks fire is implementation-defined,
-    // but state should not crash. We assert non-throw.
-    expect(() => sc.scrollTo(1)).not.toThrow();
     expect(() => sc.zoomTo(2)).not.toThrow();
+    expect(onZoomChange).toHaveBeenCalledTimes(0);
+    expect(sc.getZoom()).toBe(1);
+  });
+
+  // TC-B13-3: 가드가 정상 경로를 깨지 않음 — destroy 전 호출은 그대로 동작
+  it('TC-B13-3: guard does not break pre-destroy scrollTo (callback count stays 1)', () => {
+    const onIndexChange = vi.fn();
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(3),
+      onIndexChange,
+    });
+    sc.scrollTo(1, { animated: false });
+    expect(onIndexChange).toHaveBeenCalledTimes(1);
+    expect(onIndexChange).toHaveBeenCalledWith(1);
+    expect(sc.getActiveIndex()).toBe(1);
+    sc.destroy();
+    sc.scrollTo(2);
+    expect(onIndexChange).toHaveBeenCalledTimes(1);
+    expect(sc.getActiveIndex()).toBe(1);
   });
 });
 

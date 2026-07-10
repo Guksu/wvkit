@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./scroll-container": {
+      "types": "./dist/scroll-container.d.ts",
+      "import": "./dist/scroll-container.js",
+      "require": "./dist/scroll-container.cjs"
     }
   },
   "sideEffects": false,

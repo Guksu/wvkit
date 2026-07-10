@@ -1,6 +1,6 @@
 import { onMounted, onUnmounted, ref, type Ref } from 'vue';
-import { createScrollContainer } from '@guksu/wvkit-core';
-import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvkit-core';
+import { createScrollContainer } from '@guksu/wvkit-core/scroll-container';
+import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvkit-core/scroll-container';
 
 /**
  * Vue 3 어댑터 — core `createScrollContainer`를 감싸는 컴포저블.
