@@ -104,6 +104,56 @@ describe('createStableInput', () => {
     instance.destroy();
   });
 
+  it('IME 조합 중 Enter(isComposing:true)는 onSubmit을 발화하지 않는다', () => {
+    const onSubmit = vi.fn();
+    const instance = createStableInput(container, { onSubmit });
+    const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+    hiddenInput.value = '한글';
+
+    const ev = new KeyboardEvent('keydown', { key: 'Enter' });
+    // happy-dom의 KeyboardEvent 생성자는 isComposing을 반영하지 않으므로 직접 주입
+    Object.defineProperty(ev, 'isComposing', { value: true });
+    expect(ev.isComposing).toBe(true); // 이벤트에 값이 실제로 실렸는지 자기검증
+    hiddenInput.dispatchEvent(ev);
+
+    expect(onSubmit).toHaveBeenCalledTimes(0);
+    instance.destroy();
+  });
+
+  it('IME 조합 확정 Enter(keyCode:229, isComposing 미채움)는 onSubmit을 발화하지 않는다', () => {
+    const onSubmit = vi.fn();
+    const instance = createStableInput(container, { onSubmit });
+    const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+    hiddenInput.value = '한글';
+
+    // isComposing을 채우지 않는 구형 WebView/Safari 재현 — keyCode 229로만 판별
+    const ev = new KeyboardEvent('keydown', { key: 'Enter' });
+    Object.defineProperty(ev, 'keyCode', { value: 229 });
+    expect(ev.keyCode).toBe(229);
+    expect(ev.isComposing).toBe(false);
+    hiddenInput.dispatchEvent(ev);
+
+    expect(onSubmit).toHaveBeenCalledTimes(0);
+    instance.destroy();
+  });
+
+  it('조합 종료 후 일반 Enter는 onSubmit을 정확히 1회 발화한다', () => {
+    const onSubmit = vi.fn();
+    const instance = createStableInput(container, { onSubmit });
+    const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+    hiddenInput.value = '한글';
+
+    // 조합이 끝난 정상 Enter — 가드가 정상 입력까지 막지 않음을 확인
+    const ev = new KeyboardEvent('keydown', { key: 'Enter' });
+    expect(ev.isComposing).toBe(false);
+    expect(ev.keyCode).not.toBe(229);
+    hiddenInput.dispatchEvent(ev);
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith('한글');
+    instance.destroy();
+  });
+
   it('placeholder 옵션이 displayInput과 hiddenInput aria-label에 반영된다', () => {
     const instance = createStableInput(container, { placeholder: '검색어 입력' });
     const displayInput = container.querySelector('input') as HTMLInputElement;

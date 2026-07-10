@@ -34,7 +34,12 @@
   },
   "overrides": [
     {
-      "include": ["**/tsup.config.ts", "**/vitest.config.ts", "**/vite.config.ts"],
+      "include": [
+        "**/tsup.config.ts",
+        "**/vitest.config.ts",
+        "**/vite.config.ts",
+        "**/playwright.config.ts"
+      ],
       "linter": {
         "rules": {
           "style": {
@@ -44,11 +49,24 @@
       }
     },
     {
-      "include": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      "include": ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx", "e2e/**"],
       "linter": {
         "rules": {
           "style": {
             "noNonNullAssertion": "off"
+          },
+          "correctness": {
+            "noEmptyPattern": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["examples/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off"
           }
         }
       }

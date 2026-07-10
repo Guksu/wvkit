@@ -25,7 +25,7 @@ test.describe('SafeArea', () => {
     }
   });
 
-  test('데스크탑 브라우저에서는 모든 inset이 0이다 (env() 미지정)', async ({ page, browserName }, testInfo) => {
+  test('데스크탑 브라우저에서는 모든 inset이 0이다 (env() 미지정)', async ({ page }, testInfo) => {
     // 모바일 디바이스 프로젝트는 viewport meta + 디바이스 인셋이 있어 0이 아닐 수 있어 스킵.
     test.skip(
       /mobile/.test(testInfo.project.name),

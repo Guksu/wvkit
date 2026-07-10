@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>작업 보고서 — star-readiness 캠페인 착수 + Sprint 1 (테스트 게이트)</title>
+<style>
+  :root {
+    --ink: #1c1c1c; --sub: #595959; --line: #e3e3e3; --bg: #f6f6f4; --card: #ffffff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.6; font-size: 15px;
+    padding: 40px 16px;
+  }
+  .page { max-width: 860px; margin: 0 auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 44px 48px; }
+  header { border-bottom: 2px solid var(--ink); padding-bottom: 18px; margin-bottom: 26px; }
+  .doc-label { font-size: 12px; letter-spacing: .14em; color: var(--sub); text-transform: uppercase; }
+  h1 { font-size: 24px; font-weight: 700; margin: 6px 0 12px; }
+  .status { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 3px 10px; border-radius: 4px; border: 1px solid; }
+  .status[data-status="done"]    { color: #1a7f37; background: #ebf7ee; border-color: #9fd6ad; }
+  .status[data-status="partial"] { color: #9a6700; background: #fff8e5; border-color: #e6c86e; }
+  .status[data-status="stopped"] { color: #b42318; background: #fdf0ee; border-color: #f0a9a0; }
+  table.meta { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  table.meta th { text-align: left; color: var(--sub); font-weight: 600; width: 110px; padding: 3px 0; vertical-align: top; }
+  table.meta td { padding: 3px 0; }
+  h2 { font-size: 16.5px; font-weight: 700; margin: 34px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+  p.summary { color: var(--ink); }
+  table.grid { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 4px; }
+  table.grid th { background: #f2f2ef; text-align: left; padding: 8px 12px; border: 1px solid var(--line); font-weight: 600; }
+  table.grid td { padding: 8px 12px; border: 1px solid var(--line); vertical-align: top; }
+  .ok { color: #1a7f37; font-weight: 700; }
+  .fail { color: #b42318; font-weight: 700; }
+  .item { border: 1px solid var(--line); border-left: 4px solid #8a8a8a; border-radius: 6px; padding: 14px 16px; margin: 10px 0; background: #fcfcfb; }
+  .review .item { border-left-color: #d4a72c; background: #fffdf5; }
+  .followup .item { border-left-color: #4477aa; background: #f8fbfd; }
+  .item b.title { display: block; font-size: 14.5px; margin-bottom: 4px; }
+  .item .why { color: var(--sub); font-size: 13.5px; }
+  .none { color: var(--sub); font-size: 14px; }
+  footer { margin-top: 40px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--sub); font-size: 12.5px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; }
+  code { font-family: ui-monospace, 'D2Coding', Consolas, monospace; font-size: .92em; background: #f2f2ef; padding: 1px 5px; border-radius: 3px; }
+  @media print { body { background: #fff; padding: 0; } .page { border: none; padding: 24px; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header>
+    <div class="doc-label">Work Report · wvkit</div>
+    <h1>star-readiness 캠페인 착수 + Sprint 1 (테스트 게이트)</h1>
+    <span class="status" data-status="done">완료</span>
+    <table class="meta">
+      <tr><th>날짜</th><td>2026-07-10</td></tr>
+      <tr><th>작성</th><td>리더 세션 (quality-sprint 오케스트레이터) · planner / implementer / qa 서브 에이전트</td></tr>
+      <tr><th>브랜치</th><td><code>chore/quality-sprint-1</code></td></tr>
+      <tr><th>워크로그</th><td><code>docs/worklog/2026-07-10-star-readiness-sprint-1.md</code> — 정본 기록</td></tr>
+    </table>
+  </header>
+
+  <h2>1. 요약</h2>
+  <p class="summary">
+    "스타 1000+ 수준, 테스트 최우선" 목표로 품질 캠페인 하네스를 구축하고 첫 스프린트를 완료했다.
+    기존 에이전트 3종(planner/implementer/qa)을 보강하고 quality-sprint 오케스트레이터·훅(시크릿 차단, main 편집 차단)·allowlist를 구성한 뒤,
+    병렬 감사 4종(단위 테스트/e2e/문서·DX/코드·CI)으로 26건 백로그(P0 7건)를 도출했다.
+    Sprint 1은 "CI가 테스트를 지키게 만드는 것" — e2e 32스펙의 CI 게이트化(B-01), 한글 IME Enter 가드 회귀 테스트(B-07), 핵심 3파일 커버리지 threshold(B-20), 그리고 QA가 발견한 사전 lint red 13건 정리(B-26, 편입)를 마쳤다.
+    최종 상태: test 241/241 · typecheck · lint · e2e(186 passed/10 skipped) 전부 그린, QA 교차검증 PASS 6/FAIL 0.
+  </p>
+
+  <h2>2. 작업 내용</h2>
+  <table class="grid">
+    <tr><th style="width:130px">구분</th><th style="width:280px">경로</th><th>내용</th></tr>
+    <tr><td>추가</td><td><code>.github/workflows/ci.yml</code></td><td><code>e2e</code> 잡 신설(chromium+webkit 설치 → pnpm build → test:e2e → 실패 시 trace/HTML 리포트 아티팩트, <code>ci</code> 잡과 병렬) + <code>ci</code> 잡에 Coverage gate 스텝(<code>@guksu/wvkit-core</code> vitest --coverage)</td></tr>
+    <tr><td>추가</td><td><code>packages/core/.../stable-input.test.ts</code></td><td>한글 IME 가드 테스트 3케이스 — <code>isComposing:true</code> Enter 미발화 / <code>keyCode:229</code>(구형 WebView) 미발화 / 조합 종료 후 Enter 1회 발화. 자기검증 단언 포함, 껍데기 아님(QA 확인)</td></tr>
+    <tr><td>수정</td><td><code>packages/core/vitest.config.ts</code></td><td>glob per-file 커버리지 threshold — camera-control(branch 55/func 90), pull-to-refresh(80/85), stable-input(85/75). 음성 검증(99로 상향 시 exit 1) 수행 후 원복 확인</td></tr>
+    <tr><td>수정</td><td><code>package.json</code></td><td><code>test:coverage</code> 스크립트 추가(로컬 편의용)</td></tr>
+    <tr><td>수정</td><td><code>biome.json</code> 외 5파일</td><td>B-26: 사전 lint red 13건 해소 — react 훅 무효 biome-ignore 2건 제거(동작 무변경), e2e/examples 정리, 경로+규칙 단위 override 3건(전역 완화 없음, QA 확인)</td></tr>
+    <tr><td>추가</td><td><code>docs/campaign/star-readiness/</code></td><td>감사 4종(<code>audit-*.md</code>) + 백로그(<code>backlog.md</code>, P0 7/P1 12/P2 7) + Sprint 1 산출물(<code>sprints/20260710-test-gate/</code> plan·dev-notes·qa-report)</td></tr>
+    <tr><td>추가</td><td><code>.claude/</code> · <code>CLAUDE.md</code> (로컬 전용)</td><td>하네스: 에이전트 정의 보강, quality-sprint 스킬 신설, blockSecretAccess·branchGuard 훅, allowlist·deny, CLAUDE.md 포인터+변경 이력. validateHarness error 0건</td></tr>
+  </table>
+
+  <h2>3. 검증 결과</h2>
+  <table class="grid">
+    <tr><th style="width:180px">항목</th><th style="width:280px">방법·명령</th><th>결과</th></tr>
+    <tr><td>단위/통합 테스트</td><td><code>pnpm test</code></td><td class="ok">통과 241/241 (core 192 · react 25 · vue 24)</td></tr>
+    <tr><td>타입체크</td><td><code>pnpm typecheck</code></td><td class="ok">통과 (strict 전체 옵션)</td></tr>
+    <tr><td>린트</td><td><code>pnpm lint</code></td><td class="ok">통과 (13 error → 0, 무효 억제 정리 포함)</td></tr>
+    <tr><td>E2E</td><td><code>pnpm test:e2e</code> (4 프로젝트)</td><td class="ok">186 passed / 10 skipped (mobile-only VK)</td></tr>
+    <tr><td>커버리지 게이트</td><td><code>vitest run --coverage</code> + 음성 검증(하한 99 임시 상향)</td><td class="ok">하한 위 통과 / 상향 시 exit 1 확인 후 원복</td></tr>
+    <tr><td>QA 교차검증</td><td>qa 에이전트 — AC-01~06 + B-26 재검증</td><td class="ok">PASS 6 / FAIL 0 (<code>qa-report.md</code>)</td></tr>
+    <tr><td>하네스 구조</td><td><code>validateHarness.mjs</code></td><td class="ok">error 0건 (warn 1건 = git 차단 훅 의도적 미설치)</td></tr>
+  </table>
+
+  <h2>4. 사용자 검토 필요</h2>
+  <div class="review">
+    <div class="item">
+      <b class="title">커밋 + PR 생성 (git은 사용자 전담)</b>
+      <div class="why">브랜치 <code>chore/quality-sprint-1</code>에 미커밋 변경(코드 10파일 + docs/campaign·worklog·reports·templates). 커밋·푸시·PR은 직접 진행하시거나 승인 하에 요청해 주세요. changeset은 불필요로 판단(배포 패키지 동작 무변경 — 테스트·설정·CI만).</div>
+    </div>
+    <div class="item">
+      <b class="title">branch protection에 <code>e2e</code> required check 등록</b>
+      <div class="why">CI 잡 추가만으로 PR에서 실행은 되지만, "필수 통과"로 강제하려면 GitHub 리포지토리 설정(Settings → Branches)에서 required status checks에 <code>e2e</code>·<code>ci</code>를 지정해야 합니다 — 코드 밖 영역이라 사용자 수행 필요. 미설정 시 빨간불이어도 머지 가능.</div>
+    </div>
+    <div class="item">
+      <b class="title">CLAUDE.md의 패키지 네이밍 규칙 정정 방향 (B-03 착수 전 확인)</b>
+      <div class="why">CLAUDE.md는 "<code>@wvkit/*</code>를 모든 곳에 사용"을 명령하지만 실배포명은 <code>@guksu/wvkit-*</code>입니다. 문서 12파일이 구명칭이라 복붙 시 npm 404. Sprint 3(B-03)에서 실배포명으로 일괄 정정할 예정 — 반대로 스코프를 <code>@wvkit</code>으로 되돌릴 계획이 있다면 미리 알려주세요(작업 방향이 반대가 됩니다).</div>
+    </div>
+  </div>
+
+  <h2>5. 후속 조치</h2>
+  <div class="followup">
+    <div class="item">
+      <b class="title">Sprint 2 — 핵심 동작 단위검증 (B-05 + B-06)</b>
+      <div class="why">"이어서 진행" 요청 시 quality-sprint 스킬이 실행. CameraControl pan-스냅/핀치 수식(branch 56%)과 StableInput suppressLayoutShift(0% 커버) — 라이브러리 존재 이유에 해당하는 로직의 단위 고정. 담당: planner→implementer→qa.</div>
+    </div>
+    <div class="item">
+      <b class="title">잔여 백로그 22건 (P0 4 · P1 11 · P2 7)</b>
+      <div class="why">순서 제안: Sprint 3(B-03 네이밍 정정 + B-11/B-12) → Sprint 4(B-02 three 정적 로드 제거 — CJS 소비자 크래시, 규모 L) → Sprint 5(터치 계약 e2e). 전체 목록·근거는 <code>docs/campaign/star-readiness/backlog.md</code>.</div>
+    </div>
+    <div class="item">
+      <b class="title">plan.md AC 정정 반영</b>
+      <div class="why">AC-03 grep 명령(<code>--reporter=verbose</code> 필요)·구 패키지명 — plan.md 리더 부록에 기록됨. 다음 스프린트 계획 시 planner가 반영. (하네스 개선 사항으로 회고 대상)</div>
+    </div>
+  </div>
+
+  <footer>
+    <span>히스토리: <code>docs/reports/</code> (파일명 날짜순)</span>
+    <span>generated by quality-sprint · guksu-harness</span>
+  </footer>
+
+</div>
+</body>
+</html>

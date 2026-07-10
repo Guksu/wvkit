@@ -66,7 +66,7 @@ export async function pullOnContainer(
   page: Page,
   dy: number,
   opts: PullOpts = {},
-): Promise<PullHandle | void> {
+): Promise<PullHandle | undefined> {
   const { steps = 14, duration = 280, hold = false } = opts;
 
   await page.evaluate(

@@ -34,3 +34,43 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # 커버리지 게이트: core 3개 핫스팟의 per-file threshold를 평가한다.
+      # threshold는 --coverage로 실행될 때만 검사되므로 별도 스텝으로 강제한다.
+      - name: Coverage gate
+        run: pnpm --filter @guksu/wvkit-core exec vitest run --coverage
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium webkit
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+
+      - name: Upload Playwright artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            e2e/test-results/**
+            e2e/playwright-report/**
+          if-no-files-found: ignore
