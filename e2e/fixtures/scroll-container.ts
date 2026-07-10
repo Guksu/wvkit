@@ -239,7 +239,8 @@ export async function waitForScrollSettle(page: Page, expectedIndex: number): Pr
       return value != null && Number.parseInt(value, 10) === idx;
     },
     expectedIndex,
-    { timeout: 5000 },
+    // 풀 스위트(4 프로젝트 병렬)에서 webkit RAF 지연으로 5s를 넘기는 flake 관측 — 부하 내성 상향
+    { timeout: 15000 },
   );
   // RAF 트윈 종료 — scene wrapper transform이 3 프레임 연속 동일할 때까지
   await page.waitForFunction(
@@ -258,7 +259,7 @@ export async function waitForScrollSettle(page: Page, expectedIndex: number): Pr
       return (w.__sameCount ?? 0) >= 3;
     },
     null,
-    { timeout: 5000, polling: 50 },
+    { timeout: 15000, polling: 50 },
   );
   await page.evaluate(() => {
     const w = window as unknown as { __lastTf?: string; __sameCount?: number };
