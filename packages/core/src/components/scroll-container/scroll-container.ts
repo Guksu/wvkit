@@ -218,6 +218,7 @@ export function createScrollContainer(
   // scrollTo/zoomTo는 논리적 상태(activeIndex/zoom)는 즉시 업데이트하고, 카메라 이동은
   // CameraControl에 위임 (animated=true 기본). animated=false면 동기 점프.
   function scrollTo(index: number, opts?: { animated?: boolean }): void {
+    if (destroyed) return;
     const next = clampIndex(index, panelCount);
     const animated = opts?.animated ?? true;
     if (next !== activeIndex) {
@@ -233,6 +234,7 @@ export function createScrollContainer(
   }
 
   function zoomTo(level: number, opts?: { animated?: boolean }): void {
+    if (destroyed) return;
     const next = clampZoom(level, minZoom, maxZoom);
     const animated = opts?.animated ?? true;
     if (next !== zoom) {

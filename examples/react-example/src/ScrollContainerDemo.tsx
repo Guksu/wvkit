@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useScrollContainer } from '@guksu/wvkit-react';
+import { useScrollContainer } from '@guksu/wvkit-react/scroll-container';
 import type { ScrollContainerDirection } from '@guksu/wvkit-react';
 import { DemoCard, ControlGrid, ControlItem, DataRow, inputStyle, selectStyle, checkboxRowStyle } from './ui';
 import { useLang } from './LangContext';

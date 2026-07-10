@@ -40,7 +40,7 @@ pnpm add @guksu/wvkit-core three
 ::: code-group
 
 ```js [Vanilla JS]
-import { createScrollContainer } from '@guksu/wvkit-core';
+import { createScrollContainer } from '@guksu/wvkit-core/scroll-container';
 
 const root = document.getElementById('viewport');
 const panels = Array.from({ length: 5 }, (_, i) => {
@@ -70,7 +70,7 @@ sc.destroy();
 
 ```tsx [React]
 import { useMemo } from 'react';
-import { useScrollContainer } from '@guksu/wvkit-react';
+import { useScrollContainer } from '@guksu/wvkit-react/scroll-container';
 
 function Carousel() {
   const panels = useMemo(
@@ -99,7 +99,7 @@ function Carousel() {
 
 ```vue [Vue]
 <script setup>
-import { useScrollContainer } from '@guksu/wvkit-vue';
+import { useScrollContainer } from '@guksu/wvkit-vue/scroll-container';
 
 const panels = Array.from({ length: 5 }, (_, i) => {
   const el = document.createElement('div');

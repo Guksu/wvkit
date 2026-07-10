@@ -185,7 +185,7 @@ const { containerRef, value, isFocused, focus, blur, setValue } = useStableInput
 ### ScrollContainer
 
 ```ts
-import { createScrollContainer } from '@guksu/wvkit-core';
+import { createScrollContainer } from '@guksu/wvkit-core/scroll-container';
 
 const sc = createScrollContainer(rootEl, {
   direction: 'horizontal',

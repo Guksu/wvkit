@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
-import { createScrollContainer } from '@guksu/wvkit-core';
-import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvkit-core';
+import { createScrollContainer } from '@guksu/wvkit-core/scroll-container';
+import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvkit-core/scroll-container';
 
 /**
  * React 어댑터 — core `createScrollContainer`를 감싸는 훅.
