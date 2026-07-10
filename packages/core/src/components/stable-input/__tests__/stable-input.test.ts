@@ -274,6 +274,155 @@ describe('createStableInput', () => {
     });
   });
 
+  describe('suppressLayoutShift / scrollAnchor (visualViewport resize 보정)', () => {
+    type MockVisualViewport = EventTarget & { height: number; width: number };
+
+    let mockVV: MockVisualViewport;
+    let originalVVDescriptor: PropertyDescriptor | undefined;
+    let scrollByStub: ReturnType<typeof vi.fn>;
+    let scrollToStub: ReturnType<typeof vi.fn>;
+    let originalScrollBy: typeof window.scrollBy;
+    let originalScrollTo: typeof window.scrollTo;
+
+    beforeEach(() => {
+      // happy-dom은 visualViewport를 제공하지 않으므로 생성 전에 목 주입 —
+      // 등록 조건(window.visualViewport truthy)은 createStableInput 호출 시점에 평가된다.
+      mockVV = Object.assign(new EventTarget(), { height: 800, width: 400 });
+      originalVVDescriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+      Object.defineProperty(window, 'visualViewport', { value: mockVV, configurable: true });
+
+      // 스파이가 아닌 스텁으로 대체 — happy-dom 구현의 부작용 차단
+      scrollByStub = vi.fn();
+      scrollToStub = vi.fn();
+      originalScrollBy = window.scrollBy;
+      originalScrollTo = window.scrollTo;
+      window.scrollBy = scrollByStub as unknown as typeof window.scrollBy;
+      window.scrollTo = scrollToStub as unknown as typeof window.scrollTo;
+    });
+
+    afterEach(() => {
+      window.scrollBy = originalScrollBy;
+      window.scrollTo = originalScrollTo;
+      if (originalVVDescriptor) {
+        Object.defineProperty(window, 'visualViewport', originalVVDescriptor);
+      } else {
+        // 원래 own property가 없던 환경 — undefined로 재정의해 truthy 잔존을 방지 (noDelete 룰 준수)
+        Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+      }
+      vi.restoreAllMocks();
+    });
+
+    function mockContainerRect(bottom: number) {
+      vi.spyOn(container, 'getBoundingClientRect').mockReturnValue({
+        top: bottom - 100, bottom, left: 0, right: 400,
+        width: 400, height: 100, x: 0, y: bottom - 100,
+        toJSON: () => ({}),
+      } as DOMRect);
+    }
+
+    function focusHiddenInput() {
+      const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+      hiddenInput.dispatchEvent(new Event('focus')); // isFocused=true 설정 (기존 테스트 패턴)
+    }
+
+    // 키보드 등장 재현: visualViewport 높이 축소 후 resize 디스패치
+    function shrinkViewport(height: number) {
+      mockVV.height = height;
+      mockVV.dispatchEvent(new Event('resize'));
+    }
+
+    it("S1: anchor 'bottom'(기본) — overflow만큼 scrollBy({top: overflow+8, behavior: 'instant'}) 1회", () => {
+      const instance = createStableInput(container, {}); // 옵션 생략 → 기본 anchor 'bottom'
+      focusHiddenInput();
+      mockContainerRect(700); // rect.bottom=700
+      shrinkViewport(500); // vv.height=500 → overflow 200
+      expect(scrollByStub).toHaveBeenCalledTimes(1);
+      expect(scrollByStub).toHaveBeenCalledWith({ top: 208, behavior: 'instant' }); // 700−500+8
+      expect(scrollToStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it("S2: anchor 'bottom' — overflow가 없으면(컨테이너가 viewport 안) 스크롤하지 않는다", () => {
+      const instance = createStableInput(container, {});
+      focusHiddenInput();
+      mockContainerRect(400); // rect.bottom=400 < vv.height=500 → overflow < 0
+      shrinkViewport(500);
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it("S3: scrollAnchor 'top' — scrollTo({top: 0, behavior: 'instant'}) 1회, scrollBy 미호출", () => {
+      const instance = createStableInput(container, { scrollAnchor: 'top' });
+      focusHiddenInput();
+      shrinkViewport(500);
+      expect(scrollToStub).toHaveBeenCalledTimes(1);
+      expect(scrollToStub).toHaveBeenCalledWith({ top: 0, behavior: 'instant' });
+      expect(scrollByStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it("S4: scrollAnchor 'none' — overflow가 있어도 스크롤 보정을 하지 않는다 (게이트 2)", () => {
+      const instance = createStableInput(container, { scrollAnchor: 'none' });
+      focusHiddenInput();
+      mockContainerRect(700); // overflow 존재 조건
+      shrinkViewport(500);
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it('S5: 비포커스 상태의 visualViewport resize는 무시된다 (게이트 1)', () => {
+      const instance = createStableInput(container, {});
+      // focus 없이 resize
+      mockContainerRect(700);
+      shrinkViewport(500);
+      expect(scrollByStub).not.toHaveBeenCalled();
+      // blur 후에도 동일
+      const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+      hiddenInput.dispatchEvent(new Event('focus'));
+      hiddenInput.dispatchEvent(new Event('blur'));
+      shrinkViewport(400);
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it('S6: suppressLayoutShift:false — visualViewport resize 리스너 자체가 등록되지 않는다', () => {
+      const addSpy = vi.spyOn(mockVV, 'addEventListener');
+      const instance = createStableInput(container, { suppressLayoutShift: false });
+      expect(addSpy.mock.calls.some((call) => call[0] === 'resize')).toBe(false);
+      focusHiddenInput();
+      mockContainerRect(700);
+      shrinkViewport(500);
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+      instance.destroy();
+    });
+
+    it('S7: destroy 시 visualViewport resize 리스너가 해제된다', () => {
+      const instance = createStableInput(container, {});
+      focusHiddenInput();
+      mockContainerRect(700);
+      const removeSpy = vi.spyOn(mockVV, 'removeEventListener');
+      instance.destroy();
+      expect(removeSpy.mock.calls.some((call) => call[0] === 'resize')).toBe(true);
+      shrinkViewport(500); // destroy 후 resize → 보정 없음
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+    });
+
+    it('S8: visualViewport 부재 환경 — 정상 생성되고 focus/destroy가 throw하지 않는다', () => {
+      Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
+      const instance = createStableInput(container, {});
+      expect(() => instance.focus()).not.toThrow();
+      // resize 경로 자체가 없으므로 scroll 스텁은 어떤 경우에도 미호출
+      expect(scrollByStub).not.toHaveBeenCalled();
+      expect(scrollToStub).not.toHaveBeenCalled();
+      expect(() => instance.destroy()).not.toThrow();
+    });
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입
