@@ -38,7 +38,8 @@
         "**/tsup.config.ts",
         "**/vitest.config.ts",
         "**/vite.config.ts",
-        "**/playwright.config.ts"
+        "**/playwright.config.ts",
+        "**/.vitepress/**"
       ],
       "linter": {
         "rules": {

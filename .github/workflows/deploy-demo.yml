@@ -1,4 +1,4 @@
-name: Deploy Demo
+name: Deploy Demo & Docs
 
 on:
   push:
@@ -40,13 +40,23 @@ jobs:
       - name: Build packages and demo
         run: pnpm build
 
+      - name: Build docs
+        run: pnpm docs:build
+
+      - name: Compose site (demo at root + docs at /docs)
+        run: |
+          rm -rf site
+          mkdir -p site/docs
+          cp -R examples/react-example/dist/. site/
+          cp -R docs/.vitepress/dist/. site/docs/
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: examples/react-example/dist
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
