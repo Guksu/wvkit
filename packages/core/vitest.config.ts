@@ -15,8 +15,10 @@ export default defineConfig({
       //                   stable-input branches 92.59 / functions 85.71.
       // stable-input functions는 플로어(≥85)가 실측−2~3%p보다 높아 플로어로 고정.
       // Sprint 5(touch-contracts) 램프: pull-to-refresh 실측 branches 90.07 / functions 100 → −2%p 내림.
+      // Sprint 8(residual-test-gaps) 램프: camera-control 트윈 테스트(T-01) 추가 후
+      // 실측 branches 84.04 / functions 100 → −2%p 내림.
       thresholds: {
-        '**/camera-control.ts': { branches: 81, functions: 92 },
+        '**/camera-control.ts': { branches: 82, functions: 98 },
         '**/pull-to-refresh.ts': { branches: 88, functions: 98 },
         '**/stable-input.ts': { branches: 90, functions: 85 },
       },

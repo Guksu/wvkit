@@ -52,6 +52,8 @@ interface PullOpts {
   duration?: number;
   /** 손가락을 떼지 않고 hold (pointerup 미발화). 후속 release()로 마무리 필요 */
   hold?: boolean;
+  /** 제스처 시작 전 컨테이너 scrollTop 설정값 (기본 0 — tryStart는 scrollTop>0 시 거절) */
+  scrollTopBefore?: number;
 }
 
 export interface PullHandle {
@@ -67,14 +69,14 @@ export async function pullOnContainer(
   dy: number,
   opts: PullOpts = {},
 ): Promise<PullHandle | undefined> {
-  const { steps = 14, duration = 280, hold = false } = opts;
+  const { steps = 14, duration = 280, hold = false, scrollTopBefore = 0 } = opts;
 
   await page.evaluate(
-    async ({ dy, steps, duration }) => {
+    async ({ dy, steps, duration, scrollTopBefore }) => {
       const el = document.querySelector('[data-testid="ptr-container"]') as HTMLElement | null;
       if (!el) throw new Error('ptr-container not found');
-      // 스크롤 위치 0으로 보장 — tryStart가 scrollTop>0 시 거절함
-      el.scrollTop = 0;
+      // 기본 0 — tryStart가 scrollTop>0 시 거절함. C4처럼 거절 경로를 검증할 때만 >0 전달.
+      el.scrollTop = scrollTopBefore;
       const rect = el.getBoundingClientRect();
       const startX = rect.left + rect.width / 2;
       const startY = rect.top + 10;
@@ -112,7 +114,7 @@ export async function pullOnContainer(
         pid,
       };
     },
-    { dy, steps, duration },
+    { dy, steps, duration, scrollTopBefore },
   );
 
   if (!hold) {
@@ -271,10 +273,31 @@ export async function clickTrigger(page: Page): Promise<void> {
 }
 
 export async function setEnabled(page: Page, enabled: boolean): Promise<void> {
-  // 데모의 enabled 체크박스를 토글한다 — 라벨이 i18n이라 input 셀렉터로 직접.
-  // ControlItem 안 input[type=checkbox]는 enabled가 처음 등장 (순서 의존이라 fragile).
-  // 안전하게 row-state 가까이 둔 체크박스를 모두 가져와 enabled 라벨 가진 항목의 input을 토글.
-  const checkbox = page.locator('input[type="checkbox"]').first();
+  // testid 기반 — 순서 의존 셀렉터(input[type=checkbox].first()) 제거 (B-23 선반영).
+  const checkbox = page.getByTestId('ptr-enabled-toggle');
   const checked = await checkbox.isChecked();
-  if (checked !== enabled) await checkbox.click();
+  if (checked !== enabled) {
+    await checkbox.click();
+    // enabled 토글은 remountKey 경유 인스턴스 재생성 — 새 컨테이너 재출현 대기
+    await page.getByTestId('ptr-container').waitFor();
+    await page.getByTestId('row-state-value').waitFor();
+  }
+}
+
+/** 다음 onRefresh 1회를 강제 실패시키는 데모 원샷 토글 (ref 경유 — 리마운트 없음). */
+export async function setFailNext(page: Page): Promise<void> {
+  await page.getByTestId('ptr-fail-next-toggle').check();
+}
+
+/**
+ * ptr-container의 **인라인** overscroll-behavior 반환.
+ * 소스가 element.style로 직접 기록(pull-to-refresh.ts:87-91)하므로 인라인 값으로 판정 —
+ * computed style은 UA 기본값이 개입할 여지가 있다. 적용 시 'contain', opt-out 시 ''.
+ */
+export async function getOverscrollBehavior(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const el = document.querySelector('[data-testid="ptr-container"]') as HTMLElement | null;
+    if (!el) throw new Error('ptr-container not found');
+    return el.style.overscrollBehavior;
+  });
 }

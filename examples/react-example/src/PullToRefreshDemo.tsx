@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { usePullToRefresh } from '@guksu/wvkit-react';
 import type { PullToRefreshState } from '@guksu/wvkit-react';
 import { DemoCard, ControlGrid, ControlItem, DataRow, inputStyle, checkboxRowStyle } from './ui';
@@ -84,6 +84,15 @@ export function PullToRefreshDemo() {
   const [items, setItems] = useState<ListItem[]>(INITIAL_ITEMS);
   // e2e 계측용 — onRefresh 실제 발화 횟수 (touch+합성 pointer 이중처리 검출)
   const [refreshCount, setRefreshCount] = useState(0);
+  // e2e 계측용 — 다음 onRefresh 1회를 강제 실패시키는 원샷 플래그.
+  // ref 경유(remountKey 미포함) — 토글이 인스턴스를 리마운트하면 reject→복구가
+  // 같은 인스턴스에서 검증되지 않으므로. failNext state는 체크박스 표시용 동기 사본.
+  const [failNext, setFailNextState] = useState(false);
+  const failNextRef = useRef(false);
+  const setFailNext = (next: boolean) => {
+    failNextRef.current = next;
+    setFailNextState(next);
+  };
 
   const { tr } = useLang();
   const s = tr.pullToRefresh;
@@ -93,6 +102,12 @@ export function PullToRefreshDemo() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshCount((prev) => prev + 1);
+    if (failNextRef.current) {
+      // 원샷 — 플래그를 되돌리고 리스트 항목 추가 없이 reject (D6 계약 e2e용)
+      failNextRef.current = false;
+      setFailNextState(false);
+      throw new Error('e2e-forced-refresh-failure');
+    }
     await new Promise<void>((r) => setTimeout(r, 1500));
     const now = new Date().toLocaleTimeString();
     setItems((prev) => [{ id: `refresh-${Date.now()}`, label: `Refreshed at ${now}` }, ...prev]);
@@ -115,15 +130,24 @@ export function PullToRefreshDemo() {
         </ControlItem>
         <ControlItem label={c.enabled}>
           <label style={checkboxRowStyle}>
-            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)}
+              data-testid="ptr-enabled-toggle" />
             <span style={{ fontSize: 13 }}>{String(enabled)}</span>
           </label>
         </ControlItem>
         <ControlItem label={c.disableOverscrollContain} span>
           <label style={checkboxRowStyle}>
             <input type="checkbox" checked={disableOverscrollContain}
-              onChange={(e) => setDisableOverscrollContain(e.target.checked)} />
+              onChange={(e) => setDisableOverscrollContain(e.target.checked)}
+              data-testid="ptr-overscroll-toggle" />
             <span style={{ fontSize: 13 }}>{String(disableOverscrollContain)}</span>
+          </label>
+        </ControlItem>
+        <ControlItem label={c.failNext} span>
+          <label style={checkboxRowStyle}>
+            <input type="checkbox" checked={failNext} onChange={(e) => setFailNext(e.target.checked)}
+              data-testid="ptr-fail-next-toggle" />
+            <span style={{ fontSize: 13 }}>{String(failNext)}</span>
           </label>
         </ControlItem>
       </ControlGrid>
