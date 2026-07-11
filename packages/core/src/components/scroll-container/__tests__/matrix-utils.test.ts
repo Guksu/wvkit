@@ -73,6 +73,10 @@ describe('applyResistance', () => {
   });
   it('max < min falls back to plain clamp without throwing', () => {
     expect(() => applyResistance(5, 10, 0, 0.2)).not.toThrow();
+    // clamp(5, 10, 0): value(5) < min(10) 분기가 먼저 평가되어 min(10) 반환 (B-22)
+    const result = applyResistance(5, 10, 0, 0.2);
+    expect(Number.isFinite(result)).toBe(true);
+    expect(result).toBe(10);
   });
 });
 

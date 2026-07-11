@@ -233,11 +233,13 @@ describe('ScrollContainer — integration', () => {
     });
 
     it('with enablePinchZoom=true, 2-pointer gesture pipeline runs without throwing', () => {
-      // 핀치 결과 수치는 happy-dom의 동기 dispatch + RAF 한계로 정확 검증 어려움 — "에러 없이 동작"만 검증
+      // 핀치 결과 수치는 B-05가 camera-control 단위에서 값 검증 — 여기서는 통합 경로 발화 여부만 (B-22)
+      const onZoomChange = vi.fn();
       const sc = createScrollContainer(root, {
         direction: 'horizontal',
         panels: makePanels(3),
         enablePinchZoom: true,
+        onZoomChange,
       });
       expect(() => {
         root.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 150, clientY: 300 }));
@@ -247,6 +249,8 @@ describe('ScrollContainer — integration', () => {
         root.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 100, clientY: 300 }));
         root.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: 300, clientY: 300 }));
       }).not.toThrow();
+      // 핀치아웃(100px→200px 갭)이 통합 경로에서 실제 줌 변화를 일으켰는지 — 콜백 발화 또는 zoom > 1
+      expect(onZoomChange.mock.calls.length > 0 || sc.getZoom() > 1).toBe(true);
       sc.destroy();
     });
   });
@@ -281,6 +285,8 @@ describe('ScrollContainer — integration', () => {
       });
       sc.destroy();
       expect(() => sc.destroy()).not.toThrow();
+      // destroy 후 root 하위에 renderer DOM이 잔존하지 않는다 (B-22)
+      expect(root.children.length).toBe(0);
     });
 
     it('after destroy, pointer gestures do NOT trigger callbacks (listeners removed)', () => {

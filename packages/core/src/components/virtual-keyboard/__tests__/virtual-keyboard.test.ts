@@ -204,6 +204,9 @@ describe('createVirtualKeyboard', () => {
     expect(instance.isOpen).toBe(false);
     expect(instance.keyboardHeight).toBe(0);
     expect(() => instance.destroy()).not.toThrow();
+    // destroy 후에도 getter 값이 유지된다 (B-22)
+    expect(instance.isOpen).toBe(false);
+    expect(instance.keyboardHeight).toBe(0);
     globalThis.window = original;
   });
 });

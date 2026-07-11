@@ -257,11 +257,17 @@ describe('createCameraControl — destroy + listener cleanup', () => {
       onPanRelease: vi.fn(),
       onPinchRelease: vi.fn(),
     });
+    const xBefore = camera.position.x;
+    const yBefore = camera.position.y;
     expect(() => control.cancelAnimation()).not.toThrow();
+    // 트윈이 없을 때 cancelAnimation은 카메라를 건드리지 않는다 (B-22)
+    expect(camera.position.x).toBe(xBefore);
+    expect(camera.position.y).toBe(yBefore);
     control.destroy();
   });
 
   it('destroy is idempotent', () => {
+    const removeSpy = vi.spyOn(root, 'removeEventListener');
     const control = createCameraControl({
       root,
       camera,
@@ -278,7 +284,14 @@ describe('createCameraControl — destroy + listener cleanup', () => {
       onPinchRelease: vi.fn(),
     });
     control.destroy();
+    const removeCallsAfterFirstDestroy = removeSpy.mock.calls.length;
+    const xAfterFirstDestroy = camera.position.x;
+    const yAfterFirstDestroy = camera.position.y;
     expect(() => control.destroy()).not.toThrow();
+    // 2차 destroy는 리스너 재해제·카메라 변형 없이 완전 no-op (B-22)
+    expect(removeSpy.mock.calls.length).toBe(removeCallsAfterFirstDestroy);
+    expect(camera.position.x).toBe(xAfterFirstDestroy);
+    expect(camera.position.y).toBe(yAfterFirstDestroy);
   });
 });
 

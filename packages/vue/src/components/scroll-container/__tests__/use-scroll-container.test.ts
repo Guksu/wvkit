@@ -83,7 +83,12 @@ describe('useScrollContainer (Vue)', () => {
       panels,
     });
     await wrapper.vm.$nextTick();
+    const containerEl = wrapper.element as HTMLElement;
+    // 마운트 중에는 renderer DOM이 attach되어 있다 — 아래 제거 단언이 공허해지지 않게
+    expect(containerEl.children.length).toBeGreaterThan(0);
     expect(() => wrapper.unmount()).not.toThrow();
+    // destroy 실행 증거 — 컨테이너에 renderer DOM 잔존 없음 (B-22)
+    expect(containerEl.children.length).toBe(0);
   });
 });
 

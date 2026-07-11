@@ -416,6 +416,9 @@ describe('createStableInput', () => {
       Object.defineProperty(window, 'visualViewport', { value: undefined, configurable: true });
       const instance = createStableInput(container, {});
       expect(() => instance.focus()).not.toThrow();
+      // visualViewport가 없어도 포커스 계약은 유지된다 — hidden input이 실제 포커스를 받는다 (B-22)
+      const hiddenInput = document.body.querySelector('input[style]') as HTMLInputElement;
+      expect(document.activeElement).toBe(hiddenInput);
       // resize 경로 자체가 없으므로 scroll 스텁은 어떤 경우에도 미호출
       expect(scrollByStub).not.toHaveBeenCalled();
       expect(scrollToStub).not.toHaveBeenCalled();
@@ -432,6 +435,8 @@ describe('createStableInput', () => {
     expect(() => instance.setValue('x')).not.toThrow();
     expect(instance.getValue()).toBe('');
     expect(() => instance.destroy()).not.toThrow();
+    // destroy 후에도 noop getter 값이 유지된다 (B-22)
+    expect(instance.getValue()).toBe('');
     globalThis.window = original;
   });
 });

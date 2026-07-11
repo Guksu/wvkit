@@ -4,6 +4,8 @@ import { useLang } from './LangContext';
 
 export function ScrollLockDemo() {
   const { lock, unlock, isLocked } = useScrollLock();
+  // 2번째 인스턴스 — 중첩 lock의 prev-값 복원 의미론(e2e TC-24-02) 검증용
+  const { lock: lock2, unlock: unlock2, isLocked: isLocked2 } = useScrollLock();
   const { tr } = useLang();
   const s = tr.scrollLock;
 
@@ -41,7 +43,42 @@ export function ScrollLockDemo() {
         </button>
       </div>
 
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0 12px' }}>
+        <div style={{ ...dot, background: isLocked2 ? '#ef4444' : '#22c55e' }} />
+        <span
+          style={{ fontSize: 14, fontWeight: 600, color: isLocked2 ? '#ef4444' : '#22c55e' }}
+          data-testid="lock2-status"
+          data-locked={isLocked2 ? 'true' : 'false'}
+        >
+          #2 {isLocked2 ? s.locked : s.unlocked}
+        </span>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          type="button"
+          onClick={lock2}
+          disabled={isLocked2}
+          style={{ ...btn, ...btnDanger, opacity: isLocked2 ? 0.4 : 1 }}
+          data-testid="lock2-btn"
+        >
+          lock() #2
+        </button>
+        <button
+          type="button"
+          onClick={unlock2}
+          disabled={!isLocked2}
+          style={{ ...btn, ...btnSuccess, opacity: !isLocked2 ? 0.4 : 1 }}
+          data-testid="unlock2-btn"
+        >
+          unlock() #2
+        </button>
+      </div>
+
       <p style={{ marginTop: 16, fontSize: 12, color: '#9ca3af' }}>{s.hint}</p>
+
+      {/* body를 실제 스크롤 가능하게 만드는 스페이서 — unlock 위치 복원(e2e TC-24-01) 검증용 */}
+      <div data-testid="scroll-spacer" style={{ height: 1600 }} />
     </DemoCard>
   );
 }

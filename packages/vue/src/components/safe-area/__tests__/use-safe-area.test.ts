@@ -34,7 +34,12 @@ describe('useSafeArea (Vue)', () => {
   });
 
   it('언마운트 시 에러 없이 정리된다', () => {
+    const childrenBefore = document.body.children.length;
     const { wrapper } = mountWithComposable();
+    // 마운트가 sentinel을 body에 추가했다는 전제 확인 — 아래 제거 단언이 공허해지지 않게
+    expect(document.body.children.length).toBe(childrenBefore + 1);
     expect(() => wrapper.unmount()).not.toThrow();
+    // destroy 실행 증거 — sentinel이 body에서 제거된다 (B-22)
+    expect(document.body.children.length).toBe(childrenBefore);
   });
 });

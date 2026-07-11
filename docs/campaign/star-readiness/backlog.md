@@ -39,9 +39,9 @@
 |----|------|------|------|------|
 | B-20 | 커버리지 threshold 도입 — 핵심 3파일(camera-control/pull-to-refresh/stable-input) branch/func 하한 | S | audit-unit P2 | ✅ Sprint 1 |
 | B-21 | CI에 publint + @arethetypeswrong/cli 스텝 | S | audit-docs P2 | ✅ Sprint 9 |
-| B-22 | 껍데기 단언 정리 — `not.toThrow()`-only 테스트에 관측 가능한 부수효과 단언 추가, SafeArea 인셋 파싱 스텁 검증 | M | audit-unit P2 ×2 | ⬜ |
-| B-23 | e2e 안정화 — `waitForTimeout` → `expect.poll`, 데모 `data-testid` 부여 후 위치 의존 셀렉터 교체 | S | audit-e2e P2 ×2 | ⬜ |
-| B-24 | e2e 잔여 커버 — ScrollLock(위치 복원·중첩), VirtualKeyboard(scroll 경로·리스너 해제), `both` 폴백, 줌 상태 pan | S | audit-e2e P2 ×3 | ⬜ |
+| B-22 | 껍데기 단언 정리 — `not.toThrow()`-only 테스트에 관측 가능한 부수효과 단언 추가, SafeArea 인셋 파싱 스텁 검증 | M | audit-unit P2 ×2 | ✅ Sprint 10 |
+| B-23 | e2e 안정화 — `waitForTimeout` → `expect.poll`, 데모 `data-testid` 부여 후 위치 의존 셀렉터 교체 | S | audit-e2e P2 ×2 | ✅ Sprint 10 |
+| B-24 | e2e 잔여 커버 — ScrollLock(위치 복원·중첩), VirtualKeyboard(scroll 경로·리스너 해제), `both` 폴백, 줌 상태 pan | S | audit-e2e P2 ×3 | ✅ Sprint 10 |
 | B-25 | 어댑터·설정 정리 — non-callback prop 미반영 문서화(특히 `panels`), react-dom peer 제거, biome 무효 억제 정리, deploy-demo `paths:` 필터, ScrollLock scrollY 주석 명확화, StableInput 옵션 검증 | M | audit-code P2 ×6 | ⬜ |
 | B-26 | 사전 존재 lint red 13건 정리 — `pnpm lint`가 e2e/·examples/·packages/react 기존 코드에서 exit 1 (noDefaultExport, noNonNullAssertion 등). CI lint 게이트가 사실상 무력화된 상태 | S | Sprint 1 QA 발견 (qa-report.md 미해결 2) | ✅ Sprint 1 편입 |
 

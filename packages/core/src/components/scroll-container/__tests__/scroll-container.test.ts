@@ -104,6 +104,9 @@ describe('createScrollContainer — SSR guard', () => {
       expect(sc.getZoom()).toBe(1);
       expect(() => sc.scrollTo(5)).not.toThrow();
       expect(() => sc.zoomTo(2)).not.toThrow();
+      // noop 인스턴스 — scrollTo/zoomTo 호출 후에도 상태 불변 (B-22)
+      expect(sc.getActiveIndex()).toBe(0);
+      expect(sc.getZoom()).toBe(1);
       expect(() => sc.destroy()).not.toThrow();
     } finally {
       (globalThis as { window?: unknown }).window = originalWindow;
@@ -358,12 +361,17 @@ describe('createScrollContainer — destroy', () => {
   });
 
   it('is idempotent (second destroy is no-op)', () => {
+    const panels = makePanels(2);
     const sc = createScrollContainer(root, {
       direction: 'horizontal',
-      panels: makePanels(2),
+      panels,
     });
     sc.destroy();
     expect(() => sc.destroy()).not.toThrow();
+    // 2차 destroy가 1차 destroy가 복원한 panel display 상태를 재변형하지 않는다 (B-22)
+    for (const panel of panels) {
+      expect(panel.style.display).toBe('');
+    }
   });
 
   // TC-B13-1: destroy 후 scrollTo 는 완전 no-op — 상태·콜백·DOM 전부 불변
@@ -549,11 +557,16 @@ describe('createScrollContainer — direction', () => {
   });
 
   it("'both' direction falls back without throwing (1차 horizontal 폴백)", () => {
+    const onIndexChange = vi.fn();
     const sc = createScrollContainer(root, {
       direction: 'both',
       panels: makePanels(3),
+      onIndexChange,
     });
     expect(() => sc.scrollTo(1)).not.toThrow();
+    // horizontal 폴백이 실제 horizontal처럼 동작함을 고정 — 인덱스 전이 + 콜백 발화 (B-22)
+    expect(sc.getActiveIndex()).toBe(1);
+    expect(onIndexChange).toHaveBeenCalledWith(1);
     sc.destroy();
   });
 });

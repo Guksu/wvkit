@@ -108,6 +108,8 @@ describe('createPullToRefresh — SSR guard', () => {
       expect(sc.getState()).toBe('idle');
       expect(() => sc.setEnabled(false)).not.toThrow();
       expect(() => sc.destroy()).not.toThrow();
+      // noop 인스턴스 — setEnabled/destroy 이후에도 state 유지 (B-22)
+      expect(sc.getState()).toBe('idle');
       // trigger는 Promise 반환
       return sc.trigger().then(() => {
         // SSR 분기에서는 onRefresh 호출 안 됨
@@ -344,9 +346,16 @@ describe('createPullToRefresh — destroy lifecycle', () => {
   });
 
   it('destroy 멱등성: 2회 호출 throw 없음', () => {
-    const instance = createPullToRefresh(root, { onRefresh: () => {} });
+    const onStateChange = vi.fn();
+    const instance = createPullToRefresh(root, {
+      onRefresh: () => {},
+      onStateChange,
+    });
     instance.destroy();
     expect(() => instance.destroy()).not.toThrow();
+    // 2차 destroy도 상태 전이·콜백 발화 없이 완전 no-op (B-22)
+    expect(onStateChange).not.toHaveBeenCalled();
+    expect(instance.getState()).toBe('idle');
   });
 
   it('destroy 후 setEnabled는 noop', () => {
@@ -383,9 +392,25 @@ describe('createPullToRefresh — setEnabled / enabled option', () => {
   });
 
   it('setEnabled(false)/setEnabled(true) 호출이 throw 없음', () => {
-    const instance = createPullToRefresh(root, { onRefresh: () => {} });
+    // 통합 테스트 scenario 9와 동일 계약을 unit 레벨에서 고정 — 토글이 실제 제스처 게이트로 동작 (B-22)
+    const pointerEvent = (type: string, pointerId: number, clientY: number) =>
+      new PointerEvent(type, { pointerId, clientX: 100, clientY, bubbles: true, cancelable: true });
+    const onPull = vi.fn();
+    const instance = createPullToRefresh(root, { onRefresh: () => {}, onPull });
+
     expect(() => instance.setEnabled(false)).not.toThrow();
+    // disabled 동안 당김 시퀀스는 onPull을 발화시키지 못한다
+    root.dispatchEvent(pointerEvent('pointerdown', 1, 100));
+    root.dispatchEvent(pointerEvent('pointermove', 1, 300));
+    root.dispatchEvent(pointerEvent('pointerup', 1, 300));
+    expect(onPull).not.toHaveBeenCalled();
+
     expect(() => instance.setEnabled(true)).not.toThrow();
+    // 재활성화 후 동일 시퀀스는 onPull을 발화시킨다
+    root.dispatchEvent(pointerEvent('pointerdown', 2, 100));
+    root.dispatchEvent(pointerEvent('pointermove', 2, 300));
+    expect(onPull).toHaveBeenCalled();
+    root.dispatchEvent(pointerEvent('pointerup', 2, 300));
     instance.destroy();
   });
 

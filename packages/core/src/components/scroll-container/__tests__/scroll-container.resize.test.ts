@@ -187,24 +187,28 @@ describe('createScrollContainer — ResizeObserver 보정', () => {
   });
 
   it('resize — R5: destroy 후 콜백은 no-op (throw 없음, DOM 불변)', () => {
+    const onIndexChange = vi.fn();
     const panels = makePanels(3);
     const sc = createScrollContainer(root, {
       direction: 'horizontal',
       panels,
       initialIndex: 1,
+      onIndexChange,
     });
     const rendered = rendererEl(root); // destroy가 detach하므로 참조 유지
     const ro = MockRO.instances[0]!;
     sc.destroy();
+    onIndexChange.mockClear(); // 마운트 중 발화분 제외 — destroy 이후만 관찰
 
     const panelTransformsBefore = panels.map((p) => p.style.transform);
     setRootSize(root, 800, 500);
     expect(() => ro.trigger()).not.toThrow();
 
-    // destroyed 가드로 setSize/렌더 미수행 — 스타일·transform 불변
+    // destroyed 가드로 setSize/렌더 미수행 — 스타일·transform 불변, 콜백 미발화 (B-22)
     expect(rendered.style.width).toBe('400px');
     expect(rendered.style.height).toBe('600px');
     expect(panels.map((p) => p.style.transform)).toEqual(panelTransformsBefore);
+    expect(onIndexChange).not.toHaveBeenCalled();
   });
 
   it('resize — R6: 진행 중 트윈을 취소하고 새 좌표 기준 최종 위치로 즉시 보정한다', () => {
