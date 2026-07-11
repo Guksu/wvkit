@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>wvkit Vue sandbox — PullToRefresh + StableInput</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #f4f4f5;
+        color: #18181b;
+      }
+      .app {
+        max-width: 480px;
+        margin: 0 auto;
+        padding: 16px;
+      }
+      .section {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      .section h2 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+      .ptr-container {
+        height: 280px;
+        overflow-y: auto;
+        border: 1px solid #e4e4e7;
+        border-radius: 8px;
+        position: relative;
+      }
+      .ptr-indicator {
+        text-align: center;
+        font-size: 13px;
+        color: #42b883;
+        height: 0;
+        overflow: visible;
+      }
+      .ptr-item {
+        padding: 12px 16px;
+        border-bottom: 1px solid #f4f4f5;
+        font-size: 14px;
+      }
+      .stable-input-display input {
+        width: 100%;
+        padding: 10px 12px;
+        font-size: 15px;
+        border: 1px solid #d4d4d8;
+        border-radius: 8px;
+        outline: none;
+      }
+      .stable-input-display input:focus-visible {
+        border-color: #42b883;
+      }
+      .value-echo {
+        margin-top: 8px;
+        font-size: 13px;
+        color: #71717a;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

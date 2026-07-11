@@ -9,6 +9,8 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test -- --coverage",
     "lint": "biome lint .",
+    "lint:publint": "publint --strict packages/core && publint --strict packages/react && publint --strict packages/vue",
+    "lint:attw": "attw --pack packages/core --profile node16 && attw --pack packages/react --profile node16 && attw --pack packages/vue --profile node16",
     "format": "biome format --write .",
     "check": "biome check --write .",
     "typecheck": "turbo run typecheck",
@@ -26,9 +28,11 @@
     "test:e2e:report": "playwright show-report e2e/playwright-report"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^1.9.4",
     "@changesets/cli": "^2.27.10",
     "@playwright/test": "^1.60.0",
+    "publint": "^0.3.21",
     "turbo": "^2.3.3",
     "typescript": "^5.7.2"
   },

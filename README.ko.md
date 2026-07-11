@@ -13,6 +13,22 @@
 
 ---
 
+## 라이브 데모
+
+- **React 데모** — <https://guksu.github.io/wvkit/>
+- **Vue 데모** — <https://guksu.github.io/wvkit/vue/>
+
+### 온라인에서 바로 실행 (제로 설치)
+
+npm 배포 패키지를 사용하는 최소 샌드박스 — `PullToRefresh` + `StableInput`:
+
+| 프레임워크 | StackBlitz | CodeSandbox |
+|-----------|------------|-------------|
+| React | [StackBlitz에서 열기](https://stackblitz.com/github/Guksu/wvkit/tree/main/examples/sandboxes/react) | [CodeSandbox에서 열기](https://codesandbox.io/p/sandbox/github/Guksu/wvkit/tree/main/examples/sandboxes/react) |
+| Vue | [StackBlitz에서 열기](https://stackblitz.com/github/Guksu/wvkit/tree/main/examples/sandboxes/vue) | [CodeSandbox에서 열기](https://codesandbox.io/p/sandbox/github/Guksu/wvkit/tree/main/examples/sandboxes/vue) |
+
+---
+
 ## 왜 wvkit인가?
 
 네이티브 셸 안에서 동작하는 WebView 앱은 브라우저 우선 라이브러리가 절대 다루지 않는 UI 버그를 만납니다.
