@@ -79,3 +79,40 @@ describe('useStableInput', () => {
     expect(exposedGetValue?.()).toBe('hello');
   });
 });
+
+/**
+ * [B-09] 어댑터 실질화 — StrictMode 이중 마운트 시 인풋 DOM 수량과
+ * unmount 시 displayInput/hiddenInput 완전 제거를 수치로 단언한다.
+ * (displayInput은 container div 자식, hiddenInput은 body 직접 자식)
+ */
+describe('useStableInput [B-09] 실질 검증', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  function Host() {
+    const { containerRef } = useStableInput({ placeholder: '검색…' });
+    return React.createElement(StableInputDisplay, { containerRef });
+  }
+
+  it('[B-09] A3: StrictMode 이중 마운트에도 인풋이 정확히 2개(display 1 + hidden 1)다', () => {
+    const { container } = render(
+      React.createElement(React.StrictMode, null, React.createElement(Host)),
+    );
+    const containerDiv = container.firstChild as HTMLElement;
+    // 이중 마운트 누수면 display 2 + hidden 2 = 4개가 된다
+    expect(containerDiv.querySelectorAll('input').length).toBe(1);
+    const hiddenInputs = Array.from(document.body.children).filter(
+      (el) => el.tagName === 'INPUT',
+    );
+    expect(hiddenInputs).toHaveLength(1);
+    expect(document.querySelectorAll('input').length).toBe(2);
+  });
+
+  it('[B-09] A7: unmount 후 document에 인풋이 0개다 (displayInput/hiddenInput.remove 실효)', () => {
+    const { unmount } = render(React.createElement(Host));
+    expect(document.querySelectorAll('input').length).toBe(2);
+    unmount();
+    expect(document.querySelectorAll('input').length).toBe(0);
+  });
+});

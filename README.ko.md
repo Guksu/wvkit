@@ -40,6 +40,21 @@ wvkit은 이 모든 문제를 처리합니다. 각 컴포넌트는 **동작(beha
 
 ---
 
+## 문서
+
+컴포넌트별 심화 문서 — 문제 배경, 아키텍처, 전체 API 레퍼런스, 알려진 제한사항:
+
+| 컴포넌트 | 문서 |
+|----------|------|
+| `ScrollContainer` | [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md) |
+| `StableInput` | [docs/components/stable-input/index.md](docs/components/stable-input/index.md) |
+| `PullToRefresh` | [docs/components/pull-to-refresh/index.md](docs/components/pull-to-refresh/index.md) |
+| `useVirtualKeyboard` | [docs/components/virtual-keyboard/index.md](docs/components/virtual-keyboard/index.md) |
+| `useSafeArea` | [docs/components/safe-area/index.md](docs/components/safe-area/index.md) |
+| `useScrollLock` | [docs/components/scroll-lock/index.md](docs/components/scroll-lock/index.md) |
+
+---
+
 ## 설치
 
 ### Core (Vanilla JS / 프레임워크 무관)
@@ -332,6 +347,8 @@ pnpm changeset
 pnpm changeset version
 pnpm changeset publish
 ```
+
+전체 기여 가이드(셋업, 테스트, changeset 흐름)는 [CONTRIBUTING.md](CONTRIBUTING.md)를 참고하세요.
 
 ---
 

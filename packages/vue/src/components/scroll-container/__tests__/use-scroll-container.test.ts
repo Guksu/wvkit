@@ -86,3 +86,36 @@ describe('useScrollContainer (Vue)', () => {
     expect(() => wrapper.unmount()).not.toThrow();
   });
 });
+
+/**
+ * [B-09] 어댑터 실질화 — unmount 후 명령형 메서드가 noop이 되는지
+ * (instance null 가드 실효, use-scroll-container.ts:60-63) 콜백 미발화로 단언한다.
+ */
+describe('useScrollContainer (Vue) [B-09] 실질 검증', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('[B-09] A11: unmount 후 scrollTo(1)을 호출해도 onIndexChange가 발화하지 않는다 (noop 가드)', async () => {
+    const onIndexChange = vi.fn();
+    const panels = makePanels(4);
+    const { wrapper, composable } = mountWithComposable({
+      direction: 'horizontal',
+      panels,
+      onIndexChange,
+    });
+    await wrapper.vm.$nextTick();
+
+    // 마운트 시점 계약 성립 확인 — scrollTo가 실제로 콜백을 발화하는 상태
+    composable.scrollTo(2, { animated: false });
+    expect(onIndexChange).toHaveBeenCalledWith(2);
+    onIndexChange.mockClear();
+
+    wrapper.unmount();
+
+    expect(() => composable.scrollTo(1, { animated: false })).not.toThrow();
+    expect(onIndexChange).toHaveBeenCalledTimes(0);
+    // ref도 unmount 이전 값에서 변하지 않는다
+    expect(composable.activeIndex.value).toBe(2);
+  });
+});

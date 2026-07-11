@@ -74,3 +74,66 @@ describe('usePullToRefresh (Vue)', () => {
     expect(() => wrapper.unmount()).not.toThrow();
   });
 });
+
+/**
+ * [B-09] 어댑터 실질화 — unmount(destroy) 후 리스너가 실제로 제거되고
+ * overscrollBehavior가 복원되는지 관측 가능한 부수효과로 단언한다.
+ *
+ * 제스처 시뮬레이션: happy-dom은 TouchEvent 부분 지원 → core 통합 테스트와 동일하게
+ * PointerEvent로 시뮬 (scrollTop=0 기본값으로 top 가드 충족).
+ */
+function pointerEvent(
+  type: string,
+  init: { pointerId: number; clientY: number; clientX?: number },
+): Event {
+  try {
+    return new PointerEvent(type, {
+      pointerId: init.pointerId,
+      clientX: init.clientX ?? 100,
+      clientY: init.clientY,
+      bubbles: true,
+      cancelable: true,
+    });
+  } catch {
+    const ev = new Event(type, { bubbles: true, cancelable: true });
+    Object.assign(ev, init);
+    return ev;
+  }
+}
+
+describe('usePullToRefresh (Vue) [B-09] 실질 검증', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('[B-09] A9: unmount 후 원 컨테이너에 제스처를 디스패치해도 onPull이 발화하지 않고 overscrollBehavior가 복원된다', async () => {
+    const onPull = vi.fn();
+    const onStateChange = vi.fn();
+    const { wrapper } = mountWithComposable({
+      onRefresh: () => Promise.resolve(),
+      onPull,
+      onStateChange,
+    });
+    await wrapper.vm.$nextTick();
+    const containerEl = wrapper.element as HTMLElement;
+
+    // 마운트 시점 계약 성립 확인 — contain 적용 + 제스처가 실제로 콜백을 발화하는 상태
+    expect(containerEl.style.overscrollBehavior).toBe('contain');
+    containerEl.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientY: 100 }));
+    containerEl.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientY: 140 }));
+    expect(onPull).toHaveBeenCalledTimes(1);
+    onPull.mockClear();
+    onStateChange.mockClear();
+
+    wrapper.unmount();
+
+    // destroy가 원래 값('')으로 복원 — 'contain' 잔존이면 destroy 미실행
+    expect(containerEl.style.overscrollBehavior).toBe('');
+
+    containerEl.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientY: 100 }));
+    containerEl.dispatchEvent(pointerEvent('pointermove', { pointerId: 2, clientY: 140 }));
+
+    expect(onPull).toHaveBeenCalledTimes(0);
+    expect(onStateChange).toHaveBeenCalledTimes(0);
+  });
+});

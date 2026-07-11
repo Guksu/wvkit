@@ -20,13 +20,14 @@
 | ID | 항목 | 규모 | 근거 | 상태 |
 |----|------|------|------|------|
 | B-08 | PTR TouchEvent 경로 + `activeSource` 소스 승계 단위 테스트 (`pull-to-refresh.ts:216-273` 미커버) | M | audit-unit P1 | ✅ Sprint 5 |
-| B-09 | 어댑터 테스트 실질화 — StrictMode 이중 마운트, rerender 시 options 반영, destroy 실효(리스너 제거) 단언 | M | audit-unit P1 | ⬜ |
+| B-09 | 어댑터 테스트 실질화 — StrictMode 이중 마운트, rerender 시 options 반영, destroy 실효(리스너 제거) 단언 | M | audit-unit P1 | ✅ Sprint 6 |
 | B-10 | e2e 골든 시나리오 — 대각 스크롤 방지, suppressLayoutShift(VP resize 중 위치 불변), orientation 후 inset 재측정, touch+합성 pointer 이중처리 1회 발화 | M | audit-e2e P1 ×3 | ✅ Sprint 5 |
 | B-11 | `WebviewHeadlessError` 값 export — 현재 타입 전용이라 `instanceof` catch 불가 (`core/src/index.ts:1`) | S | audit-code P1 | ✅ Sprint 3 |
 | B-12 | three peer 범위 완화 — `^0.184.0` → 하한 범위(실측 후), @types/three 동반 조정 | S | audit-code P1 | ✅ Sprint 3 |
 | B-13 | destroy 후 `scrollTo`/`zoomTo` 가드 + 해당 껍데기 단언을 명시적 단언으로 강화 (`scroll-container.ts:220-243`) | S | audit-unit P1 | ✅ Sprint 4 |
-| B-14 | README 히어로 GIF 3~4종 + Documentation 링크 섹션 (현재 문서 진입로 0, GIF 0) | M | audit-docs P1 ×2 | ⬜ |
-| B-15 | 커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿 | S | audit-docs P1·P2 | ⬜ |
+| B-14a | README 히어로 GIF 3~4종 (현재 GIF 0) | M | audit-docs P1 | ⏸ 보류(실기기·데모 화면 캡처 장비 필요 — 에이전트 단독 수행 불가) |
+| B-14b | README Documentation 링크 섹션 (현재 문서 진입로 0) — B-14에서 실행 가능 부분 분리 | S | audit-docs P1 | ✅ Sprint 6 |
+| B-15 | 커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿 | S | audit-docs P1·P2 | ✅ Sprint 6 |
 | B-16 | Vue 데모 배포(서브패스) + StackBlitz/CodeSandbox 링크 | M | audit-docs P1 | ⬜ |
 | B-17 | 잔여 단위 공백 — CameraControl `animated` 트윈(RAF), VirtualKeyboard 회전 baseHeight 리셋, ScrollContainer ResizeObserver 보정 | M | audit-unit P1 ×3 | ⬜ |
 | B-18 | PTR e2e 잔여 계약 — setEnabled(false) 무시, onRefresh reject 복구, maxDistance cap, scrollTop>0 거절, overscroll-behavior 적용/opt-out | S | audit-e2e P1 | ⬜ |

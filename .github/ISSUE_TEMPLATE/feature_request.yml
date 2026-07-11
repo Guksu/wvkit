@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a new component, hook, or API for wvkit
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem background
+      description: What WebView-specific problem are you trying to solve? Why can't existing components/CSS handle it?
+      placeholder: "In iOS WKWebView, ... cannot be done because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API
+      description: Sketch the API you'd like (options, returned methods, callbacks). Headless-first — behavior only, no styles.
+      render: ts
+      placeholder: |
+        const x = createSomething(rootEl, {
+          onSomething: () => {},
+        });
+        x.destroy();
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you tried (CSS, other libraries, native bridge) and why they fall short.
+    validations:
+      required: false
