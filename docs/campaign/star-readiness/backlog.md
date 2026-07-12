@@ -28,7 +28,7 @@
 | B-14a | README 히어로 GIF 3~4종 (현재 GIF 0) | M | audit-docs P1 | ⏸ 보류(실기기·데모 화면 캡처 장비 필요 — 에이전트 단독 수행 불가) |
 | B-14b | README Documentation 링크 섹션 (현재 문서 진입로 0) — B-14에서 실행 가능 부분 분리 | S | audit-docs P1 | ✅ Sprint 6 |
 | B-15 | 커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿 | S | audit-docs P1·P2 | ✅ Sprint 6 |
-| B-16 | Vue 데모 배포(서브패스) + StackBlitz/CodeSandbox 링크 | M | audit-docs P1 | ⬜ |
+| B-16 | Vue 데모 배포(서브패스) + StackBlitz/CodeSandbox 링크 | M | audit-docs P1 | ✅ Sprint 9 |
 | B-17 | 잔여 단위 공백 — CameraControl `animated` 트윈(RAF), VirtualKeyboard 회전 baseHeight 리셋, ScrollContainer ResizeObserver 보정 | M | audit-unit P1 ×3 | ✅ Sprint 8 |
 | B-18 | PTR e2e 잔여 계약 — setEnabled(false) 무시, onRefresh reject 복구, maxDistance cap, scrollTop>0 거절, overscroll-behavior 적용/opt-out | S | audit-e2e P1 | ✅ Sprint 8 |
 | B-19 | WKWebView 실기기 자동화 — Maestro/Detox로 시뮬레이터 스모크 1~2건(nightly). 단기: README에 "webkit ≠ WKWebView" 한계 명시 | L | audit-e2e P1 | ⏸ 보류(iOS 시뮬레이터·실기기 자동화 장비 필요 — 에이전트 단독 수행 불가) |
@@ -38,7 +38,7 @@
 | ID | 항목 | 규모 | 근거 | 상태 |
 |----|------|------|------|------|
 | B-20 | 커버리지 threshold 도입 — 핵심 3파일(camera-control/pull-to-refresh/stable-input) branch/func 하한 | S | audit-unit P2 | ✅ Sprint 1 |
-| B-21 | CI에 publint + @arethetypeswrong/cli 스텝 | S | audit-docs P2 | ⬜ |
+| B-21 | CI에 publint + @arethetypeswrong/cli 스텝 | S | audit-docs P2 | ✅ Sprint 9 |
 | B-22 | 껍데기 단언 정리 — `not.toThrow()`-only 테스트에 관측 가능한 부수효과 단언 추가, SafeArea 인셋 파싱 스텁 검증 | M | audit-unit P2 ×2 | ⬜ |
 | B-23 | e2e 안정화 — `waitForTimeout` → `expect.poll`, 데모 `data-testid` 부여 후 위치 의존 셀렉터 교체 | S | audit-e2e P2 ×2 | ⬜ |
 | B-24 | e2e 잔여 커버 — ScrollLock(위치 복원·중첩), VirtualKeyboard(scroll 경로·리스너 해제), `both` 폴백, 줌 상태 pan | S | audit-e2e P2 ×3 | ⬜ |

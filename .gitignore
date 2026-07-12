@@ -52,5 +52,8 @@ e2e/test-results/
 e2e/playwright-report/
 e2e/.cache/
 
+# Zero-install sandboxes — npm 로컬 검증 부산물 (StackBlitz는 매회 fresh install이라 lockfile 불필요)
+examples/sandboxes/*/package-lock.json
+
 # Misc
 *.tgz

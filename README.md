@@ -13,6 +13,22 @@
 
 ---
 
+## Live Demo
+
+- **React demo** — <https://guksu.github.io/wvkit/>
+- **Vue demo** — <https://guksu.github.io/wvkit/vue/>
+
+### Try it online (zero install)
+
+Minimal sandboxes using the published npm packages — `PullToRefresh` + `StableInput`:
+
+| Framework | StackBlitz | CodeSandbox |
+|-----------|------------|-------------|
+| React | [Open in StackBlitz](https://stackblitz.com/github/Guksu/wvkit/tree/main/examples/sandboxes/react) | [Open in CodeSandbox](https://codesandbox.io/p/sandbox/github/Guksu/wvkit/tree/main/examples/sandboxes/react) |
+| Vue | [Open in StackBlitz](https://stackblitz.com/github/Guksu/wvkit/tree/main/examples/sandboxes/vue) | [Open in CodeSandbox](https://codesandbox.io/p/sandbox/github/Guksu/wvkit/tree/main/examples/sandboxes/vue) |
+
+---
+
 ## Why wvkit?
 
 WebView apps running inside native shells face a category of UI bugs that browser-first libraries never handle:

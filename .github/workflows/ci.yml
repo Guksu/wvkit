@@ -32,6 +32,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # 패키지 출하 게이트: dist를 검사하므로 반드시 Build 스텝 이후 실행
+      - name: Package gate (publint + attw)
+        run: pnpm lint:publint && pnpm lint:attw
+
       - name: Test
         run: pnpm test
 

@@ -43,12 +43,14 @@ jobs:
       - name: Build docs
         run: pnpm docs:build
 
-      - name: Compose site (demo at root + docs at /docs)
+      - name: Compose site (react demo at root + docs at /docs + vue demo at /vue)
         run: |
           rm -rf site
           mkdir -p site/docs
+          mkdir -p site/vue
           cp -R examples/react-example/dist/. site/
           cp -R docs/.vitepress/dist/. site/docs/
+          cp -R examples/vue-example/dist/. site/vue/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
