@@ -143,7 +143,7 @@ export function ScrollContainerDemo() {
     <DemoCard title={s.title} description={s.description} note={s.note}>
       <ControlGrid>
         <ControlItem label={c.direction}>
-          <select value={direction} onChange={(e) => setDirection(e.target.value as ScrollContainerDirection)} style={selectStyle}>
+          <select data-testid="ctl-direction" value={direction} onChange={(e) => setDirection(e.target.value as ScrollContainerDirection)} style={selectStyle}>
             <option value="horizontal">horizontal</option>
             <option value="vertical">vertical</option>
             <option value="both">both</option>
@@ -171,7 +171,7 @@ export function ScrollContainerDemo() {
         </ControlItem>
         <ControlItem label={c.enablePinchZoom} span>
           <label style={checkboxRowStyle}>
-            <input type="checkbox" checked={enablePinchZoom} onChange={(e) => setEnablePinchZoom(e.target.checked)} />
+            <input data-testid="ctl-enable-pinch-zoom" type="checkbox" checked={enablePinchZoom} onChange={(e) => setEnablePinchZoom(e.target.checked)} />
             <span style={{ fontSize: 13 }}>{String(enablePinchZoom)}</span>
           </label>
         </ControlItem>

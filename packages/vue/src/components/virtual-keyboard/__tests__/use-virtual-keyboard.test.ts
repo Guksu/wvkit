@@ -43,12 +43,42 @@ describe('useVirtualKeyboard (Vue)', () => {
   });
 
   it('threshold 옵션을 전달하면 에러 없이 초기화된다', () => {
-    expect(() => mountWithComposable({ threshold: 150 })).not.toThrow();
+    let mounted: ReturnType<typeof mountWithComposable> | undefined;
+    expect(() => {
+      mounted = mountWithComposable({ threshold: 150 });
+    }).not.toThrow();
+    // 옵션 마운트 후 초기값 계약 (B-22)
+    expect(mounted!.composable.isOpen.value).toBe(false);
+    expect(mounted!.composable.keyboardHeight.value).toBe(0);
   });
 
   it('언마운트 시 에러 없이 정리된다', () => {
-    const { wrapper } = mountWithComposable();
+    // window 폴백 경로 사용 — 실 이벤트 리스너로 등록/해제를 관측한다 (beforeEach의 vv 목은 vi.fn이라 발화 불가)
+    Object.defineProperty(window, 'visualViewport', {
+      value: undefined,
+      writable: true,
+      configurable: true,
+    });
+    const setInnerHeight = (h: number) =>
+      Object.defineProperty(window, 'innerHeight', { value: h, writable: true, configurable: true });
+
+    const { wrapper, composable } = mountWithComposable();
+
+    // 마운트 중에는 resize가 실제로 상태를 갱신한다 — 아래 불변 단언이 공허해지지 않게 계약 성립 확인
+    setInnerHeight(400);
+    window.dispatchEvent(new Event('resize'));
+    expect(composable.isOpen.value).toBe(true);
+    setInnerHeight(800);
+    window.dispatchEvent(new Event('resize'));
+    expect(composable.isOpen.value).toBe(false);
+
     expect(() => wrapper.unmount()).not.toThrow();
+
+    // unmount(destroy) 후 동일 resize 시퀀스는 상태를 바꾸지 못한다 — 리스너 해제 증거 (B-22)
+    setInnerHeight(400);
+    window.dispatchEvent(new Event('resize'));
+    expect(composable.isOpen.value).toBe(false);
+    expect(composable.keyboardHeight.value).toBe(0);
   });
 });
 

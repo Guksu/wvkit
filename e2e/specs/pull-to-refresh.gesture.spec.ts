@@ -14,13 +14,20 @@ test.describe('PullToRefresh — gesture', () => {
     // threshold(기본 60) 미달, 저항(0.5) 적용 후도 60 안 됨 — dy=80 정도면 적정
     await pullOnContainer(page, 40, { duration: 200 });
 
-    // hold 안 했으니 자동 release — refreshing으로 안 가야 함
-    await page.waitForTimeout(50);
-    const finalState = await getState(page);
-    expect(['idle', 'resetting']).toContain(finalState);
-
-    // 충분히 기다리면 idle로 정착
-    await waitForState(page, 'idle', 2000);
+    // release 직후부터 idle 정착까지 관측된 모든 state에 'refreshing'이 없어야 한다
+    // (B-23: 고정 대기 → 상태 폴링. poll 콜백이 관측 배열을 수집)
+    const observed: string[] = [];
+    await expect
+      .poll(
+        async () => {
+          const s = await getState(page);
+          observed.push(s);
+          return s;
+        },
+        { timeout: 2000, message: 'settles back to idle' },
+      )
+      .toBe('idle');
+    expect(observed).not.toContain('refreshing');
   });
 
   test('threshold 초과 당김 후 release → refreshing → idle', async ({ page }) => {

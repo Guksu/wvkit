@@ -30,9 +30,11 @@ describe('usePullToRefresh', () => {
   });
 
   it('언마운트 시 destroy가 호출되어 overscrollBehavior가 복원된다', () => {
+    const onStateChange = vi.fn();
     function TestComponent() {
       const { containerRef } = usePullToRefresh({
         onRefresh: () => {},
+        onStateChange,
       });
       return React.createElement('div', {
         ref: containerRef,
@@ -43,8 +45,18 @@ describe('usePullToRefresh', () => {
     const div = container.firstChild as HTMLElement;
     expect(div.style.overscrollBehavior).toBe('contain');
     unmount();
+    // destroy 실행 증거 — overscrollBehavior 원복 (B-22)
+    expect(div.style.overscrollBehavior).toBe('');
     // 언마운트 후 div가 React에서 분리되지만 destroy 멱등성/에러 없음 검증
     expect(() => unmount()).not.toThrow();
+    // unmount(destroy) 후 원 엘리먼트 제스처는 아무 콜백도 발화시키지 못한다 (B-22)
+    div.dispatchEvent(
+      new PointerEvent('pointerdown', { pointerId: 9, clientX: 100, clientY: 100, bubbles: true, cancelable: true }),
+    );
+    div.dispatchEvent(
+      new PointerEvent('pointermove', { pointerId: 9, clientX: 100, clientY: 300, bubbles: true, cancelable: true }),
+    );
+    expect(onStateChange).not.toHaveBeenCalled();
   });
 
   it('trigger() 호출 시 onRefresh + onStateChange 사용자 콜백이 호출된다', async () => {

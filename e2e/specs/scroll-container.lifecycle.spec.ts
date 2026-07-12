@@ -27,7 +27,7 @@ test.describe('ScrollContainer · S7 options remount', () => {
     await clickScrollTo(page, 2, false);
     await expect(page.getByTestId('row-activeIndex-value')).toHaveText('2');
 
-    await page.locator('select').first().selectOption('vertical');
+    await page.getByTestId('ctl-direction').selectOption('vertical');
 
     await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
     await expect(page.getByTestId('row-direction-value')).toHaveText('vertical');
@@ -99,15 +99,12 @@ test.describe('ScrollContainer · S10 cleanup', () => {
     await gotoDemo(page);
     expect(await getActiveIndex(page)).toBe(0);
 
-    // pull-to-refresh 탭으로 이동
-    await page.getByRole('button', { name: /Pull/i }).first().click();
-    await page.waitForTimeout(150);
+    // pull-to-refresh 탭으로 이동 — PTR 데모 마운트 완료 신호 대기 (B-23: 고정 대기 대체)
+    await page.getByTestId('tab-pull-to-refresh').click();
+    await page.getByTestId('ptr-container').waitFor();
 
-    // scroll-container 탭으로 복귀 — 'Scroll' 텍스트 시작 버튼 (탭 활성 버튼)
-    await page
-      .getByRole('button', { name: /ScrollContainer|스크롤/i })
-      .first()
-      .click();
+    // scroll-container 탭으로 복귀 (B-23: 텍스트 정규식 → testid)
+    await page.getByTestId('tab-scroll-container').click();
 
     // 데모 다시 마운트
     await page.getByTestId('row-activeIndex-value').waitFor();

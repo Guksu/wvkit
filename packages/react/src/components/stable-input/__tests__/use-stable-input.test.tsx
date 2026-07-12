@@ -21,7 +21,15 @@ describe('useStableInput', () => {
       const { containerRef } = useStableInput({ placeholder: '검색…' });
       return React.createElement(StableInputDisplay, { containerRef });
     }
-    expect(() => render(React.createElement(TestComponent))).not.toThrow();
+    let rendered: ReturnType<typeof render> | undefined;
+    expect(() => {
+      rendered = render(React.createElement(TestComponent));
+    }).not.toThrow();
+    // 인스턴스 생성 증거 — hiddenInput이 body에, displayInput(readOnly)이 컨테이너에 존재 (B-22)
+    expect(getHiddenInput()).toBeDefined();
+    const displayInput = rendered!.container.querySelector('input') as HTMLInputElement | null;
+    expect(displayInput).not.toBeNull();
+    expect(displayInput!.readOnly).toBe(true);
   });
 
   it('마운트 후 hiddenInput이 body 직접 자식으로 추가된다', () => {

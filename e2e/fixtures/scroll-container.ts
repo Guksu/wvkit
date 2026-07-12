@@ -25,6 +25,9 @@ export async function getDirection(page: Page): Promise<string> {
 /**
  * CSS3DRenderer scene wrapper(depth 3)의 transform — camera.position이 인코딩되어 있다.
  * 카메라가 X로 이동하면 matrix3d의 12번째 슬롯(또는 그 부근)이 변한다.
+ *
+ * NOTE: `:scope > div > div > div` 는 CSS3DRenderer가 생성하는 래퍼 체인에 대한 구조 의존 —
+ * 렌더러 내부 DOM이라 testid 부여 불가 (B-23 범위 제외, three 버전 업 시 함께 검증할 것).
  */
 export async function getSceneTransform(page: Page): Promise<string | null> {
   return await page.evaluate(() => {
@@ -83,6 +86,7 @@ export async function getSceneYShift(page: Page): Promise<number | null> {
 /**
  * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (CSS3DRenderer는 visible=false 객체를 DOM에서 떼어냄).
  * buildPanels가 만든 패널의 첫 자식 <div>는 인덱스 텍스트를 담고 있어 그것으로 식별.
+ * (`:scope > div > div > div > div` 역시 렌더러 래퍼 체인 구조 의존 — testid 부여 불가)
  */
 export async function getVisiblePanelIndices(page: Page): Promise<number[]> {
   return await page.evaluate(() => {
@@ -244,20 +248,15 @@ export async function clickZoomTo(page: Page, level: number, animated: boolean):
 }
 
 /**
- * scrollTo 애니메이션 종료 대기 — DataRow의 activeIndex가 expected에 도달한 뒤
- * 트윈 RAF가 더 이상 카메라를 움직이지 않을 때까지 panel transform이 안정될 때까지 기다린다.
+ * scene 안정화 대기 — scene wrapper transform이 3 프레임(폴링 틱) 연속 동일해질 때까지.
+ * RAF 트윈/제스처 릴리스 애니메이션 종료 신호로 사용한다 (고정 대기 대체 — B-23).
+ * `window.__lastTf/__sameCount` 폴링 상태는 호출 후 반드시 리셋한다.
+ *
+ * NOTE: `:scope > div > div > div` 는 CSS3DRenderer가 생성하는 래퍼 체인(renderer →
+ * cameraElement → scene wrapper)에 대한 구조 의존이다. 렌더러 내부 DOM이라 testid를
+ * 부여할 수 없어 유지한다 (three CSS3DRenderer 구현 변경 시 함께 갱신 필요).
  */
-export async function waitForScrollSettle(page: Page, expectedIndex: number): Promise<void> {
-  await page.waitForFunction(
-    (idx) => {
-      const value = document.querySelector('[data-testid="row-activeIndex-value"]')?.textContent;
-      return value != null && Number.parseInt(value, 10) === idx;
-    },
-    expectedIndex,
-    // 풀 스위트(4 프로젝트 병렬)에서 webkit RAF 지연으로 5s를 넘기는 flake 관측 — 부하 내성 상향
-    { timeout: 15000 },
-  );
-  // RAF 트윈 종료 — scene wrapper transform이 3 프레임 연속 동일할 때까지
+export async function waitForSceneStable(page: Page): Promise<void> {
   await page.waitForFunction(
     () => {
       const canvas = document.querySelector('[data-testid="sc-canvas"]');
@@ -281,4 +280,22 @@ export async function waitForScrollSettle(page: Page, expectedIndex: number): Pr
     w.__lastTf = undefined;
     w.__sameCount = 0;
   });
+}
+
+/**
+ * scrollTo 애니메이션 종료 대기 — DataRow의 activeIndex가 expected에 도달한 뒤
+ * 트윈 RAF가 더 이상 카메라를 움직이지 않을 때까지 scene transform이 안정될 때까지 기다린다.
+ */
+export async function waitForScrollSettle(page: Page, expectedIndex: number): Promise<void> {
+  await page.waitForFunction(
+    (idx) => {
+      const value = document.querySelector('[data-testid="row-activeIndex-value"]')?.textContent;
+      return value != null && Number.parseInt(value, 10) === idx;
+    },
+    expectedIndex,
+    // 풀 스위트(4 프로젝트 병렬)에서 webkit RAF 지연으로 5s를 넘기는 flake 관측 — 부하 내성 상향
+    { timeout: 15000 },
+  );
+  // RAF 트윈 종료 — scene wrapper transform 안정화까지 (B-23: waitForSceneStable 재사용)
+  await waitForSceneStable(page);
 }

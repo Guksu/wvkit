@@ -196,7 +196,11 @@ describe('createScrollLock', () => {
     (globalThis as { window?: unknown }).window = undefined;
     const instance = createScrollLock();
     expect(instance.isLocked).toBe(false);
+    const overflowBefore = document.body.style.overflow;
     expect(() => instance.lock()).not.toThrow();
+    // noop 인스턴스 — lock()이 상태를 바꾸지도, body 스타일을 건드리지도 않는다 (B-22)
+    expect(instance.isLocked).toBe(false);
+    expect(document.body.style.overflow).toBe(overflowBefore);
     expect(() => instance.unlock()).not.toThrow();
     expect(() => instance.destroy()).not.toThrow();
     globalThis.window = original;

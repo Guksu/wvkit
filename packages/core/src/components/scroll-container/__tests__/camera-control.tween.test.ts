@@ -236,6 +236,7 @@ describe('createCameraControl — animated tween (manual RAF queue)', () => {
     const frozenX = camera.position.x;
     expect(frozenX).toBeCloseTo(700, 6);
 
+    const onChangeCallsBeforeDestroy = onChange.mock.calls.length;
     expect(() => control.destroy()).not.toThrow();
     expect(cancelSpy).toHaveBeenCalled();
 
@@ -243,5 +244,7 @@ describe('createCameraControl — animated tween (manual RAF queue)', () => {
     flushAll();
     expect(camera.position.x).toBe(frozenX);
     expect(onChange).toHaveBeenCalledTimes(1);
+    // destroy 후 잔여 RAF flush는 onChange를 추가 발화시키지 않는다 — 트윈 정지 (B-22)
+    expect(onChange.mock.calls.length).toBe(onChangeCallsBeforeDestroy);
   });
 });

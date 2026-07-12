@@ -8,7 +8,9 @@ import {
   getSceneYShift,
   swipeOnCanvas,
   pinchOnCanvas,
+  clickZoomTo,
   waitForScrollSettle,
+  waitForSceneStable,
 } from '../fixtures/scroll-container';
 
 test.describe('ScrollContainer · S4 horizontal gesture', () => {
@@ -69,7 +71,7 @@ test.describe('ScrollContainer · S5 vertical gesture', () => {
     await gotoDemo(page);
 
     // direction select를 vertical로 변경 (해당 컴포넌트는 remountKey로 재마운트)
-    await page.locator('select').first().selectOption('vertical');
+    await page.getByTestId('ctl-direction').selectOption('vertical');
 
     await expect(page.getByTestId('row-direction-value')).toHaveText('vertical');
     expect(await getActiveIndex(page)).toBe(0);
@@ -103,13 +105,59 @@ test.describe('ScrollContainer · S6 pinch zoom', () => {
     await gotoDemo(page);
 
     // 컨트롤에서 enablePinchZoom 끄기 (체크박스)
-    await page.locator('input[type="checkbox"]').first().uncheck();
+    await page.getByTestId('ctl-enable-pinch-zoom').uncheck();
     // 리마운트 후 초기 zoom 1.0
     await expect(page.getByTestId('row-activeZoom-value')).toHaveText('1.000');
 
     await pinchOnCanvas(page, 100, 240);
-    // 핀치 무시 → 1.0 유지 (2초간 변화 없으면 PASS)
-    await page.waitForTimeout(400);
+    // 핀치 무시 → 릴리스 애니메이션까지 안정화 후에도 1.0 유지 (B-23: 고정 대기 대체)
+    await waitForSceneStable(page);
     expect(await getActiveZoom(page)).toBe(1);
+  });
+});
+
+test.describe('ScrollContainer · S11 both 폴백 + 줌 상태 pan (B-24)', () => {
+  test("TC-24-05: direction=both는 horizontal로 폴백 — 가로 스와이프만 스냅, 세로 입력은 무시", async ({ page }) => {
+    await gotoDemo(page);
+
+    // both 선택 → remountKey로 재마운트
+    await page.getByTestId('ctl-direction').selectOption('both');
+    await expect(page.getByTestId('row-direction-value')).toHaveText('both');
+    expect(await getActiveIndex(page)).toBe(0);
+
+    // 가로 스와이프 → horizontal 폴백이 다음 패널로 스냅 (CLAUDE §1 폴백 계약)
+    await swipeOnCanvas(page, -260, 0);
+    await waitForScrollSettle(page, 1);
+    expect(await getActiveIndex(page)).toBe(1);
+
+    // 세로 스와이프 → 인덱스 유지 + scene Y-shift 오염 없음
+    const y0 = await getSceneYShift(page);
+    expect(y0).not.toBeNull();
+    await swipeOnCanvas(page, 0, -260);
+    await waitForSceneStable(page);
+
+    expect(await getActiveIndex(page)).toBe(1);
+    const y1 = await getSceneYShift(page);
+    expect(Math.abs((y1 ?? 0) - (y0 ?? 0))).toBeLessThanOrEqual(0.5);
+  });
+
+  test('TC-24-06: zoom=2 상태의 가로 pan — 콘텐츠가 실제 이동하고 zoom은 오염되지 않는다', async ({ page }) => {
+    await gotoDemo(page);
+
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+
+    const x0 = await getSceneXShift(page);
+    expect(x0).not.toBeNull();
+
+    // zoom=2에서는 화면 1px = 월드 0.5unit — 스냅 임계(0.3*width)를 확실히 넘도록 크게 스와이프
+    await swipeOnCanvas(page, -500, 0);
+    await waitForScrollSettle(page, 1);
+
+    // pan이 콘텐츠를 실제 이동시킨다 (다음 패널로 스냅 → scene X-shift 대폭 변화)
+    const x1 = await getSceneXShift(page);
+    expect(Math.abs((x1 ?? 0) - (x0 ?? 0))).toBeGreaterThan(50);
+    // pan이 zoom을 오염시키지 않는다
+    expect(await getActiveZoom(page)).toBe(2);
   });
 });
