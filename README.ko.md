@@ -267,6 +267,8 @@ lock.unlock();
 
 ## API 레퍼런스
 
+> **반응성 주의 (React/Vue 어댑터):** 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)은 마운트 시점에 1회 고정되며, 이후 렌더에서 변경해도 조용히 무시됩니다. 콜백(`onIndexChange`, `onRefresh` 등)은 항상 최신으로 유지됩니다. 새 non-callback 옵션을 적용하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트에 새 `key`를 전달, Vue는 `:key` / `v-if`를 사용합니다. 이 규칙은 `@guksu/wvkit-react` / `@guksu/wvkit-vue`의 모든 어댑터 훅·컴포저블에 공통 적용됩니다.
+
 ### PullToRefresh
 
 | 옵션 | 타입 | 기본값 | 설명 |

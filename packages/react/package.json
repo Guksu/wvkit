@@ -74,8 +74,7 @@
     "@guksu/wvkit-core": "workspace:*"
   },
   "peerDependencies": {
-    "react": ">=18.0.0",
-    "react-dom": ">=18.0.0"
+    "react": ">=18.0.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",

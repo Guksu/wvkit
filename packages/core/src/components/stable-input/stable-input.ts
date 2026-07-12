@@ -1,4 +1,25 @@
+import { WebviewHeadlessError } from '../../errors';
 import type { StableInputOptions, StableInputInstance } from './types';
+
+const SCROLL_ANCHORS = ['top', 'bottom', 'none'] as const;
+
+/**
+ * 옵션 검증 — 잘못된 값은 즉시 `WebviewHeadlessError`로 차단해 디버깅 시간을 줄인다.
+ * TypeScript 시그니처로는 잡히지 않는 위반만 검사 (ScrollContainer/PTR과 동일 컨벤션).
+ * `type`/`placeholder`/`inputMode`/`autocomplete`는 임의 문자열이 그대로 유효해
+ * 런타임 검증의 실익이 없으므로 의도적으로 생략한다.
+ * 반드시 SSR 가드 통과 뒤에 호출할 것 — `HTMLElement` 전역이 SSR 환경에는 없다.
+ */
+function validateOptions(container: HTMLElement, options: StableInputOptions): void {
+  if (!(container instanceof HTMLElement)) {
+    throw new WebviewHeadlessError('StableInput: container must be an HTMLElement');
+  }
+  if (options.scrollAnchor !== undefined && !SCROLL_ANCHORS.includes(options.scrollAnchor)) {
+    throw new WebviewHeadlessError(
+      `StableInput: scrollAnchor must be 'top', 'bottom', or 'none' (got ${options.scrollAnchor})`,
+    );
+  }
+}
 
 export function createStableInput(
   container: HTMLElement,
@@ -7,6 +28,8 @@ export function createStableInput(
   if (typeof window === 'undefined') {
     return { focus: () => {}, blur: () => {}, setValue: () => {}, getValue: () => '', destroy: () => {} };
   }
+
+  validateOptions(container, options);
 
   const listeners: Array<() => void> = [];
 
@@ -156,6 +179,8 @@ export function createStableInput(
   function destroy() {
     for (const off of listeners) off();
     listeners.length = 0;
+    // 리스너·DOM뿐 아니라 상태도 초기값으로 — destroy 후 잔존 상태 없음 (destroy 패턴 컨벤션)
+    isFocused = false;
     displayInput.remove();
     hiddenInput.remove();
   }

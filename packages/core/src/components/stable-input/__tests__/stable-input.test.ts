@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { WebviewHeadlessError } from '../../../errors';
 import { createStableInput } from '../stable-input';
 
 describe('createStableInput', () => {
@@ -423,6 +424,28 @@ describe('createStableInput', () => {
       expect(scrollByStub).not.toHaveBeenCalled();
       expect(scrollToStub).not.toHaveBeenCalled();
       expect(() => instance.destroy()).not.toThrow();
+    });
+  });
+
+  describe('[B-25] 옵션 검증 (validateOptions)', () => {
+    it('[B-25] S1: 잘못된 scrollAnchor는 WebviewHeadlessError를 던진다', () => {
+      expect(() => createStableInput(container, { scrollAnchor: 'middle' as never })).toThrow(
+        WebviewHeadlessError,
+      );
+      expect(() => createStableInput(container, { scrollAnchor: 'middle' as never })).toThrow(
+        /scrollAnchor/,
+      );
+      // 유효값 3종은 throw 없이 정상 생성된다 — 검증 분기 양쪽 커버
+      for (const anchor of ['top', 'bottom', 'none'] as const) {
+        const instance = createStableInput(container, { scrollAnchor: anchor });
+        expect(instance).toBeDefined();
+        instance.destroy();
+      }
+    });
+
+    it('[B-25] S2: container가 HTMLElement가 아니면 WebviewHeadlessError를 던진다', () => {
+      expect(() => createStableInput(null as never, {})).toThrow(WebviewHeadlessError);
+      expect(() => createStableInput(null as never, {})).toThrow(/container/);
     });
   });
 

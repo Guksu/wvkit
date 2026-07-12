@@ -124,3 +124,33 @@ describe('useScrollContainer (Vue) [B-09] 실질 검증', () => {
     expect(composable.activeIndex.value).toBe(2);
   });
 });
+
+/**
+ * [B-25] 어댑터 계약 핀 — non-callback 옵션(panels 등)은 setup 시점에 1회 고정되며
+ * 이후 변경은 인스턴스를 재생성하지 않는다(문서화된 계약). 이 동작이 조용히 바뀌면
+ * 문서와 어긋나므로 테스트로 고정한다.
+ */
+describe('useScrollContainer (Vue) [B-25] non-callback 옵션 1회 고정 계약', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('[B-25] V1: 마운트 후 options 객체의 panels를 교체해도 인스턴스는 재생성되지 않는다', async () => {
+    const options = { direction: 'horizontal' as const, panels: makePanels(3) };
+    const { wrapper, composable } = mountWithComposable(options);
+    await wrapper.vm.$nextTick();
+
+    const containerEl = wrapper.element as HTMLElement;
+    // 재생성되면 CSS3DRenderer.domElement가 detach 후 새로 append되어 참조가 바뀐다
+    const rendererEl = containerEl.firstElementChild;
+    expect(rendererEl).not.toBeNull();
+    const indexBefore = composable.activeIndex.value;
+
+    // 옵션 객체의 panels 교체 — 어댑터는 이를 감지하지 않는다(재마운트가 유일한 반영 수단)
+    options.panels = makePanels(5);
+    await wrapper.vm.$nextTick();
+
+    expect(containerEl.firstElementChild).toBe(rendererEl);
+    expect(composable.activeIndex.value).toBe(indexBefore);
+  });
+});
