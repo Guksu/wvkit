@@ -1,5 +1,27 @@
 # @guksu/wvkit-react
 
+## 0.4.0
+
+### Minor Changes
+
+- 7f9fd91: **BREAKING**: ScrollContainer는 `<pkg>/scroll-container` subpath로 이동 — three 미설치 CJS/ESM 소비자의 배럴 크래시 해소.
+
+  - `createScrollContainer`는 `@guksu/wvkit-core/scroll-container`, `useScrollContainer`는 `@guksu/wvkit-react/scroll-container` · `@guksu/wvkit-vue/scroll-container`에서 import (배럴 `.`에는 타입만 잔존).
+  - 배럴(`.`)이 더 이상 three를 정적 로드하지 않으므로 optional peer 설계대로 three 없이 StableInput 등 non-three 컴포넌트 사용 가능.
+  - destroy 이후 `scrollTo`/`zoomTo`는 완전 no-op (상태 갱신·`onIndexChange`/`onZoomChange` 발화 누수 차단).
+
+- 9380974: Trust fixes: export `WebviewHeadlessError` as a runtime value from all three barrels (core + react/vue re-export) so consumers can identify library errors via `instanceof`; relax `three` peer range from `^0.184.0` to `>=0.160.0` (floor verified by typecheck/build/test matrix); fix stale `@wvkit/core` external in react/vue tsup configs to `@guksu/wvkit-core`.
+
+### Patch Changes
+
+- 7924f51: `react-dom` peer dependency 제거 — 소스가 react-dom을 참조하지 않으므로 소비자 설치 제약만 완화된다(`react >=18` peer는 유지).
+- ce9601c: fix exports map: split CJS types to .d.cts (attw FalseESM)
+- Updated dependencies [7924f51]
+- Updated dependencies [ce9601c]
+- Updated dependencies [7f9fd91]
+- Updated dependencies [9380974]
+  - @guksu/wvkit-core@0.4.0
+
 ## 0.3.1
 
 ### Patch Changes
