@@ -1,5 +1,22 @@
 # @guksu/wvkit-core
 
+## 0.4.0
+
+### Minor Changes
+
+- 7924f51: StableInput: `validateOptions` 도입 — 잘못된 `container`(HTMLElement 아님)·`scrollAnchor`(`'top' | 'bottom' | 'none'` 외 값)는 이제 생성 시점에 `WebviewHeadlessError`를 던진다(기존에는 조용히 통과 — breaking-ish 동작 변경). `destroy()`가 `isFocused` 상태도 초기화한다. ScrollLock의 scrollY 저장/복원 의도(overflow:hidden 전략의 안전망)를 주석으로 명확화.
+- 7f9fd91: **BREAKING**: ScrollContainer는 `<pkg>/scroll-container` subpath로 이동 — three 미설치 CJS/ESM 소비자의 배럴 크래시 해소.
+
+  - `createScrollContainer`는 `@guksu/wvkit-core/scroll-container`, `useScrollContainer`는 `@guksu/wvkit-react/scroll-container` · `@guksu/wvkit-vue/scroll-container`에서 import (배럴 `.`에는 타입만 잔존).
+  - 배럴(`.`)이 더 이상 three를 정적 로드하지 않으므로 optional peer 설계대로 three 없이 StableInput 등 non-three 컴포넌트 사용 가능.
+  - destroy 이후 `scrollTo`/`zoomTo`는 완전 no-op (상태 갱신·`onIndexChange`/`onZoomChange` 발화 누수 차단).
+
+- 9380974: Trust fixes: export `WebviewHeadlessError` as a runtime value from all three barrels (core + react/vue re-export) so consumers can identify library errors via `instanceof`; relax `three` peer range from `^0.184.0` to `>=0.160.0` (floor verified by typecheck/build/test matrix); fix stale `@wvkit/core` external in react/vue tsup configs to `@guksu/wvkit-core`.
+
+### Patch Changes
+
+- ce9601c: fix exports map: split CJS types to .d.cts (attw FalseESM)
+
 ## 0.3.1
 
 ### Patch Changes
