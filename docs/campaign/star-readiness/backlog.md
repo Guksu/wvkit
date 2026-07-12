@@ -25,7 +25,7 @@
 | B-11 | `WebviewHeadlessError` 값 export — 현재 타입 전용이라 `instanceof` catch 불가 (`core/src/index.ts:1`) | S | audit-code P1 | ✅ Sprint 3 |
 | B-12 | three peer 범위 완화 — `^0.184.0` → 하한 범위(실측 후), @types/three 동반 조정 | S | audit-code P1 | ✅ Sprint 3 |
 | B-13 | destroy 후 `scrollTo`/`zoomTo` 가드 + 해당 껍데기 단언을 명시적 단언으로 강화 (`scroll-container.ts:220-243`) | S | audit-unit P1 | ✅ Sprint 4 |
-| B-14a | README 히어로 GIF 3~4종 (현재 GIF 0) | M | audit-docs P1 | ⏸ 보류(실기기·데모 화면 캡처 장비 필요 — 에이전트 단독 수행 불가) |
+| B-14a | README 히어로 GIF 3~4종 (현재 GIF 0) | M | audit-docs P1 | ✅ 후속(2026-07-12) — Playwright(iPhone 에뮬레이션)로 실제 제스처 구동 녹화 → ffmpeg GIF 3종(.github/assets/), 재캡처 스크립트 scripts/capture-readme-gifs.mjs. 실기기 캡처 확보 시 교체 여지 |
 | B-14b | README Documentation 링크 섹션 (현재 문서 진입로 0) — B-14에서 실행 가능 부분 분리 | S | audit-docs P1 | ✅ Sprint 6 |
 | B-15 | 커뮤니티 헬스 파일 — CONTRIBUTING(빌드/테스트/changeset 흐름, TESTING.md 링크) + 이슈 템플릿 2종 + PR 템플릿 | S | audit-docs P1·P2 | ✅ Sprint 6 |
 | B-16 | Vue 데모 배포(서브패스) + StackBlitz/CodeSandbox 링크 | M | audit-docs P1 | ✅ Sprint 9 |

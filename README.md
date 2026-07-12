@@ -11,6 +11,21 @@
 
 > Headless UI primitives for WebView — solving layout, scroll, and input problems that general-purpose UI libraries ignore.
 
+<table>
+  <tr>
+    <td align="center"><b>ScrollContainer</b><br/>axis-locked pan · snap · pinch zoom</td>
+    <td align="center"><b>PullToRefresh</b><br/>headless state machine · resistance</td>
+    <td align="center"><b>StableInput</b><br/>dual-input · IME-safe · no layout jump</td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/scroll-container.gif" alt="ScrollContainer demo — swipe snap between panels and pinch zoom" width="260"/></td>
+    <td><img src=".github/assets/pull-to-refresh.gif" alt="PullToRefresh demo — pull with resistance, armed threshold, refresh and reset" width="260"/></td>
+    <td><img src=".github/assets/stable-input.gif" alt="StableInput demo — typing Korean text mirrored to display input and submitted" width="260"/></td>
+  </tr>
+</table>
+
+<sub>Captured from the [live demo](https://guksu.github.io/wvkit/) driven by real touch-gesture sequences (browser emulation).</sub>
+
 ---
 
 ## Live Demo

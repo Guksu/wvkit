@@ -11,6 +11,21 @@
 
 > WebView에 최적화된 헤드리스 UI 프리미티브 — 일반 UI 라이브러리가 무시하는 레이아웃·스크롤·인풋 문제를 해결합니다.
 
+<table>
+  <tr>
+    <td align="center"><b>ScrollContainer</b><br/>축 제약 pan · 스냅 · 핀치 줌</td>
+    <td align="center"><b>PullToRefresh</b><br/>헤드리스 상태 머신 · 저항</td>
+    <td align="center"><b>StableInput</b><br/>듀얼 인풋 · IME 안전 · 레이아웃 튐 없음</td>
+  </tr>
+  <tr>
+    <td><img src=".github/assets/scroll-container.gif" alt="ScrollContainer 데모 — 스와이프 스냅 패널 전환과 핀치 줌" width="260"/></td>
+    <td><img src=".github/assets/pull-to-refresh.gif" alt="PullToRefresh 데모 — 저항 당김, 임계값 armed, 새로고침 후 복귀" width="260"/></td>
+    <td><img src=".github/assets/stable-input.gif" alt="StableInput 데모 — 한글 입력이 디스플레이 인풋에 미러링되고 제출됨" width="260"/></td>
+  </tr>
+</table>
+
+<sub>[라이브 데모](https://guksu.github.io/wvkit/)를 실제 터치 제스처 시퀀스로 구동하며 캡처 (브라우저 에뮬레이션).</sub>
+
 ---
 
 ## 라이브 데모
