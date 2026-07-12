@@ -1,9 +1,23 @@
 name: Deploy Demo & Docs
 
+# paths: 사이트 산출물(react demo + docs + vue demo)의 빌드 입력만 나열한다.
+# docs/** 전체가 아닌 사이트 빌드 하위 경로만 — 워크로그·캠페인·리포트 등 문서성 push로
+# Pages 재배포가 낭비되지 않도록. 필터로 스킵된 뒤 수동 재배포는 workflow_dispatch로.
 on:
   push:
     branches:
       - main
+    paths:
+      - 'packages/**'
+      - 'examples/**'
+      - 'docs/.vitepress/**'
+      - 'docs/components/**'
+      - 'docs/ko/**'
+      - 'docs/index.md'
+      - 'docs/package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/deploy-demo.yml'
+  workflow_dispatch:
 
 permissions:
   contents: read

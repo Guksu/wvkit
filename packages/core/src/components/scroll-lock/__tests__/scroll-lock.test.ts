@@ -190,6 +190,29 @@ describe('createScrollLock', () => {
     });
   });
 
+  it('[B-25] L1: unlock은 lock 시점의 scrollY로 window.scrollTo를 호출한다(안전망)', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'scrollY');
+    Object.defineProperty(window, 'scrollY', { value: 120, configurable: true });
+    const scrollToSpy = vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
+    try {
+      const instance = createScrollLock();
+      instance.lock();
+      // lock 이후 위치가 틀어진 상황 모사 (주소창 축소/키보드 등)
+      Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+      instance.unlock();
+      // 주석이 약속하는 안전망 — lock "시점"에 저장한 값(120)으로 복원한다
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 120);
+      instance.destroy();
+    } finally {
+      scrollToSpy.mockRestore();
+      if (originalDescriptor) {
+        Object.defineProperty(window, 'scrollY', originalDescriptor);
+      } else {
+        Object.defineProperty(window, 'scrollY', { value: 0, configurable: true, writable: true });
+      }
+    }
+  });
+
   it('SSR 환경(window undefined)에서 no-op 인스턴스를 반환한다', () => {
     const original = globalThis.window;
     // SSR 시뮬레이션 — typeof window === 'undefined' 분기 진입

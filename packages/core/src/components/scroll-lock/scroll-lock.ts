@@ -33,6 +33,7 @@ export function createScrollLock(options: ScrollLockOptions = {}): ScrollLockIns
 
   function lock() {
     if (locked) return;
+    // lock 시점 스크롤 위치 보관 — unlock의 window.scrollTo 안전망 복원에 사용 (아래 주석 참조)
     scrollY = window.scrollY;
 
     // 소비자가 지정해둔 인라인 값을 unlock 시 그대로 복원하기 위해 보관
@@ -57,6 +58,9 @@ export function createScrollLock(options: ScrollLockOptions = {}): ScrollLockIns
     document.body.style.overscrollBehavior = prevOverscrollBehavior;
     document.removeEventListener('touchmove', preventTouchMove);
 
+    // 안전망: overflow:hidden 전략에서는 스크롤 위치가 대부분 유지되므로 이 복원은
+    // 무동작에 가깝다. 일부 브라우저(주소창 축소/키보드 등)에서 위치가 틀어지는 경우를
+    // 위한 안전망이며, position:fixed 전략(저장/복원이 필수인)으로 오해하지 말 것.
     window.scrollTo(0, scrollY);
     locked = false;
     options.onUnlock?.();

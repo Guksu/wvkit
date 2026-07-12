@@ -267,6 +267,8 @@ lock.unlock();
 
 ## API Reference
 
+> **Reactivity note (React/Vue adapters):** Non-callback options (e.g. `panels`, `direction`, `minZoom`) are captured once at mount — changing them on a later render is silently ignored. Callbacks (`onIndexChange`, `onRefresh`, …) always stay fresh. To apply new non-callback options, force a remount: pass a new `key` to the host component in React, or use `:key` / `v-if` in Vue. This applies to every adapter hook/composable in `@guksu/wvkit-react` and `@guksu/wvkit-vue`.
+
 ### PullToRefresh
 
 | Option | Type | Default | Description |

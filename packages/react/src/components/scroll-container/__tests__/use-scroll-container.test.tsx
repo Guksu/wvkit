@@ -142,3 +142,47 @@ describe('useScrollContainer [B-09] 실질 검증', () => {
     expect(firstCallback).toHaveBeenCalledTimes(0);
   });
 });
+
+/**
+ * [B-25] 어댑터 계약 핀 — non-callback 옵션(panels/minZoom 등)은 마운트 시 1회 고정되며
+ * 이후 변경은 인스턴스를 재생성하지 않는다(문서화된 계약). 이 동작이 조용히 바뀌면
+ * (예: options 변경 시 자동 재초기화 도입) 문서와 어긋나므로 테스트로 고정한다.
+ */
+describe('useScrollContainer [B-25] non-callback 옵션 1회 고정 계약', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  let capturedActiveIndex = -1;
+  function PinHost(props: { panels: HTMLElement[]; minZoom: number }) {
+    const { containerRef, activeIndex } = useScrollContainer({
+      direction: 'horizontal',
+      panels: props.panels,
+      minZoom: props.minZoom,
+    });
+    capturedActiveIndex = activeIndex;
+    return React.createElement('div', {
+      ref: containerRef,
+      'data-testid': 'sc-pin-root',
+      style: { width: '400px', height: '600px', position: 'relative' },
+    });
+  }
+
+  it('[B-25] R1: rerender로 panels/minZoom을 교체해도 인스턴스는 재생성되지 않는다', () => {
+    const { container, rerender } = render(
+      React.createElement(PinHost, { panels: makePanels(3), minZoom: 1 }),
+    );
+    const containerDiv = container.querySelector('[data-testid="sc-pin-root"]') as HTMLElement;
+    // 재생성되면 CSS3DRenderer.domElement가 detach 후 새로 append되어 참조가 바뀐다
+    const rendererEl = containerDiv.firstElementChild;
+    expect(rendererEl).not.toBeNull();
+    const indexBefore = capturedActiveIndex;
+
+    expect(() =>
+      rerender(React.createElement(PinHost, { panels: makePanels(5), minZoom: 2 })),
+    ).not.toThrow();
+
+    expect(containerDiv.firstElementChild).toBe(rendererEl);
+    expect(capturedActiveIndex).toBe(indexBefore);
+  });
+});

@@ -167,6 +167,10 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 | `scrollTo`     | `(i, opts?) => void` (stable callback)  | `(i, opts?) => void`                    |
 | `zoomTo`       | `(z, opts?) => void` (stable callback)  | `(z, opts?) => void`                    |
 
+::: warning 콜백이 아닌 옵션은 마운트 시점에 1회 고정
+React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)을 인스턴스 생성 시점에 1회만 읽습니다 — 이후 변경은 조용히 무시됩니다. 콜백(`onIndexChange`, `onZoomChange`)만 렌더를 거쳐도 최신으로 유지됩니다. `panels` 등 non-callback 옵션을 교체하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트의 `key` 변경, Vue는 `:key` / `v-if`를 사용합니다.
+:::
+
 ## 브라우저 지원
 
 | 환경                   | 지원   |

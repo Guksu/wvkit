@@ -167,6 +167,10 @@ Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `snapThre
 | `scrollTo`     | `(i, opts?) => void` (stable callback)  | `(i, opts?) => void`                    |
 | `zoomTo`       | `(z, opts?) => void` (stable callback)  | `(z, opts?) => void`                    |
 
+::: warning Non-callback options are captured once at mount
+The React hook and Vue composable read non-callback options (e.g. `panels`, `direction`, `minZoom`) once when the instance is created — changing them later is silently ignored. Only callbacks (`onIndexChange`, `onZoomChange`) stay fresh across renders. To swap `panels` (or any other non-callback option), force a remount: change the host component's `key` in React, or use `:key` / `v-if` in Vue.
+:::
+
 ## Browser Support
 
 | Environment            | Support |

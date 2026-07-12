@@ -20,6 +20,9 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvk
  *  - SSR 안전: `createScrollContainer`는 `onMounted` 안에서만 호출
  *  - 사용자 콜백 wrap: state ref 갱신 + 사용자 콜백 호출 (Vue 클로저는 재호출되지 않으므로
  *    React와 달리 stale closure 이슈 없음 — options는 setup 시점에 고정)
+ *  - non-callback 옵션(`panels`/`direction`/`minZoom` 등)은 setup 시 1회 고정 — 이후
+ *    변경(reactive 갱신 포함)은 조용히 무시된다. `panels` 교체가 필요하면 `:key`를 바꿔
+ *    재마운트할 것 (자동 재초기화는 의도적으로 하지 않음)
  *  - destroy 멱등성에 의존해 HMR/언마운트 안전 (#4에서 보장)
  */
 export function useScrollContainer(options: ScrollContainerOptions): {
