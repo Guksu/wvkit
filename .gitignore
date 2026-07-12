@@ -57,3 +57,4 @@ examples/sandboxes/*/package-lock.json
 
 # Misc
 *.tgz
+scripts/gif-out/
