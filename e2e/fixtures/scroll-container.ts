@@ -85,24 +85,19 @@ export async function getSceneYShift(page: Page): Promise<number | null> {
 /**
  * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (렌더러는 한 번도 보이지 않은 패널을 DOM에 붙이지 않고,
  * 창 밖으로 나간 패널은 display:none 으로 숨긴다).
- * buildPanels가 만든 패널의 첫 자식 <div>는 인덱스 텍스트를 담고 있어 그것으로 식별.
- * (`:scope > div > div > div` 역시 렌더러 DOM 구조 의존 — testid 부여 불가)
+ * 데모의 buildPanels가 패널 루트에 `data-panel-index`를 부여하므로 그것으로 식별한다 (콘텐츠 구조 무관).
  */
 export async function getVisiblePanelIndices(page: Page): Promise<number[]> {
   return await page.evaluate(() => {
     const canvas = document.querySelector('[data-testid="sc-canvas"]');
     if (!canvas) return [];
-    const panels = canvas.querySelectorAll(':scope > div > div > div');
+    const panels = canvas.querySelectorAll<HTMLElement>('[data-panel-index]');
     const out: number[] = [];
-    for (const p of Array.from(panels)) {
+    for (const panelEl of Array.from(panels)) {
       // display:none 패널은 가상화에서 제외된 것으로 간주
-      const panelEl = p as HTMLElement;
       if (panelEl.style.display === 'none' || getComputedStyle(panelEl).display === 'none')
         continue;
-      const inner = p.firstElementChild;
-      const numEl = inner?.firstElementChild;
-      const txt = numEl?.textContent?.trim() ?? '';
-      const n = Number.parseInt(txt, 10);
+      const n = Number.parseInt(panelEl.dataset.panelIndex ?? '', 10);
       if (Number.isFinite(n)) out.push(n);
     }
     return out.sort((a, b) => a - b);
