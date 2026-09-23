@@ -1,5 +1,5 @@
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type PanCamera, createCamera } from '../camera';
 import { createCameraControl } from '../camera-control';
 
 /**
@@ -18,17 +18,8 @@ function makeRoot(width = 400, height = 600): HTMLElement {
   return root;
 }
 
-function makeCamera(width = 400, height = 600): THREE.OrthographicCamera {
-  const cam = new THREE.OrthographicCamera(
-    -width / 2,
-    width / 2,
-    height / 2,
-    -height / 2,
-    0.1,
-    2000,
-  );
-  cam.position.set(0, 0, 1000);
-  return cam;
+function makeCamera(): PanCamera {
+  return createCamera();
 }
 
 const HORIZONTAL_POSITIONS = [
@@ -47,7 +38,7 @@ const VERTICAL_POSITIONS = [
 
 describe('createCameraControl — animateToIndex (animated=false)', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   beforeEach(() => {
     root = makeRoot();
     camera = makeCamera();
@@ -150,7 +141,7 @@ describe('createCameraControl — animateToIndex (animated=false)', () => {
 
 describe('createCameraControl — animateToZoom (animated=false)', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   beforeEach(() => {
     root = makeRoot();
     camera = makeCamera();
@@ -178,12 +169,10 @@ describe('createCameraControl — animateToZoom (animated=false)', () => {
     });
   }
 
-  it('clamps to maxZoom and calls updateProjectionMatrix', () => {
-    const updateSpy = vi.spyOn(camera, 'updateProjectionMatrix');
+  it('clamps to maxZoom', () => {
     const control = makeControl();
     control.animateToZoom(10, false);
     expect(camera.zoom).toBe(3);
-    expect(updateSpy).toHaveBeenCalled();
     control.destroy();
   });
 
@@ -205,7 +194,7 @@ describe('createCameraControl — animateToZoom (animated=false)', () => {
 
 describe('createCameraControl — destroy + listener cleanup', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   beforeEach(() => {
     root = makeRoot();
     camera = makeCamera();
@@ -297,7 +286,7 @@ describe('createCameraControl — destroy + listener cleanup', () => {
 
 describe('createCameraControl — enablePinchZoom flag', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   beforeEach(() => {
     root = makeRoot();
     camera = makeCamera();
@@ -307,7 +296,10 @@ describe('createCameraControl — enablePinchZoom flag', () => {
   });
 
   // happy-dom v15는 PointerEvent 클래스를 지원함. setPointerCapture는 try/catch로 가드됨.
-  function pointerEvent(type: string, init: { pointerId: number; clientX: number; clientY: number }): Event {
+  function pointerEvent(
+    type: string,
+    init: { pointerId: number; clientX: number; clientY: number },
+  ): Event {
     try {
       return new PointerEvent(type, { ...init, bubbles: true });
     } catch {
@@ -354,7 +346,7 @@ describe('createCameraControl — enablePinchZoom flag', () => {
 
 describe('createCameraControl — onChange is fired on camera mutation', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   beforeEach(() => {
     root = makeRoot();
     camera = makeCamera();

@@ -1,5 +1,5 @@
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type PanCamera, createCamera } from '../camera';
 import { createCameraControl } from '../camera-control';
 
 /**
@@ -26,17 +26,8 @@ function makeRoot(width = 400, height = 600): HTMLElement {
   return root;
 }
 
-function makeCamera(width = 400, height = 600): THREE.OrthographicCamera {
-  const cam = new THREE.OrthographicCamera(
-    -width / 2,
-    width / 2,
-    height / 2,
-    -height / 2,
-    0.1,
-    2000,
-  );
-  cam.position.set(0, 0, 1000);
-  return cam;
+function makeCamera(): PanCamera {
+  return createCamera();
 }
 
 const HORIZONTAL_POSITIONS = [
@@ -68,7 +59,7 @@ function pointerEvent(
 
 describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 · gap 스냅)', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   let rafQueue: Map<number, FrameRequestCallback>;
   let rafIdSeq: number;
   let now: number;

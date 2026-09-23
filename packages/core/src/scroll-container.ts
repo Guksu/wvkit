@@ -1,9 +1,9 @@
 /**
  * `@guksu/wvkit-core/scroll-container` subpath 엔트리.
  *
- * ScrollContainer 는 three(peer, optional)를 정적 로드하므로 배럴(`.`)에서 분리한다 —
- * three 미설치 CJS/ESM 소비자가 non-three 컴포넌트를 크래시 없이 쓸 수 있게 하는 경계.
- * 배럴에는 타입만 type-only re-export 로 잔존한다 (런타임 비용 0).
+ * 0.4에서 three(peer) 정적 로드를 배럴(`.`)과 분리하기 위해 만든 경계다. 0.5부터 ScrollContainer는
+ * 외부 의존성이 없지만, 기존 import 경로 호환을 위해 subpath를 유지한다.
+ * 배럴에는 타입만 type-only re-export 로 잔존한다.
  */
 export { createScrollContainer } from './components/scroll-container';
 export type {

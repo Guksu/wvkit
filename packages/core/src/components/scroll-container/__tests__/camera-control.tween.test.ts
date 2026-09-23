@@ -1,5 +1,5 @@
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { type PanCamera, createCamera } from '../camera';
 import { createCameraControl } from '../camera-control';
 
 /**
@@ -20,17 +20,8 @@ function makeRoot(width = 400, height = 600): HTMLElement {
   return root;
 }
 
-function makeCamera(width = 400, height = 600): THREE.OrthographicCamera {
-  const cam = new THREE.OrthographicCamera(
-    -width / 2,
-    width / 2,
-    height / 2,
-    -height / 2,
-    0.1,
-    2000,
-  );
-  cam.position.set(0, 0, 1000);
-  return cam;
+function makeCamera(): PanCamera {
+  return createCamera();
 }
 
 const HORIZONTAL_POSITIONS = [
@@ -42,7 +33,7 @@ const HORIZONTAL_POSITIONS = [
 
 describe('createCameraControl — animated tween (manual RAF queue)', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
 
   // --- 수동 RAF 큐 ---
   // cancelAnimationFrame(id)는 해당 콜백을 큐에서 제거한다(실 브라우저 동작과 동일).
@@ -72,7 +63,7 @@ describe('createCameraControl — animated tween (manual RAF queue)', () => {
 
   function makeControl(
     extra: Partial<Parameters<typeof createCameraControl>[0]> = {},
-    cam: THREE.OrthographicCamera = camera,
+    cam: PanCamera = camera,
   ) {
     return createCameraControl({
       root,
@@ -182,27 +173,25 @@ describe('createCameraControl — animated tween (manual RAF queue)', () => {
     control.destroy();
   });
 
-  it('tween — V4: zoom 트윈은 projection 갱신, zoom 불변 트윈은 스텝 중 projection 미갱신', () => {
-    // (a) zoom 트윈: 1 → 2, t=0.5 → zoom=1.875 + updateProjectionMatrix 호출
+  it('tween — V4: zoom 트윈은 스텝마다 zoom을 보간하고, index 트윈은 zoom을 건드리지 않는다', () => {
+    // (a) zoom 트윈: 1 → 2, t=0.5 → zoom=1.875 (위치는 불변)
     const controlA = makeControl();
-    const updateSpyA = vi.spyOn(camera, 'updateProjectionMatrix');
     controlA.animateToZoom(2, true);
     now = 1150;
     flushFrame();
     expect(camera.zoom).toBeCloseTo(1.875, 6);
-    expect(updateSpyA).toHaveBeenCalled();
+    expect(camera.position.x).toBe(0);
     controlA.destroy();
 
-    // (b) 별도 인스턴스: index 트윈은 fromZoom === toZoom → 스텝 중 projection 미갱신
+    // (b) 별도 인스턴스: index 트윈은 fromZoom === toZoom → 스텝 중 zoom 값 그대로
     const cameraB = makeCamera();
     const controlB = makeControl({}, cameraB);
-    const updateSpyB = vi.spyOn(cameraB, 'updateProjectionMatrix');
     now = 2000;
     controlB.animateToIndex(2, true);
     now = 2150;
     flushFrame();
     expect(cameraB.position.x).toBeCloseTo(700, 6);
-    expect(updateSpyB).not.toHaveBeenCalled();
+    expect(cameraB.zoom).toBe(1);
     controlB.destroy();
   });
 

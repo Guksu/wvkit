@@ -70,7 +70,7 @@ Versioning notes:
 ## Code Conventions
 
 - **SSR safety**: never touch `window`/`document` at module load time — only inside guards, `useEffect`, or `onMounted`.
-- **`destroy()` completeness**: every `create*` factory returns `destroy()` which removes all listeners, RAFs, timers, observers, and Three.js resources.
+- **`destroy()` completeness**: every `create*` factory returns `destroy()` which removes all listeners, RAFs, timers, observers, and any DOM it created.
 - **Named exports only** — no default exports.
 - **No inline styles** except the documented allow-list (hidden input positioning, CSS3DRenderer transforms, virtualization toggles, `overscroll-behavior` opt-out).
 - **Options are immutable** — treat `options` as readonly.

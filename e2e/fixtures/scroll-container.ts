@@ -31,76 +31,68 @@ export async function getCanvasWidth(page: Page): Promise<number> {
 }
 
 /**
- * CSS3DRenderer scene wrapper(depth 3)의 transform — camera.position이 인코딩되어 있다.
- * 카메라가 X로 이동하면 matrix3d의 12번째 슬롯(또는 그 부근)이 변한다.
+ * 렌더러 scene 노드(root > domElement > scene)의 transform — 카메라 위치·zoom이
+ * `translate(Xpx, Ypx) scale(z)` 한 줄로 기록된다 (X = width/2 − cameraX·zoom).
  *
- * NOTE: `:scope > div > div > div` 는 CSS3DRenderer가 생성하는 래퍼 체인에 대한 구조 의존 —
- * 렌더러 내부 DOM이라 testid 부여 불가 (B-23 범위 제외, three 버전 업 시 함께 검증할 것).
+ * NOTE: `:scope > div > div` 는 렌더러(`panel-renderer.ts`)의 DOM 구조에 대한 의존 —
+ * 렌더러 내부 DOM이라 testid 부여 불가 (구조가 바뀌면 여기와 `getVisiblePanelIndices`를 함께 갱신).
  */
 export async function getSceneTransform(page: Page): Promise<string | null> {
   return await page.evaluate(() => {
     const canvas = document.querySelector('[data-testid="sc-canvas"]');
     if (!canvas) return null;
-    const scene = canvas.querySelector(':scope > div > div > div') as HTMLElement | null;
+    const scene = canvas.querySelector(':scope > div > div') as HTMLElement | null;
     return scene?.style.transform ?? null;
   });
 }
 
 /**
- * matrix3d의 13/14번째(0-based 12/13) 인자 = translation x/y.
+ * `translate(Xpx, Ypx) scale(z)` 파싱.
  */
-export function parseMatrix3dTranslation(
+export function parseSceneTransform(
   transform: string | null,
-): { x: number; y: number } | null {
+): { x: number; y: number; scale: number } | null {
   if (!transform) return null;
-  const match = transform.match(/matrix3d\(([^)]+)\)/);
-  if (!match) return null;
-  const parts = match[1].split(',').map((s) => Number.parseFloat(s.trim()));
-  return { x: parts[12] ?? 0, y: parts[13] ?? 0 };
+  const t = transform.match(/translate\(([-\d.e]+)px,\s*([-\d.e]+)px\)/);
+  if (!t) return null;
+  const s = transform.match(/scale\(([-\d.e]+)\)/);
+  return {
+    x: Number.parseFloat(t[1]),
+    y: Number.parseFloat(t[2]),
+    scale: s ? Number.parseFloat(s[1]) : 1,
+  };
 }
 
 /**
- * scene wrapper의 모든 transform 함수에서 X 좌표 부호 합산 — 카메라가 패널 N을 본다는 것은
- * scene이 -N*width 만큼 시프트된다는 뜻. 부호와 절대량의 변동량만 비교에 사용.
+ * scene X 시프트를 월드 단위(zoom으로 나눈 값)로 반환 — 카메라가 패널 N을 본다는 것은
+ * scene이 −N·width 만큼 시프트된다는 뜻. 부호와 변동량만 비교에 사용 (Δshift = −ΔcameraX).
  */
 export async function getSceneXShift(page: Page): Promise<number | null> {
-  const t = await getSceneTransform(page);
-  if (!t) return null;
-  // matrix3d 부분
-  const m = parseMatrix3dTranslation(t);
+  const m = parseSceneTransform(await getSceneTransform(page));
   if (!m) return null;
-  // 그 외 translate(Xpx, Ypx) 들도 합산
-  const translates = Array.from(t.matchAll(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/g));
-  let extraX = 0;
-  for (const tr of translates) extraX += Number.parseFloat(tr[1]);
-  return m.x + extraX;
+  return m.x / (m.scale || 1);
 }
 
 /**
  * `getSceneXShift`의 Y 대칭 — 대각 입력의 Y 성분이 카메라 transform에 누출되는지 검출용.
- * matrix3d translation y + `translate(x, y)` 2번째 그룹 합산.
  */
 export async function getSceneYShift(page: Page): Promise<number | null> {
-  const t = await getSceneTransform(page);
-  if (!t) return null;
-  const m = parseMatrix3dTranslation(t);
+  const m = parseSceneTransform(await getSceneTransform(page));
   if (!m) return null;
-  const translates = Array.from(t.matchAll(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/g));
-  let extraY = 0;
-  for (const tr of translates) extraY += Number.parseFloat(tr[2]);
-  return m.y + extraY;
+  return m.y / (m.scale || 1);
 }
 
 /**
- * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (CSS3DRenderer는 visible=false 객체를 DOM에서 떼어냄).
+ * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (렌더러는 한 번도 보이지 않은 패널을 DOM에 붙이지 않고,
+ * 창 밖으로 나간 패널은 display:none 으로 숨긴다).
  * buildPanels가 만든 패널의 첫 자식 <div>는 인덱스 텍스트를 담고 있어 그것으로 식별.
- * (`:scope > div > div > div > div` 역시 렌더러 래퍼 체인 구조 의존 — testid 부여 불가)
+ * (`:scope > div > div > div` 역시 렌더러 DOM 구조 의존 — testid 부여 불가)
  */
 export async function getVisiblePanelIndices(page: Page): Promise<number[]> {
   return await page.evaluate(() => {
     const canvas = document.querySelector('[data-testid="sc-canvas"]');
     if (!canvas) return [];
-    const panels = canvas.querySelectorAll(':scope > div > div > div > div');
+    const panels = canvas.querySelectorAll(':scope > div > div > div');
     const out: number[] = [];
     for (const p of Array.from(panels)) {
       // display:none 패널은 가상화에서 제외된 것으로 간주
@@ -257,20 +249,19 @@ export async function clickZoomTo(page: Page, level: number, animated: boolean):
 }
 
 /**
- * scene 안정화 대기 — scene wrapper transform이 3 프레임(폴링 틱) 연속 동일해질 때까지.
+ * scene 안정화 대기 — scene transform이 3 프레임(폴링 틱) 연속 동일해질 때까지.
  * RAF 트윈/제스처 릴리스 애니메이션 종료 신호로 사용한다 (고정 대기 대체 — B-23).
  * `window.__lastTf/__sameCount` 폴링 상태는 호출 후 반드시 리셋한다.
  *
- * NOTE: `:scope > div > div > div` 는 CSS3DRenderer가 생성하는 래퍼 체인(renderer →
- * cameraElement → scene wrapper)에 대한 구조 의존이다. 렌더러 내부 DOM이라 testid를
- * 부여할 수 없어 유지한다 (three CSS3DRenderer 구현 변경 시 함께 갱신 필요).
+ * NOTE: `:scope > div > div` 는 렌더러(domElement → scene) DOM 구조 의존이다.
+ * 렌더러 내부 DOM이라 testid를 부여할 수 없어 유지한다.
  */
 export async function waitForSceneStable(page: Page): Promise<void> {
   await page.waitForFunction(
     () => {
       const canvas = document.querySelector('[data-testid="sc-canvas"]');
       if (!canvas) return false;
-      const scene = canvas.querySelector(':scope > div > div > div') as HTMLElement | null;
+      const scene = canvas.querySelector(':scope > div > div') as HTMLElement | null;
       if (!scene) return false;
       const w = window as unknown as { __lastTf?: string; __sameCount?: number };
       const tf = scene.style.transform;

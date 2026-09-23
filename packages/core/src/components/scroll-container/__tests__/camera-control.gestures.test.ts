@@ -1,6 +1,6 @@
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CameraControl } from '../camera-control';
+import { type PanCamera, createCamera } from '../camera';
 import { createCameraControl } from '../camera-control';
 import { screenPointToWorld } from '../matrix-utils';
 
@@ -28,17 +28,8 @@ function makeRoot(width = 400, height = 600): HTMLElement {
   return root;
 }
 
-function makeCamera(width = 400, height = 600): THREE.OrthographicCamera {
-  const cam = new THREE.OrthographicCamera(
-    -width / 2,
-    width / 2,
-    height / 2,
-    -height / 2,
-    0.1,
-    2000,
-  );
-  cam.position.set(0, 0, 1000);
-  return cam;
+function makeCamera(): PanCamera {
+  return createCamera();
 }
 
 const HORIZONTAL_POSITIONS = [
@@ -71,7 +62,7 @@ function pointerEvent(
 
 describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
   let root: HTMLElement;
-  let camera: THREE.OrthographicCamera;
+  let camera: PanCamera;
   let control: CameraControl | null;
   // performance.now를 결정적으로 제어 — move 사이 `now`를 증가시켜 속도/지터를 재현.
   let now: number;
@@ -268,14 +259,12 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
     it('C1: 핀치 줌인 배율 — dist 200→300이면 zoom 1.5', () => {
       const { control: c, onChange } = createControl();
       c.animateToIndex(0, false);
-      const updateSpy = vi.spyOn(camera, 'updateProjectionMatrix');
       onChange.mockClear();
       down(1, 100, 300);
       down(2, 300, 300); // dist 200
       move(1, 50, 300);
       move(2, 350, 300); // dist 300 → factor 1.5
       expect(camera.zoom).toBe(1.5);
-      expect(updateSpy).toHaveBeenCalled();
       expect(onChange).toHaveBeenCalled();
     });
 
