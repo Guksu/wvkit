@@ -249,6 +249,8 @@ sc.zoomTo(1.5, { animated: true });
 sc.destroy();
 ```
 
+> Host container: `touch-action: none`. Panels that scroll vertically on their own: `overflow-y: auto; touch-action: pan-y` — without `pan-y` the browser claims horizontal swipes and the pager never switches. Details in [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md#scrollable-panels-feeds-lists-long-content).
+
 ---
 
 ### Utility Hooks

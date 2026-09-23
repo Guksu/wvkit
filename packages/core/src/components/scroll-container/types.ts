@@ -13,7 +13,12 @@ export type ScrollContainerDirection = 'horizontal' | 'vertical' | 'both';
 export interface ScrollContainerOptions {
   /** 카메라 pan 축 제약. */
   direction: ScrollContainerDirection;
-  /** scene에 배치할 패널 엘리먼트들. 순서 = index. */
+  /**
+   * scene에 배치할 패널 엘리먼트들. 순서 = index.
+   *
+   * 패널이 자체 세로 스크롤을 가지면(`overflow-y: auto`) 반드시 `touch-action: pan-y`도 함께 주어야
+   * 가로 스와이프가 브라우저에 가로채이지 않는다 (호스트 root는 `touch-action: none`).
+   */
   panels: HTMLElement[];
   /** 마운트 시 활성화할 패널 인덱스. 기본값 `0`. */
   initialIndex?: number;

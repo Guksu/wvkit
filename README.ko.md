@@ -249,6 +249,8 @@ sc.zoomTo(1.5, { animated: true });
 sc.destroy();
 ```
 
+> 호스트 컨테이너: `touch-action: none`. 자체 세로 스크롤을 가진 패널: `overflow-y: auto; touch-action: pan-y` — `pan-y`가 없으면 브라우저가 가로 스와이프를 가져가 페이저가 넘어가지 않습니다. 자세한 내용은 [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md#scrollable-panels-feeds-lists-long-content)를 보세요.
+
 ---
 
 ### 유틸리티 훅
