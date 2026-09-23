@@ -123,8 +123,32 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 :::
 
 ::: tip
-Add `touch-action: none` (or `touch-action: manipulation`) to the host container so the browser's default scroll/zoom does not race the custom gesture pipeline. Also set the page viewport meta to `user-scalable=no, maximum-scale=1.0` if you want pinch-zoom handled exclusively by `ScrollContainer`.
+Give the host container `touch-action: none` so the browser's own scroll/zoom does not race the pointer pipeline. If you want pinch-zoom handled exclusively by `ScrollContainer`, also set the page viewport meta to `user-scalable=no, maximum-scale=1.0`. Panels that scroll on their own need one more rule — see the next section.
 :::
+
+## Scrollable panels (feeds, lists, long content)
+
+A horizontal pager whose panels scroll vertically on their own needs one extra rule: **every scrollable panel must declare `touch-action: pan-y`** (the host container keeps `touch-action: none`).
+
+```js
+const panel = document.createElement('div');
+panel.style.overflowY = 'auto'; // the panel scrolls its own content
+panel.style.touchAction = 'pan-y'; // vertical pans stay native, horizontal pans reach ScrollContainer
+```
+
+Why: the browser decides what a touch does by reading `touch-action` from the touched element up to the nearest *scrollable* ancestor — which is the panel itself, so the host's `touch-action: none` is never consulted. With the default `auto` (or `manipulation`) on the panel, the browser also claims horizontal pans, fires `pointercancel`, and the pager never switches. With `pan-y`, vertical touches scroll the panel natively (momentum included), horizontal touches are delivered to the pager, and diagonal touches resolve by their dominant axis, like a native pager.
+
+- `direction: 'vertical'` cannot be combined with panels that scroll vertically: native scroll always wins the gesture. Use fixed-height, non-scrolling panels for a vertical pager.
+- Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
+- Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
+
+## Pinch zoom and panning while zoomed
+
+- Zooming keeps the point under the fingers fixed (anchor correction), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
+- While zoomed, a one-finger pan moves along the pager axis all the way to the panel's edges: the pan bounds grow by `(panelSize / 2) × (1 − 1 / zoom)` on each side.
+- Paging while zoomed: drag past the panel edge into the gap before the next panel. If the drag covers more than `snapThreshold` of that gap (velocity counts, as at zoom 1), the camera snaps to the next panel's near edge and `onIndexChange` fires; otherwise it returns to the edge you came from.
+- `zoomTo()` clamps the camera into the active panel's range for the new zoom level, so zooming back to 1 lands on the panel center.
+- The cross axis (Y for `horizontal`) stays locked at every zoom level — give panels their own native scroll for that axis.
 
 ## API Reference
 
@@ -196,3 +220,6 @@ When tree-shaken to only what `ScrollContainer` uses (core math + `CSS3DRenderer
 - **Options are fixed at mount.** Reactive option changes (e.g. flipping `direction` at runtime in a framework adapter) require remounting the component. Use a `key` prop on the wrapper.
 - **Pinch-zoom relies on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip pinch.
 - **`setPointerCapture` is not available in every WebView build.** The implementation is guarded with `try/catch`; in environments without capture support, pointer-leaving-root during a drag may cause the gesture to be released early.
+- **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.
+- **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
+- **Cross-axis pan while zoomed is not supported** — the axis excluded by `direction` stays locked even when zoomed in.

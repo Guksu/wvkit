@@ -6,7 +6,9 @@ import {
   decideSnapTarget,
   easeOutCubic,
   nearestPanelIndex,
+  resolveZoomedRelease,
   screenPointToWorld,
+  zoomedHalfExtent,
 } from '../matrix-utils';
 
 describe('easeOutCubic', () => {
@@ -115,18 +117,18 @@ describe('cameraPosForAnchor', () => {
     const oldZoom = 1;
     const newZoom = 2.5;
     const cam0 = { x: 50, y: -30 };
-    const world = screenPointToWorld(
-      screen.x, screen.y,
-      cam0.x, cam0.y,
-      oldZoom, rootW, rootH,
-    );
+    const world = screenPointToWorld(screen.x, screen.y, cam0.x, cam0.y, oldZoom, rootW, rootH);
     // Find new camera position that keeps `world` under `screen` at newZoom
-    const cam1 = cameraPosForAnchor(
-      world.x, world.y, screen.x, screen.y, newZoom, rootW, rootH,
-    );
+    const cam1 = cameraPosForAnchor(world.x, world.y, screen.x, screen.y, newZoom, rootW, rootH);
     // Round-trip: at newZoom + cam1, screen `screen` should map back to `world`
     const worldCheck = screenPointToWorld(
-      screen.x, screen.y, cam1.x, cam1.y, newZoom, rootW, rootH,
+      screen.x,
+      screen.y,
+      cam1.x,
+      cam1.y,
+      newZoom,
+      rootW,
+      rootH,
     );
     expect(worldCheck.x).toBeCloseTo(world.x, 5);
     expect(worldCheck.y).toBeCloseTo(world.y, 5);
@@ -204,5 +206,85 @@ describe('decideSnapTarget', () => {
   it('custom velocityWeight applied', () => {
     // dragRatio=0.1, velocityRatio=1, weight=0.5 → 0.1 + 0.5 = 0.6 → forward
     expect(decideSnapTarget(2, 0.1, 1, 0.3, 5, 0.5)).toBe(3);
+  });
+});
+
+describe('zoomedHalfExtent', () => {
+  it('zoom=1 → 0 (패널 전체가 보이므로 pan 여지 없음)', () => {
+    expect(zoomedHalfExtent(400, 1)).toBe(0);
+  });
+  it('zoom<1 → 0 (뷰포트보다 작은 패널도 중심 고정)', () => {
+    expect(zoomedHalfExtent(400, 0.5)).toBe(0);
+  });
+  it('zoom=2 → panelSize/4 (400 → 100)', () => {
+    expect(zoomedHalfExtent(400, 2)).toBe(100);
+  });
+  it('zoom=4 → (400/2)×(1−1/4) = 150', () => {
+    expect(zoomedHalfExtent(400, 4)).toBe(150);
+  });
+  it('panelSize ≤ 0 이나 NaN zoom → 0', () => {
+    expect(zoomedHalfExtent(0, 2)).toBe(0);
+    expect(zoomedHalfExtent(400, Number.NaN)).toBe(0);
+  });
+});
+
+describe('resolveZoomedRelease', () => {
+  // 패널 4개 × 폭 400, zoom 2 → 반폭 100. 범위: [−100,100] [300,500] [700,900] [1100,1300], gap 길이 200
+  const centers = [0, 400, 800, 1200];
+  const ext = [100, 100, 100, 100];
+
+  it('빈 centers → index 0, 현재 위치 유지', () => {
+    expect(resolveZoomedRelease(50, 0, 0, [], [], 0.3)).toEqual({ index: 0, target: 50 });
+  });
+  it('패널 범위 안 → 그 자리 유지 (중심 복귀 없음)', () => {
+    expect(resolveZoomedRelease(60, 0, 0, centers, ext, 0.3)).toEqual({ index: 0, target: 60 });
+    expect(resolveZoomedRelease(-100, 0, 0, centers, ext, 0.3)).toEqual({ index: 0, target: -100 });
+    expect(resolveZoomedRelease(880, 800, 0, centers, ext, 0.3)).toEqual({ index: 2, target: 880 });
+  });
+  it('첫 패널 앞(저항 구간) → 첫 패널 가장자리 −100', () => {
+    expect(resolveZoomedRelease(-140, 0, 0, centers, ext, 0.3)).toEqual({ index: 0, target: -100 });
+  });
+  it('끝 패널 뒤(저항 구간) → 끝 패널 가장자리 1300', () => {
+    expect(resolveZoomedRelease(1340, 1200, 0, centers, ext, 0.3)).toEqual({
+      index: 3,
+      target: 1300,
+    });
+  });
+  it('전진 gap, 비율 < threshold → 출발 패널 가장자리로 복귀', () => {
+    // gap [100,300], s=140 → 0.2 < 0.3
+    expect(resolveZoomedRelease(140, 0, 0, centers, ext, 0.3)).toEqual({ index: 0, target: 100 });
+  });
+  it('전진 gap, 비율 > threshold → 다음 패널 가까운 가장자리로 스냅', () => {
+    // s=180 → 0.4 > 0.3
+    expect(resolveZoomedRelease(180, 0, 0, centers, ext, 0.3)).toEqual({ index: 1, target: 300 });
+  });
+  it('전진 gap, 저비율 + 플릭 속도 → 다음 패널 (velocityRatio×0.3 가중)', () => {
+    // s=140 → 0.2, velocity 100/200=0.5 ×0.3 = 0.15 → 0.35 > 0.3
+    expect(resolveZoomedRelease(140, 0, 100, centers, ext, 0.3)).toEqual({ index: 1, target: 300 });
+  });
+  it('후진 gap, 비율 < threshold → 출발 패널(뒤쪽) 가장자리로 복귀', () => {
+    // 패널 1(300)에서 출발, s=260 → gap [100,300], 후진 비율 (300−260)/200 = 0.2 < 0.3
+    expect(resolveZoomedRelease(260, 300, 0, centers, ext, 0.3)).toEqual({ index: 1, target: 300 });
+  });
+  it('후진 gap, 비율 > threshold → 이전 패널 가장자리로 스냅', () => {
+    // s=200 → 0.5 > 0.3
+    expect(resolveZoomedRelease(200, 300, 0, centers, ext, 0.3)).toEqual({ index: 0, target: 100 });
+  });
+  it('후진 gap에서 전진 속도는 스냅을 방해한다 (부호 반전)', () => {
+    // s=200 → 0.5, velocity +100 → −0.5×0.3 = −0.15 → 0.35 > 0.3 여전히 이전 패널
+    expect(resolveZoomedRelease(200, 300, 100, centers, ext, 0.3)).toEqual({
+      index: 0,
+      target: 100,
+    });
+    // velocity +200 → −1.0×0.3 = −0.3 → 0.2 < 0.3 → 출발 패널 유지
+    expect(resolveZoomedRelease(200, 300, 200, centers, ext, 0.3)).toEqual({
+      index: 1,
+      target: 300,
+    });
+  });
+  it('반폭이 0(zoom 1 상당)이면 중심 사이 전체가 gap — 기존 스냅과 같은 비율 판정', () => {
+    const zero = [0, 0, 0, 0];
+    expect(resolveZoomedRelease(160, 0, 0, centers, zero, 0.3)).toEqual({ index: 1, target: 400 });
+    expect(resolveZoomedRelease(100, 0, 0, centers, zero, 0.3)).toEqual({ index: 0, target: 0 });
   });
 });

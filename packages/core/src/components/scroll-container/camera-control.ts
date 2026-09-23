@@ -5,7 +5,9 @@ import {
   decideSnapTarget,
   easeOutCubic,
   nearestPanelIndex,
+  resolveZoomedRelease,
   screenPointToWorld,
+  zoomedHalfExtent,
 } from './matrix-utils';
 
 /**
@@ -17,8 +19,14 @@ import {
  * 지원 제스처:
  *  - 1 pointer: axis-constrained pan + 엣지 저항
  *  - 2 pointer: 핀치 줌 + 줌 중심점 anchor (enablePinchZoom=true 일 때만)
- *  - 1 pointer 해제 → 스냅 결정 → onPanRelease
+ *  - 1 pointer 해제 → 스냅 결정 → 릴리스 트윈 시작 → onPanRelease (트윈은 컨트롤이 직접 소유)
  *  - 명령형 animateToIndex/animateToZoom: easeOutCubic RAF 트윈, 진행 중이면 cancel 후 재시작
+ *
+ * 줌 상태(zoom > 1)의 pan:
+ *  - pan 경계가 첫/끝 패널의 줌 반폭(`zoomedHalfExtent`)만큼 바깥으로 넓어져 패널 가장자리까지 볼 수 있다.
+ *  - 릴리스 시 패널 중심으로 되돌리지 않는다. 패널 범위 안이면 그 자리에 머물고, 패널 사이 gap이면
+ *    `resolveZoomedRelease`가 진행 방향·속도로 앞/뒤 패널의 가까운 가장자리를 고른다.
+ *  - zoom ≤ 1 이면 기존 계약(패널 중심 스냅, `decideSnapTarget`) 그대로.
  */
 
 const TWEEN_DURATION_MS = 300;
@@ -30,6 +38,11 @@ export interface CameraControlOptions {
   /** 'both' → 'horizontal' 폴백이 이미 적용된 축. */
   direction: 'horizontal' | 'vertical';
   positions: ReadonlyArray<{ x: number; y: number }>;
+  /**
+   * 패널별 축 방향 크기(px). `positions`와 같은 인덱스·같은 배열 참조를 유지하면 리사이즈 반영이 함께 된다.
+   * 생략하거나 항목이 없으면 root client size(축 방향)를 쓴다. 줌 상태 pan 경계 계산에만 사용.
+   */
+  panelSizes?: ReadonlyArray<number>;
   /** 현재 카메라 frustum 크기 (root client size). 리사이즈 후 변할 수 있음. */
   getRootSize: () => { width: number; height: number };
   snapThreshold: number;
@@ -39,7 +52,10 @@ export interface CameraControlOptions {
   enablePinchZoom: boolean;
   /** 카메라가 변경됨. 호출자는 requestRender 수행. */
   onChange: () => void;
-  /** Pan 제스처 종료 → 스냅 결정된 패널 인덱스. */
+  /**
+   * Pan 제스처 종료 → 스냅 결정된 패널 인덱스. 카메라 복귀/스냅 트윈은 이 콜백 직전에 컨트롤이
+   * 이미 시작했으므로 호출자는 상태(활성 인덱스·가상화)만 갱신하면 된다.
+   */
   onPanRelease: (targetIndex: number) => void;
   /** Pinch 제스처 종료 → 최종 줌 레벨. */
   onPinchRelease: (newZoom: number) => void;
@@ -62,6 +78,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     camera,
     direction,
     positions,
+    panelSizes,
     getRootSize,
     snapThreshold,
     resistance,
@@ -126,13 +143,35 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     listeners.push(() => el.removeEventListener(type, handler as EventListener, listenerOptions));
   }
 
+  // --- 패널 크기 / 줌 반폭 ---
+  function panelSizeAt(index: number): number {
+    const explicit = panelSizes?.[index];
+    if (explicit !== undefined && explicit > 0) return explicit;
+    const size = getRootSize();
+    return (axis === 'x' ? size.width : size.height) || 1;
+  }
+
+  function halfExtentAt(index: number, zoom: number): number {
+    return zoomedHalfExtent(panelSizeAt(index), zoom);
+  }
+
   // --- 경계 계산 (축별) ---
-  function panBoundsAlongAxis(): { min: number; max: number } {
-    if (positions.length === 0) return { min: 0, max: 0 };
-    // positions.length === 0 가드로 첫/마지막 요소는 안전히 존재 — 단언 대신 옵셔널 체인 + ?? 0 으로 룰 회피.
+  // zoom ≤ 1: [첫 패널 중심, 끝 패널 중심]. zoom > 1: 양 끝 패널의 줌 반폭만큼 바깥으로 넓혀
+  // 줌 상태에서도 첫/끝 패널의 가장자리까지 카메라가 갈 수 있다.
+  function panBoundsAlongAxis(zoom: number): { min: number; max: number } {
+    const count = positions.length;
+    if (count === 0) return { min: 0, max: 0 };
+    // count === 0 가드로 첫/마지막 요소는 안전히 존재 — 단언 대신 옵셔널 체인 + ?? 0 으로 룰 회피.
     const first = positions[0]?.[axis] ?? 0;
-    const last = positions[positions.length - 1]?.[axis] ?? 0;
-    return { min: Math.min(first, last), max: Math.max(first, last) };
+    const last = positions[count - 1]?.[axis] ?? 0;
+    const firstExtent = halfExtentAt(0, zoom);
+    const lastExtent = halfExtentAt(count - 1, zoom);
+    // X축은 인덱스가 커질수록 +, Y축은 − (패널이 아래로 쌓임) — 낮은 쪽/높은 쪽 끝에 각자의 반폭을 더한다.
+    const firstIsLow = first <= last;
+    return {
+      min: (firstIsLow ? first : last) - (firstIsLow ? firstExtent : lastExtent),
+      max: (firstIsLow ? last : first) + (firstIsLow ? lastExtent : firstExtent),
+    };
   }
 
   function currentActiveIndex(): number {
@@ -174,8 +213,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     if (axis === 'x') targetY = panStart.cameraY;
     else targetX = panStart.cameraX;
 
-    // 엣지 저항
-    const bounds = panBoundsAlongAxis();
+    // 엣지 저항 (줌 상태면 경계가 패널 가장자리까지 넓어진다)
+    const bounds = panBoundsAlongAxis(z);
     if (axis === 'x') {
       targetX = applyResistance(targetX, bounds.min, bounds.max, resistance);
     } else {
@@ -205,6 +244,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       return;
     }
 
+    // 줌 상태: 중심 복귀 대신 "그 자리 유지 / 가장자리 복귀 / gap 스냅" — 별도 경로
+    if (camera.zoom > 1) {
+      releaseZoomed(start, camera.zoom);
+      return;
+    }
+
     const size = getRootSize();
     const panelSize = (axis === 'x' ? size.width : size.height) || 1;
 
@@ -230,7 +275,44 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       snapThreshold,
       positions.length,
     );
+    // 트윈을 먼저 시작하고 콜백을 낸다 — 콜백 안에서 호출자가 scrollTo 등으로 덮어쓸 수 있게.
+    animateToIndex(target, true);
     onPanRelease(target);
+  }
+
+  /**
+   * zoom > 1 릴리스. 축 값을 "인덱스 증가 방향이 +"인 s 좌표로 바꿔 `resolveZoomedRelease`에 넘긴다.
+   * (X축: s = x, Y축: s = −y — 패널이 아래(−y)로 쌓이므로 부호 반전)
+   */
+  function releaseZoomed(start: PanState, zoom: number): void {
+    const sign = axis === 'x' ? 1 : -1;
+    const centers = positions.map((p) => sign * p[axis]);
+    const halfExtents = positions.map((_, i) => halfExtentAt(i, zoom));
+    const s = sign * camera.position[axis];
+    const sStart = sign * (axis === 'x' ? start.cameraX : start.cameraY);
+
+    // endPan(zoom ≤ 1)과 같은 dt 하한 — 릴리스 직전 미세 지터가 속도를 부풀리지 않게
+    const sinceLastMove = performance.now() - start.lastMoveTime;
+    const dt = Math.max(1, start.lastMoveInterval, sinceLastMove);
+    const velocity = sign * start.lastDelta * (VELOCITY_SAMPLE_WINDOW_MS / dt);
+
+    const { index, target } = resolveZoomedRelease(
+      s,
+      sStart,
+      velocity,
+      centers,
+      halfExtents,
+      snapThreshold,
+    );
+    const targetAxisValue = sign * target;
+    if (Math.abs(targetAxisValue - camera.position[axis]) > 1e-6) {
+      startTween(
+        axis === 'x' ? targetAxisValue : camera.position.x,
+        axis === 'y' ? targetAxisValue : camera.position.y,
+        zoom,
+      );
+    }
+    onPanRelease(index);
   }
 
   // --- Pinch (enablePinchZoom=false면 startPinch 호출 안 됨) ---
@@ -285,7 +367,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     // 축 제약: pan 성분은 축 위에만, 줌은 항상 적용.
     // 축 방향 성분에는 1손가락 pan과 동일하게 엣지 저항 적용 — 없으면 간격을 유지한
     // 두 손가락 이동(two-finger pan)으로 카메라가 무제한 이탈해 콘텐츠가 화면 밖으로 사라진다.
-    const bounds = panBoundsAlongAxis();
+    // 경계는 새 줌 기준 (줌인할수록 가장자리까지 갈 수 있는 여유가 커진다).
+    const bounds = panBoundsAlongAxis(newZoom);
     if (axis === 'x') {
       newCameraX = applyResistance(newCameraX, bounds.min, bounds.max, resistance);
       newCameraY = pinchStart.cameraY;
@@ -432,16 +515,32 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     startTween(target.x, target.y, camera.zoom);
   }
 
+  /**
+   * 줌 변경 시 카메라가 머물 위치. 현재 가장 가까운 패널의 새 줌 기준 범위 밖이면 가장자리로,
+   * zoom ≤ 1 이면 반폭이 0이라 패널 중심으로 끌어온다 (줌아웃 후 패널 사이에 걸치지 않게).
+   */
+  function positionWithinPanelForZoom(zoom: number): { x: number; y: number } {
+    const i = currentActiveIndex();
+    const center = positions[i];
+    if (!center) return { x: camera.position.x, y: camera.position.y };
+    const e = halfExtentAt(i, zoom);
+    const v = clamp(camera.position[axis], center[axis] - e, center[axis] + e);
+    return axis === 'x' ? { x: v, y: camera.position.y } : { x: camera.position.x, y: v };
+  }
+
   function animateToZoom(level: number, animated: boolean): void {
     const z = clamp(level, minZoom, maxZoom);
+    const { x, y } = positionWithinPanelForZoom(z);
     if (!animated) {
       cancelAnimationInternal();
+      camera.position.x = x;
+      camera.position.y = y;
       camera.zoom = z;
       camera.updateProjectionMatrix();
       onChange();
       return;
     }
-    startTween(camera.position.x, camera.position.y, z);
+    startTween(x, y, z);
   }
 
   function destroy(): void {

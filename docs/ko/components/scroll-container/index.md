@@ -123,8 +123,32 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 :::
 
 ::: tip
-호스트 컨테이너에 `touch-action: none` (또는 `touch-action: manipulation`)을 적용해 브라우저 기본 스크롤/줌이 우리 제스처 파이프라인과 충돌하지 않게 하세요. ScrollContainer가 핀치 줌을 단독으로 처리하길 원하면 페이지 viewport meta에 `user-scalable=no, maximum-scale=1.0` 도 함께 설정하세요.
+호스트 컨테이너에 `touch-action: none`을 주어 브라우저 기본 스크롤/줌이 pointer 파이프라인과 경쟁하지 않게 하세요. ScrollContainer가 핀치 줌을 단독으로 처리하길 원하면 페이지 viewport meta에 `user-scalable=no, maximum-scale=1.0`도 함께 설정하세요. 패널이 자체 스크롤을 가지면 규칙이 하나 더 필요합니다 — 다음 절을 보세요.
 :::
+
+## 스크롤되는 패널 (피드·리스트·긴 콘텐츠)
+
+패널이 각자 세로로 스크롤되는 가로 페이저에는 규칙이 하나 더 있습니다. **스크롤되는 패널마다 반드시 `touch-action: pan-y`를 주세요** (호스트 컨테이너는 그대로 `touch-action: none`).
+
+```js
+const panel = document.createElement('div');
+panel.style.overflowY = 'auto'; // 패널이 자기 콘텐츠를 스크롤
+panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, 가로 터치는 ScrollContainer로
+```
+
+이유: 브라우저는 터치한 요소부터 가장 가까운 *스크롤 가능한* 조상까지의 `touch-action`만 보고 터치 처리를 결정합니다. 그 조상이 패널 자신이라 호스트의 `touch-action: none`은 아예 참조되지 않습니다. 패널이 기본값 `auto`(또는 `manipulation`)이면 브라우저가 가로 터치까지 가져가 `pointercancel`을 내고, 페이저는 절대 넘어가지 않습니다. `pan-y`를 주면 세로 터치는 관성까지 네이티브 스크롤로, 가로 터치는 페이저로 전달되고, 대각 터치는 네이티브 페이저처럼 큰 축 쪽으로 정리됩니다.
+
+- `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. 네이티브 스크롤이 항상 제스처를 가져갑니다. 세로 페이저에는 높이가 고정된, 스크롤되지 않는 패널을 쓰세요.
+- 패널 안 이미지에는 `loading="lazy"`를 주세요. `overscan` 창 밖의 패널은 문서에서 떼어져 있어, lazy 이미지는 패널이 보일 때까지 요청되지 않습니다.
+- 데스크톱: `<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해 제스처를 취소합니다. 패널 안 이미지에 `draggable="false"`를 주세요.
+
+## 핀치 줌과 줌 상태 pan
+
+- 줌은 손가락 아래 지점을 고정한 채(앵커 보정) 확대되고, 손을 뗀 자리에 카메라가 그대로 머뭅니다 — 패널 중심으로 되돌아가지 않습니다.
+- 줌 상태의 한 손가락 pan은 페이저 축을 따라 패널 가장자리까지 갑니다. pan 경계가 양쪽으로 `(panelSize / 2) × (1 − 1 / zoom)`만큼 넓어집니다.
+- 줌 상태에서 페이지 넘기기: 패널 가장자리를 지나 다음 패널 앞의 간격(gap)으로 끌면 됩니다. 그 간격의 `snapThreshold` 비율을 넘게 끌면(zoom 1과 같이 속도도 반영) 다음 패널의 가까운 가장자리로 스냅되고 `onIndexChange`가 발화합니다. 못 넘기면 출발한 가장자리로 돌아갑니다.
+- `zoomTo()`는 새 줌 기준으로 활성 패널 범위 안에 카메라를 넣습니다. 줌을 1로 되돌리면 패널 중심에 놓입니다.
+- 교차 축(`horizontal`이면 Y)은 어떤 줌에서도 고정입니다 — 그 축은 패널 자체의 네이티브 스크롤에 맡기세요.
 
 ## API 레퍼런스
 
@@ -196,3 +220,6 @@ ScrollContainer가 사용하는 부분만 (코어 수학 + `CSS3DRenderer` + `Or
 - **옵션은 마운트 시점에 고정됩니다.** 런타임에 옵션(예: `direction`)을 바꾸려면 프레임워크 어댑터에서 컴포넌트를 재마운트해야 합니다 — wrapper에 `key` prop을 사용하세요.
 - **핀치 줌은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 핀치가 조용히 무시됩니다.
 - **`setPointerCapture`가 모든 WebView 빌드에서 사용 가능하진 않습니다.** 구현은 `try/catch`로 가드되어 있고, 캡처를 지원하지 않는 환경에서는 드래그 중 포인터가 root를 벗어나면 제스처가 일찍 종료될 수 있습니다.
+- **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.
+- **`<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해** 제스처를 취소합니다(데스크톱). 패널 안 이미지에 `draggable="false"`를 주세요.
+- **줌 상태 교차 축 pan은 지원하지 않습니다** — `direction`이 제외한 축은 줌인해도 고정입니다.

@@ -22,6 +22,14 @@ export async function getDirection(page: Page): Promise<string> {
   return (await page.getByTestId('row-direction-value').textContent()) ?? '';
 }
 
+/** 캔버스(root) client width — 줌 상태 pan 기대값이 폭에 비례하므로 스펙에서 직접 계산에 쓴다. */
+export async function getCanvasWidth(page: Page): Promise<number> {
+  return await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+    return canvas?.clientWidth ?? 0;
+  });
+}
+
 /**
  * CSS3DRenderer scene wrapper(depth 3)의 transform — camera.position이 인코딩되어 있다.
  * 카메라가 X로 이동하면 matrix3d의 12번째 슬롯(또는 그 부근)이 변한다.
@@ -97,7 +105,8 @@ export async function getVisiblePanelIndices(page: Page): Promise<number[]> {
     for (const p of Array.from(panels)) {
       // display:none 패널은 가상화에서 제외된 것으로 간주
       const panelEl = p as HTMLElement;
-      if (panelEl.style.display === 'none' || getComputedStyle(panelEl).display === 'none') continue;
+      if (panelEl.style.display === 'none' || getComputedStyle(panelEl).display === 'none')
+        continue;
       const inner = p.firstElementChild;
       const numEl = inner?.firstElementChild;
       const txt = numEl?.textContent?.trim() ?? '';

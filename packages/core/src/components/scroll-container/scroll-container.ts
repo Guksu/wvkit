@@ -10,7 +10,8 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
  * 아키텍처:
  *  - Scene + OrthographicCamera + CSS3DRenderer 셋업 (#4)
  *  - 패널은 CSS3DObject로 wrap해 scene에 추가, frustum + overscan 기반 가상화 (#4)
- *  - 입력 처리는 `camera-control.ts`에 위임 (#3) — axis pan, snap, edge resistance, 핀치 줌, RAF 트윈
+ *  - 입력 처리는 `camera-control.ts`에 위임 (#3) — axis pan, snap, edge resistance, 핀치 줌, RAF 트윈,
+ *    줌 상태 pan(패널 가장자리까지 이동, 릴리스 시 위치 유지)
  *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + 사용자 콜백 호출
  *
  * NOTE: `direction: 'both'`는 1차 구현에서 `horizontal`로 폴백합니다.
@@ -76,18 +77,24 @@ export function createScrollContainer(
   root.appendChild(renderer.domElement);
 
   // --- 패널 위치 계산 ---
+  // panelSizes는 축 방향 패널 크기(가로: width, 세로: 패널 높이) — CameraControl의 줌 상태 pan 경계 계산용.
+  // positions와 같은 배열 참조를 유지해 리사이즈 시 함께 갱신된다.
   const positions: Array<{ x: number; y: number }> = [];
+  const panelSizes: number[] = [];
   function computePositions(): void {
     positions.length = 0;
+    panelSizes.length = 0;
     if (direction === 'horizontal') {
       for (let i = 0; i < panelCount; i++) {
         positions.push({ x: i * width, y: 0 });
+        panelSizes.push(width);
       }
     } else {
       let cursor = 0;
       for (let i = 0; i < panelCount; i++) {
         const h = options.panelHeight?.(i) ?? height;
         positions.push({ x: 0, y: -(cursor + h / 2) });
+        panelSizes.push(h);
         cursor += h;
       }
     }
@@ -157,6 +164,7 @@ export function createScrollContainer(
     camera,
     direction,
     positions,
+    panelSizes,
     getRootSize: () => ({ width, height }),
     snapThreshold,
     resistance,
@@ -166,13 +174,13 @@ export function createScrollContainer(
     onChange: requestRender,
     onPanRelease: (targetIndex) => {
       if (destroyed) return;
+      // 카메라 복귀/스냅 트윈은 CameraControl이 콜백 직전에 이미 시작했다 — 여기서는 상태만 갱신.
+      // (zoom ≤ 1: 패널 중심 스냅, zoom > 1: 그 자리 유지 또는 가장자리/gap 스냅)
       if (targetIndex !== activeIndex) {
         activeIndex = targetIndex;
         applyVirtualization();
         options.onIndexChange?.(activeIndex);
       }
-      // 카메라를 정확히 패널 위치로 트윈 (스냅 + 엣지 저항 복귀)
-      control?.animateToIndex(targetIndex, true);
     },
     onPinchRelease: (newZoom) => {
       if (destroyed) return;
@@ -310,9 +318,7 @@ function validateOptions(options: ScrollContainerOptions): void {
     throw new WebviewHeadlessError('ScrollContainer: panels must not be empty');
   }
   if (options.minZoom !== undefined && options.minZoom <= 0) {
-    throw new WebviewHeadlessError(
-      `ScrollContainer: minZoom must be > 0 (got ${options.minZoom})`,
-    );
+    throw new WebviewHeadlessError(`ScrollContainer: minZoom must be > 0 (got ${options.minZoom})`);
   }
   if (
     options.minZoom !== undefined &&
@@ -331,10 +337,7 @@ function validateOptions(options: ScrollContainerOptions): void {
       `ScrollContainer: snapThreshold must be in (0, 1] (got ${options.snapThreshold})`,
     );
   }
-  if (
-    options.resistance !== undefined &&
-    (options.resistance < 0 || options.resistance > 1)
-  ) {
+  if (options.resistance !== undefined && (options.resistance < 0 || options.resistance > 1)) {
     throw new WebviewHeadlessError(
       `ScrollContainer: resistance must be in [0, 1] (got ${options.resistance})`,
     );
