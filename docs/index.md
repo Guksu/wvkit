@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: ScrollContainer
-    details: Panel viewport scrolling with axis-constrained pan, snap, edge resistance, and pinch zoom — powered by Three.js CSS3DRenderer.
+    details: Panel viewport scrolling with axis-constrained pan, snap, edge resistance, and pinch zoom — a camera model rendered with one CSS transform, no dependencies.
     link: /components/scroll-container/
   - title: StableInput
     details: Dual-input structure that prevents the iOS keyboard from shifting your layout on focus.

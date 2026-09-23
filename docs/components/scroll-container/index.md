@@ -8,12 +8,14 @@ Native apps lay panels side by side with the same height, give each panel its ow
 
 ## Architecture
 
-Built on **[Three.js](https://threejs.org/) + `CSS3DRenderer` + `OrthographicCamera`** plus a custom **CameraControl**:
+Three small parts, no dependencies:
 
-- Panels are wrapped as `CSS3DObject` and placed in a single scene — DOM content is preserved (accessibility, interactivity), no shaders required.
-- `OrthographicCamera` provides a flat, non-perspective view (matches the native viewport feel).
-- A custom CameraControl owns all pointer input and computes the camera matrix directly: **axis-constrained pan**, **snap**, **edge resistance**, **pinch zoom**.
-- Virtualization: panels outside `activeIndex ± overscan` are toggled invisible (`visible=false` + `display:none`), keeping the rendered DOM minimal.
+- **Camera model** — a position `(x, y)` and a `zoom`. World units equal CSS pixels at zoom 1.
+- **Panel renderer** — places panels absolutely inside one *scene* element and writes the camera as a single CSS transform: `translate(width/2 − x·zoom, height/2 + y·zoom) scale(zoom)`. Panel DOM is untouched, so accessibility and interactivity are preserved, and only one transform changes per frame.
+- **CameraControl** — owns all pointer input and moves the camera directly: **axis-constrained pan**, **snap**, **edge resistance**, **pinch zoom**.
+- Virtualization: panels outside `activeIndex ± overscan` are hidden with `display:none`; a panel that has never been shown is not attached to the document at all, so its lazy images are not fetched.
+
+Versions before 0.5 rendered the same model through Three.js `CSS3DRenderer`; the public API did not change when that dependency was removed.
 
 The `direction` option no longer means "swipe direction" — it constrains which axis the **camera may pan along**:
 
@@ -23,15 +25,15 @@ The `direction` option no longer means "swipe direction" — it constrains which
 
 ## Installation
 
-`three` is a peer dependency you provide in your host app. The React/Vue adapters depend on `@guksu/wvkit-core`, so `three` resolves transitively — install it once at the host level.
+No peer dependencies. The React/Vue adapters depend on `@guksu/wvkit-core`.
 
 ::: code-group
 ```sh [npm]
-npm install @guksu/wvkit-core three
+npm install @guksu/wvkit-core
 # add @guksu/wvkit-react or @guksu/wvkit-vue depending on framework
 ```
 ```sh [pnpm]
-pnpm add @guksu/wvkit-core three
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -208,22 +210,19 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 ## Bundle Size
 
-`three` is **not bundled** into `@guksu/wvkit-core` — it is declared `external` and must be provided by your host app as a peer dependency.
-
-Measured with esbuild 0.25 (`--bundle --minify`, gzip -9) against `three` 0.184:
+`ScrollContainer` has no runtime dependencies. Measured with esbuild 0.25 (`--bundle --minify`, gzip -9):
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `ScrollContainer` alone (`three` external) | 9.6 KB | 3.9 KB |
-| `ScrollContainer` + the tree-shaken `three` subset (`Scene`, `OrthographicCamera`, `CSS3DRenderer`) | 259 KB | 60 KB |
+| `@guksu/wvkit-core/scroll-container` | 10.2 KB | 4.1 KB |
 
-Almost all of the cost is `three`. Exact numbers depend on your bundler and on other Three.js usage in the host app.
+Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
 ## Limitations
 
 - **`direction: 'both'`** currently falls back to `horizontal` — panels are laid out along the X axis, and pan is X-only. Diagonal snap policy lands in a follow-up minor release.
 - **`panels` are `HTMLElement[]`, not React/Vue children.** Build the DOM nodes imperatively (e.g. `document.createElement`) and pass the array. A render-prop / `<PanelGroup>` higher-level API is on the roadmap.
-- **Virtualization toggles `panel.style.display`** in addition to `CSS3DObject.visible`. This is a deliberate belt-and-suspenders so the panel is hidden across Three.js versions that don't consistently honour `visible=false` for CSS3D. If your panel content also sets `display`, the toggle may collide — keep `display` on a child element instead of the panel root.
+- **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.
 - **Options are fixed at mount.** Reactive option changes (e.g. flipping `direction` at runtime in a framework adapter) require remounting the component. Use a `key` prop on the wrapper.
 - **Pinch-zoom relies on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip pinch.
 - **`setPointerCapture` is not available in every WebView build.** The implementation is guarded with `try/catch`; in environments without capture support, pointer-leaving-root during a drag may cause the gesture to be released early.
@@ -234,6 +233,6 @@ Almost all of the cost is `three`. Exact numbers depend on your bundler and on o
 - **No momentum on the pager axis.** Release always runs a fixed 300 ms ease-out tween to the snap target; a fling never carries across several panels.
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
 - **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
-- **Each visible panel is a composited layer.** With `overscan: 1` three 3D-transformed layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
+- **Each visible scrollable panel is its own compositor layer** (browsers composite scroll containers). With `overscan: 1` three such layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
 - **Scroll position of a hidden panel survives in Chromium** (verified across a `display: none` round-trip) **but is unverified in WebKit.** Test on iOS before relying on it.
 - **`scrollTo(index)` while zoomed lands on the panel center**, not on the edge you were looking at.

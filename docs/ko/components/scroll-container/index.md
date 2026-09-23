@@ -8,12 +8,14 @@
 
 ## 아키텍처
 
-**[Three.js](https://threejs.org/) + `CSS3DRenderer` + `OrthographicCamera`** 위에 커스텀 **CameraControl**을 얹습니다:
+작은 부품 셋으로 이루어지고 의존성이 없습니다:
 
-- 패널을 `CSS3DObject`로 wrap해 단일 scene에 배치 — DOM 콘텐츠 보존(접근성·상호작용), 셰이더 불필요.
-- `OrthographicCamera`로 원근 왜곡 없는 네이티브 뷰포트 느낌.
-- 커스텀 CameraControl이 pointer 입력을 받아 카메라 행렬을 직접 계산: **축 제약 pan**, **스냅**, **엣지 저항**, **핀치 줌**.
-- 가상화: `activeIndex ± overscan` 범위 밖 패널은 `visible=false` + `display:none`으로 숨김 처리해 렌더 DOM을 최소화.
+- **카메라 모델** — 위치 `(x, y)`와 `zoom`. 월드 1단위 = zoom 1에서 CSS 1px.
+- **패널 렌더러** — 패널을 *scene* 요소 하나 안에 절대 배치하고, 카메라를 CSS transform 한 줄로 씁니다: `translate(width/2 − x·zoom, height/2 + y·zoom) scale(zoom)`. 패널 DOM은 건드리지 않아 접근성·상호작용이 보존되고, 프레임마다 바뀌는 transform은 하나뿐입니다.
+- **CameraControl** — pointer 입력을 모두 받아 카메라를 직접 움직입니다: **축 제약 pan**, **스냅**, **엣지 저항**, **핀치 줌**.
+- 가상화: `activeIndex ± overscan` 범위 밖 패널은 `display:none`으로 숨깁니다. 한 번도 보이지 않은 패널은 문서에 붙이지 않으므로 lazy 이미지가 요청되지 않습니다.
+
+0.5 이전 버전은 같은 모델을 Three.js `CSS3DRenderer`로 렌더링했습니다. 그 의존성을 제거하면서 공개 API는 바뀌지 않았습니다.
 
 `direction` 옵션의 의미는 "스와이프 방향"이 아니라 **카메라가 pan할 수 있는 축 제약**입니다:
 
@@ -23,15 +25,15 @@
 
 ## 설치
 
-`three`는 호스트 앱이 제공하는 peer dependency입니다. React/Vue 어댑터는 `@guksu/wvkit-core`에 의존하므로 `three`는 자연스럽게 transitively external로 처리됩니다 — 호스트 앱 레벨에서 한 번만 설치하세요.
+peer dependency가 없습니다. React/Vue 어댑터는 `@guksu/wvkit-core`에 의존합니다.
 
 ::: code-group
 ```sh [npm]
-npm install @guksu/wvkit-core three
+npm install @guksu/wvkit-core
 # 프레임워크에 따라 @guksu/wvkit-react 또는 @guksu/wvkit-vue 추가
 ```
 ```sh [pnpm]
-pnpm add @guksu/wvkit-core three
+pnpm add @guksu/wvkit-core
 ```
 :::
 
@@ -208,22 +210,19 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 ## 번들 사이즈
 
-`three`는 `@guksu/wvkit-core`에 **번들되지 않습니다** — `external`로 선언되어 호스트 앱이 peer dependency로 제공해야 합니다.
-
-esbuild 0.25(`--bundle --minify`, gzip -9)로 `three` 0.184 기준 측정:
+`ScrollContainer`에는 런타임 의존성이 없습니다. esbuild 0.25(`--bundle --minify`, gzip -9) 기준 측정:
 
 | 번들 | Minified | Gzip |
 | --- | --- | --- |
-| `ScrollContainer` 단독 (`three` external) | 9.6 KB | 3.9 KB |
-| `ScrollContainer` + 트리셰이킹된 `three` 일부 (`Scene`, `OrthographicCamera`, `CSS3DRenderer`) | 259 KB | 60 KB |
+| `@guksu/wvkit-core/scroll-container` | 10.2 KB | 4.1 KB |
 
-비용 대부분이 `three`입니다. 정확한 수치는 번들러와 호스트 앱의 다른 Three.js 사용에 따라 달라집니다.
+0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
 ## 알려진 제한사항
 
 - **`direction: 'both'`**는 현재 `horizontal`로 폴백 — 패널은 X축 일렬 배치되고 pan도 X 축만 동작합니다. 대각 스냅 정책은 후속 minor 릴리스에서 정식 지원됩니다.
 - **`panels`는 `HTMLElement[]`** 이며 React/Vue 자식 컴포넌트가 아닙니다. DOM 노드를 명령형(예: `document.createElement`)으로 만들어 배열로 전달하세요. 상위 레벨 render-prop / `<PanelGroup>` API는 로드맵에 있습니다.
-- **가상화가 `panel.style.display`를 토글합니다** (`CSS3DObject.visible`과 병행). 이는 CSS3D에서 `visible=false`를 일관되게 처리하지 못하는 Three.js 버전 대비용 의도된 belt-and-suspenders 패턴입니다. 패널 콘텐츠 자체가 `display`를 설정한다면 충돌할 수 있으니, `display`는 패널 루트가 아닌 자식 요소에 두는 것을 권장합니다.
+- **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.
 - **옵션은 마운트 시점에 고정됩니다.** 런타임에 옵션(예: `direction`)을 바꾸려면 프레임워크 어댑터에서 컴포넌트를 재마운트해야 합니다 — wrapper에 `key` prop을 사용하세요.
 - **핀치 줌은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 핀치가 조용히 무시됩니다.
 - **`setPointerCapture`가 모든 WebView 빌드에서 사용 가능하진 않습니다.** 구현은 `try/catch`로 가드되어 있고, 캡처를 지원하지 않는 환경에서는 드래그 중 포인터가 root를 벗어나면 제스처가 일찍 종료될 수 있습니다.
@@ -234,6 +233,6 @@ esbuild 0.25(`--bundle --minify`, gzip -9)로 `three` 0.184 기준 측정:
 - **페이저 축에 관성이 없습니다.** 릴리스는 항상 300ms ease-out 트윈으로 스냅 목표까지만 갑니다. 한 번 튕겨서 여러 패널을 지나가지 않습니다.
 - **패널 안 텍스트를 선택할 수 없습니다.** `CSS3DObject`가 모든 패널 요소에 `user-select: none`(과 `draggable="false"`)을 설정합니다. 패널 안 인풋은 동작합니다.
 - **패널 DOM은 절대 언마운트되지 않습니다.** 가상화는 `overscan` 창 밖 패널을 떼어내거나 숨길 뿐이고, 모든 패널이 인스턴스가 살아 있는 동안 메모리에 남습니다. 긴 리스트는 패널 안에서 직접 가상화하세요.
-- **보이는 패널마다 컴포지터 레이어가 하나씩 생깁니다.** `overscan: 1`이면 3D transform 레이어 3개가 동시에 살아 있습니다. 헤드리스 Chromium에서 이미지 150장 피드 패널은 412 × 47,773 px 레이어가 됐습니다. 저사양 기기에서는 `overscan`을 작게 두세요.
+- **스크롤되는 패널은 보이는 것마다 자기 컴포지터 레이어를 가집니다** (브라우저가 스크롤 컨테이너를 별도 레이어로 합성). `overscan: 1`이면 그런 레이어 3개가 동시에 살아 있습니다. 헤드리스 Chromium에서 이미지 150장 피드 패널은 412 × 47,773 px 레이어가 됐습니다. 저사양 기기에서는 `overscan`을 작게 두세요.
 - **숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만**(`display: none` 왕복 확인) **WebKit은 미검증입니다.** iOS에서 확인한 뒤 의존하세요.
 - **줌 상태의 `scrollTo(index)`는 패널 중심으로 갑니다.** 보고 있던 가장자리가 아닙니다.

@@ -15,7 +15,7 @@ hero:
 
 features:
   - title: ScrollContainer
-    details: 축 제약 pan · 스냅 · 엣지 저항 · 핀치 줌을 갖춘 패널 뷰포트 스크롤 — Three.js CSS3DRenderer 기반.
+    details: 축 제약 pan · 스냅 · 엣지 저항 · 핀치 줌을 갖춘 패널 뷰포트 스크롤 — 카메라 모델을 CSS transform 하나로 렌더링, 의존성 없음.
     link: /ko/components/scroll-container/
   - title: StableInput
     details: iOS 키보드 포커스 시 레이아웃이 튀는 문제를 막는 듀얼 인풋 구조.

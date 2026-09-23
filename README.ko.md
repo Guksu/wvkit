@@ -62,7 +62,7 @@ wvkit은 이 모든 문제를 처리합니다. 각 컴포넌트는 **동작(beha
 
 | 컴포넌트 | 패키지 | 설명 |
 |----------|--------|------|
-| `ScrollContainer` | core / react / vue | 핀치 줌을 지원하는 가로/세로 뷰포트 페이저. Three.js CSS3DRenderer + OrthographicCamera 기반으로 축 고정 pan, 스냅, 엣지 저항, 패널 가상화를 제공합니다. |
+| `ScrollContainer` | core / react / vue | 핀치 줌을 지원하는 가로/세로 뷰포트 페이저. 카메라 모델을 CSS transform 하나로 렌더링해(의존성 없음) 축 고정 pan, 스냅, 엣지 저항, 패널 가상화를 제공합니다. |
 | `StableInput` | core / react / vue | iOS 키보드 레이아웃 이동 방지 인풋. 듀얼 인풋 구조(디스플레이 + 숨김 fixed)에 `visualViewport` 리스너를 조합해 레이아웃 점프를 억제합니다. |
 | `PullToRefresh` | core / react / vue | 헤드리스 당김 새로고침 상태 머신 (`idle → pulling → armed → refreshing → resetting`). 저항 곡선·비동기 새로고침·`overscroll-behavior: contain`으로 네이티브 PTR 차단을 내장합니다. |
 | `useVirtualKeyboard` | core / react / vue | `visualViewport` 리사이즈 델타로 소프트 키보드 열림/닫힘 상태를 추론합니다. iOS·Android 휴리스틱 내장. |
@@ -92,25 +92,19 @@ wvkit은 이 모든 문제를 처리합니다. 각 컴포넌트는 **동작(beha
 
 ```bash
 npm install @guksu/wvkit-core
-# ScrollContainer를 사용하는 경우 three가 필요합니다
-npm install three
 ```
 
 ### React
 
 ```bash
 npm install @guksu/wvkit-react @guksu/wvkit-core
-npm install three        # ScrollContainer 사용 시 필요
 ```
 
 ### Vue 3
 
 ```bash
 npm install @guksu/wvkit-vue @guksu/wvkit-core
-npm install three        # ScrollContainer 사용 시 필요
 ```
-
-> `ScrollContainer`를 사용하지 않는다면 `three`는 설치하지 않아도 됩니다.
 
 ---
 
@@ -351,12 +345,12 @@ lock.unlock();
 
 ### ScrollContainer
 
-- `three`가 필요합니다. 트리셰이킹 후 약 60 KB gzip이 페이저 하나 때문에 들어옵니다. 가로 페이징만 필요하면 CSS `scroll-snap`이나 일반 캐러셀이 훨씬 가볍습니다.
+- 약 4 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
 - `panels`는 미리 만든 `HTMLElement[]`이고, 다른 non-callback 옵션처럼 마운트 시점에 고정됩니다. 패널 구성을 바꾸려면 재마운트해야 하고 그때 스크롤 위치가 사라집니다.
 - 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
 - 줌 상태 pan은 페이저 축으로만 움직입니다(교차 축 고정). 휠·키보드·트랙패드 입력, 패널을 건너뛰는 관성, ARIA 역할이 없습니다.
 - 패널 안의 `position: fixed`는 패널과 함께 스크롤됩니다. 패널 안 텍스트는 선택할 수 없습니다. 데스크톱에서는 `<img>`에 `draggable="false"`가 필요합니다.
-- 보이는 패널마다 3D transform 컴포지터 레이어가 생기고 패널 DOM은 절대 언마운트되지 않습니다. `overscan`을 작게 두고 긴 리스트는 패널 안에서 직접 가상화하세요. 숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만 WebKit은 미검증입니다.
+- 스크롤되는 패널은 보이는 것마다 자기 컴포지터 레이어를 가지고, 패널 DOM은 절대 언마운트되지 않습니다. `overscan`을 작게 두고 긴 리스트는 패널 안에서 직접 가상화하세요. 숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만 WebKit은 미검증입니다.
 
 ### StableInput
 
@@ -393,7 +387,7 @@ lock.unlock();
 
 - **헤드리스** — 동작만, 기본 스타일 없음
 - **SSR 안전** — 모듈 로드 시점에 `window`/`document` 접근 없음
-- **런타임 의존성 최소화** — `three`는 peer dependency (트리셰이킹 후 호스트가 제공)
+- **런타임 의존성 0** — ScrollContainer를 포함한 모든 컴포넌트가 서드파티 런타임 코드 없이 배포됩니다
 - **프레임워크 무관 코어** — React·Vue 어댑터는 동일한 코어 로직을 감싸는 얇은 래퍼
 - **destroy 패턴** — 모든 팩토리 함수는 `destroy()` 메서드를 반환하며, 호출 시 모든 이벤트 리스너와 DOM 참조를 정리
 

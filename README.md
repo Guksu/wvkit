@@ -62,7 +62,7 @@ wvkit handles all of these. Each component exposes only **behavior** — no defa
 
 | Component | Package | Description |
 |-----------|---------|-------------|
-| `ScrollContainer` | core / react / vue | Horizontal/vertical viewport pager with pinch zoom. Powered by Three.js CSS3DRenderer + OrthographicCamera for axis-locked pan, snap, edge resistance, and panel virtualization. |
+| `ScrollContainer` | core / react / vue | Horizontal/vertical viewport pager with pinch zoom. A camera model rendered with a single CSS transform (no dependencies) gives axis-locked pan, snap, edge resistance, and panel virtualization. |
 | `StableInput` | core / react / vue | iOS keyboard layout-shift prevention. Dual-input architecture (display + hidden fixed) with `visualViewport` listener to suppress jumping. |
 | `PullToRefresh` | core / react / vue | Headless pull-to-refresh state machine (`idle → pulling → armed → refreshing → resetting`). Resistance curve, async refresh, native PTR suppression via `overscroll-behavior: contain`. |
 | `useVirtualKeyboard` | core / react / vue | Infers soft keyboard open/close state from `visualViewport` resize delta. iOS and Android heuristics built in. |
@@ -92,25 +92,19 @@ In-depth docs for each component — problem background, architecture, full API 
 
 ```bash
 npm install @guksu/wvkit-core
-# ScrollContainer requires three as a peer dependency
-npm install three
 ```
 
 ### React
 
 ```bash
 npm install @guksu/wvkit-react @guksu/wvkit-core
-npm install three        # required by ScrollContainer
 ```
 
 ### Vue 3
 
 ```bash
 npm install @guksu/wvkit-vue @guksu/wvkit-core
-npm install three        # required by ScrollContainer
 ```
-
-> If you don't use `ScrollContainer`, you can skip `three`.
 
 ---
 
@@ -351,12 +345,12 @@ Every component is headless and small, but each has sharp edges that are easy to
 
 ### ScrollContainer
 
-- Needs `three`: about 60 KB gzip after tree-shaking, for a pager. CSS `scroll-snap` or a plain carousel is far lighter when you only need horizontal paging.
+- About 4 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
 - Zoom pans along the pager axis only (the cross axis stays locked). No wheel, keyboard, or trackpad input, no momentum across panels, no ARIA roles.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
-- Every visible panel is a 3D-transformed compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
+- Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
 
 ### StableInput
 
@@ -393,7 +387,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 
 - **Headless** — behavior only, zero default styles
 - **SSR-safe** — no `window`/`document` access at module load time
-- **Minimal runtime deps** — `three` is a peer dependency (tree-shaken, host-provided)
+- **Zero runtime dependencies** — every component, ScrollContainer included, ships without third-party runtime code
 - **Framework-agnostic core** — React and Vue adapters are thin wrappers around the same core logic
 - **destroy pattern** — every factory function returns a `destroy()` method that cleans up all listeners and DOM references
 
