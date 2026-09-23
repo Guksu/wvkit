@@ -1,0 +1,39 @@
+[
+  {
+    "name": "@guksu/wvkit-core — barrel (StableInput · PullToRefresh · VirtualKeyboard · SafeArea · ScrollLock)",
+    "path": "packages/core/dist/index.js",
+    "limit": "5 KB"
+  },
+  {
+    "name": "@guksu/wvkit-core/scroll-container",
+    "path": "packages/core/dist/scroll-container.js",
+    "import": "{ createScrollContainer }",
+    "limit": "5 KB"
+  },
+  {
+    "name": "@guksu/wvkit-react — barrel (core·react external)",
+    "path": "packages/react/dist/index.js",
+    "ignore": ["@guksu/wvkit-core", "react"],
+    "limit": "2 KB"
+  },
+  {
+    "name": "@guksu/wvkit-react/scroll-container (core·react external)",
+    "path": "packages/react/dist/scroll-container.js",
+    "import": "{ useScrollContainer }",
+    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "react"],
+    "limit": "1 KB"
+  },
+  {
+    "name": "@guksu/wvkit-vue — barrel (core·vue external)",
+    "path": "packages/vue/dist/index.js",
+    "ignore": ["@guksu/wvkit-core", "vue"],
+    "limit": "2 KB"
+  },
+  {
+    "name": "@guksu/wvkit-vue/scroll-container (core·vue external)",
+    "path": "packages/vue/dist/scroll-container.js",
+    "import": "{ useScrollContainer }",
+    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "vue"],
+    "limit": "1 KB"
+  }
+]
