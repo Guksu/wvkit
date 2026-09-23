@@ -1,6 +1,8 @@
 import { WebviewHeadlessError } from '../../errors';
+import { type A11y, createA11y } from './a11y';
 import { createCamera } from './camera';
 import { type CameraControl, createCameraControl } from './camera-control';
+import { type DesktopInput, createDesktopInput } from './desktop-input';
 import { createPanelRenderer } from './panel-renderer';
 import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
 
@@ -13,7 +15,8 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
  *  - 패널은 scene 안에 절대 배치되고, overscan 기반 가상화로 창 밖 패널은 숨긴다 (#4)
  *  - 입력 처리는 `camera-control.ts`에 위임 (#3) — axis pan, snap, edge resistance, 핀치 줌, RAF 트윈,
  *    줌 상태 pan(패널 가장자리까지 이동·교차 축 pan, 릴리스 시 위치 유지), 더블탭 줌, 줌 고무줄
- *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + 사용자 콜백 호출
+ *  - 데스크톱 입력(`desktop-input.ts`): 휠·트랙패드·키보드 → scrollTo / panBy / zoomBy. ARIA(`a11y.ts`)는 활성 패널만 노출
+ *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + ARIA + 사용자 콜백 호출
  *
  * NOTE: `direction: 'both'`는 1차 구현에서 `horizontal`로 폴백합니다.
  *       대각 스크롤 + 스냅 정책은 후속 minor 릴리스에서 정식 지원.
@@ -48,6 +51,9 @@ export function createScrollContainer(
   const resistance = options.resistance ?? 0.2;
   const enablePinchZoom = options.enablePinchZoom ?? true;
   const doubleTapZoom = options.doubleTapZoom ?? false;
+  const wheelEnabled = options.wheel ?? true;
+  const keyboardEnabled = options.keyboard ?? true;
+  const a11yEnabled = options.a11y ?? true;
   // 'both'는 1차에서 horizontal로 폴백 (대각 스크롤은 후속 minor)
   const direction: 'horizontal' | 'vertical' =
     options.direction === 'vertical' ? 'vertical' : 'horizontal';
@@ -118,6 +124,9 @@ export function createScrollContainer(
     camera.zoom = zoom;
   }
 
+  // ARIA: 활성 패널만 노출 (비활성은 aria-hidden + inert). 활성 인덱스가 바뀔 때마다 갱신.
+  const a11y: A11y | null = a11yEnabled ? createA11y(root, options.panels) : null;
+
   // 가상화: |i - activeIndex| <= overscan 패널만 visible. mount/unmount 차분만 적용.
   function applyVirtualization(): void {
     for (let i = 0; i < panelCount; i++) {
@@ -127,6 +136,7 @@ export function createScrollContainer(
         renderer.setPanelVisible(i, inWindow);
       }
     }
+    a11y?.setActive(activeIndex);
   }
 
   function requestRender(): void {
@@ -174,6 +184,31 @@ export function createScrollContainer(
       }
     },
   });
+
+  // --- 데스크톱 입력 (휠·트랙패드·키보드) — 터치 기기에서는 이벤트가 오지 않는다 ---
+  let desktopInput: DesktopInput | null =
+    wheelEnabled || keyboardEnabled
+      ? createDesktopInput({
+          root,
+          direction,
+          wheel: wheelEnabled,
+          keyboard: keyboardEnabled,
+          getZoom: () => zoom,
+          minZoom,
+          getPanelSize: () =>
+            panelSizes[activeIndex] ?? (direction === 'horizontal' ? width : height),
+          step: (delta) => scrollTo(activeIndex + delta),
+          goToEdge: (edge) => scrollTo(edge === 'first' ? 0 : panelCount - 1),
+          panBy: (dx, dy) => control?.panBy(dx, dy),
+          zoomBy: (factor, sx, sy) => control?.zoomBy(factor, sx, sy) ?? zoom,
+          onZoom: (z) => {
+            if (destroyed || z === zoom) return;
+            zoom = z;
+            options.onZoomChange?.(zoom);
+          },
+          resetZoom: () => zoomTo(minZoom),
+        })
+      : null;
 
   // --- ResizeObserver: root 사이즈 변경 시 카메라 frustum + 렌더러 사이즈 + 패널 좌표 보정 ---
   let resizeObserver: ResizeObserver | null = null;
@@ -233,7 +268,11 @@ export function createScrollContainer(
   function destroy(): void {
     if (destroyed) return;
     destroyed = true;
-    // 순서: 입력/RAF 정리 → 리사이즈 옵저버 → 렌더러(패널 detach + 인라인 스타일 복원 + DOM 제거)
+    // 순서: 입력/RAF 정리 → 리사이즈 옵저버 → ARIA 복원 → 렌더러(패널 detach + 인라인 스타일 복원 + DOM 제거)
+    if (desktopInput) {
+      desktopInput.destroy();
+      desktopInput = null;
+    }
     if (control) {
       control.destroy();
       control = null;
@@ -242,6 +281,7 @@ export function createScrollContainer(
       resizeObserver.disconnect();
       resizeObserver = null;
     }
+    a11y?.destroy();
     // 렌더러가 domElement를 어디에 있든(외부에서 옮겼어도) 스스로 제거한다 (m-3).
     renderer.destroy();
   }

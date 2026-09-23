@@ -154,6 +154,14 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 - **줌 고무줄.** 핀치가 `minZoom`이나 `maxZoom`을 넘어도 손가락을 계속 따라가되 줌을 배율 공간에서 감쇠하고(`min × (raw / min)^resistance`), 마지막 손가락을 떼면 경계로 돌아옵니다. iOS의 `bouncesZoom`과 같습니다. `onZoomChange`는 항상 `[minZoom, maxZoom]` 안의 값만 냅니다. 딱 멈추게 하려면 `resistance: 0`을 주세요.
 - **더블탭 줌**은 선택 사항입니다. `doubleTapZoom: 2`를 주면 더블탭(300ms·40px 안의 두 탭, 각 탭은 300ms 미만·10px 미만 이동)으로 `minZoom`과 2배를 오갑니다. 확대할 때는 탭한 지점이 고정되고, 축소할 때는 패널 중심으로 갑니다. 패널 안 버튼을 더블탭해도 클릭은 두 번 그대로 일어나니, 더블탭에 다른 뜻을 둔 패널이면 켜지 마세요.
 
+## 데스크톱 입력과 접근성
+
+WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 화면이 없어도 페이저가 움직입니다. 터치 기기에서는 이 이벤트가 오지 않아 비용이 없습니다.
+
+- **휠·트랙패드** (`wheel: true`, 기본). 페이저 축 방향 휠 제스처 하나에 한 패널이 움직입니다. 델타를 제스처(120ms 안에 이어지는 이벤트) 단위로 누적해 40px을 넘으면 한 번 넘기고, 그 제스처의 나머지는 무시합니다. 그래서 트랙패드 관성이 여러 패널을 건너뛰지 않습니다. 교차 축 성분이 더 큰 휠(가로 페이저에서의 세로 스크롤)은 손대지 않고, 그 방향으로 더 스크롤할 수 있는 중첩 스크롤러(`overflow-x: auto` 칩 줄) 위에서도 네이티브에 맡깁니다. 줌 상태에서는 휠이 페이지를 넘기지 않고 패널 안에서 카메라를 움직입니다. `Ctrl` + 휠(트랙패드 핀치가 페이지에 이렇게 옵니다)은 커서를 중심으로 줌합니다. 소비한 휠만 `preventDefault` 하므로 Chromium의 macOS 가로 스와이프 뒤로가기도 막힙니다. Safari에서는 페이지에 `overscroll-behavior-x: none`이 따로 필요합니다.
+- **키보드** (`keyboard: true`, 기본). 호스트 자신에 포커스가 있을 때: 페이저 축 방향 화살표로 한 패널 이동, `Home` / `End`로 첫/끝 패널, 줌 상태에서 `Escape`로 `minZoom` 복귀. 패널 안(인풋·버튼)에 포커스가 있으면 키를 건드리지 않아 패널 콘텐츠의 키보드 동작이 그대로입니다. 호스트에 `tabindex`가 없으면 `tabindex="0"`을 줍니다. `:focus-visible` 스타일은 직접 주세요.
+- **ARIA** (`a11y: true`, 기본). WAI-ARIA APG 캐러셀 패턴을 따릅니다. 호스트에 `role="group"`과 `aria-roledescription="carousel"`, 각 패널에 `role="group"`, `aria-roledescription="slide"`, `aria-label="n / N"`, 활성이 아닌 패널에는 `aria-hidden="true"`와 `inert`를 줘서 화면 밖 패널이 스크린리더와 Tab 순서에서 빠집니다. 이미 있는 속성은 건드리지 않고, 접근 가능한 이름은 만들어 내지 않습니다. 호스트에 `aria-label`을 주세요. `inert`는 모르는 브라우저(Chrome 102 미만 WebView, iOS 15.5 미만)에서 무시되고 `aria-hidden`만 남습니다.
+
 ## 스냅과 관성
 
 - 손을 떼면 항상 패널(zoom ≤ 1) 또는 투영된 정지점·가장자리·gap 목표(zoom > 1)로 스냅합니다. 정착 시간은 손가락 속도에 이어집니다: ease-out 곡선이 놓는 순간 속도로 시작하도록 `duration = 3 × 거리 / 속도`로 정하고, 120ms와 거리 비례 상한 400ms(줌 상태 자유 pan은 800ms) 사이로 자릅니다. 멈춘 채 놓으면 상한을 쓰고, 목표 반대 방향 속도(고무줄 복귀)는 무시합니다.
@@ -180,7 +188,10 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 | `minZoom`         | `number > 0`                               | `1.0`          | 최소 줌 레벨.                                                                                       |
 | `maxZoom`         | `number ≥ minZoom`                         | `3.0`          | 최대 줌 레벨.                                                                                       |
 | `doubleTapZoom`   | `number \| false`                          | `false`        | 더블탭 줌 목표. `(minZoom, maxZoom]` 안의 숫자를 주면 더블탭으로 `minZoom`과 그 레벨을 오갑니다. `enablePinchZoom`과 독립. |
-| `onZoomChange`    | `(zoom: number) => void`                   | —              | 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·`zoomTo`).                                            |
+| `onZoomChange`    | `(zoom: number) => void`                   | —              | 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·`Ctrl` + 휠·`zoomTo`).                                |
+| `wheel`           | `boolean`                                  | `true`         | 휠·트랙패드 입력: 제스처당 한 패널, 줌 상태에서는 카메라 pan, `Ctrl` + 휠 줌.                      |
+| `keyboard`        | `boolean`                                  | `true`         | 호스트에 포커스가 있을 때 화살표·`Home`/`End`·`Escape`. 호스트에 `tabindex`가 없으면 `0`을 줍니다.  |
+| `a11y`            | `boolean`                                  | `true`         | 호스트·패널에 캐러셀 ARIA 역할, 비활성 패널에 `aria-hidden`과 `inert`.                              |
 
 `resistance`는 핀치가 `minZoom` / `maxZoom`을 넘을 때의 줌 고무줄에도 쓰입니다.
 
@@ -227,7 +238,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 | 번들 | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 10.2 KB | 4.1 KB |
+| `@guksu/wvkit-core/scroll-container` | 16.4 KB | 6.5 KB |
 
 0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
@@ -242,7 +253,9 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 - **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.
 - **`<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해** 제스처를 취소합니다(데스크톱). 패널 안 이미지에 `draggable="false"`를 주세요.
 - **줌 상태 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다.** `touch-action: pan-y`를 준 패널은 세로 터치를 자체 네이티브 스크롤에 넘기므로, `horizontal` 페이저에서는 스크롤 없는 패널(이미지 뷰어·카드)만 줌 상태에서 세로로 움직입니다.
-- **휠·트랙패드·키보드 입력이 없습니다.** 포인터 드래그만 패널을 넘깁니다. 방향키, 휠, ARIA 역할은 연결돼 있지 않으니 `scrollTo()`를 부르는 컨트롤을 직접 두세요.
+- **휠 제스처 하나는 한 패널만 넘기고, 줌 상태에서는 페이지를 넘기지 못합니다.** 첫 이동 뒤의 트랙패드 관성은 무시되고, 마우스 휠을 빠르게 돌려도 120ms 쉬기 전까지는 한 제스처입니다. 줌 상태에서 휠은 패널 안을 움직이니, 패널을 바꾸려면 화살표를 쓰거나 줌을 풀어야 합니다.
+- **키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다.** 패널 안에 포커스가 있으면 그쪽 키 동작이 그대로입니다. 호스트의 포커스 링은 직접 스타일링해야 합니다.
+- **비활성 패널의 `inert`는 포인터 이벤트도 막습니다.** `minZoom`이 1보다 작아 옆 패널이 보여도 활성이 되기 전에는 클릭할 수 없습니다. 필요하면 `a11y: false`로 끄세요.
 - **플릭은 최대 한 패널만 넘깁니다.** 정착 시간은 놓는 속도에 따라 120~400ms로 달라지지만, 페이저 축에서 여러 패널을 지나가는 관성은 의도적으로 없습니다(네이티브 페이저와 같음).
 - **패널 안 텍스트를 선택할 수 없습니다.** `CSS3DObject`가 모든 패널 요소에 `user-select: none`(과 `draggable="false"`)을 설정합니다. 패널 안 인풋은 동작합니다.
 - **패널 DOM은 절대 언마운트되지 않습니다.** 가상화는 `overscan` 창 밖 패널을 떼어내거나 숨길 뿐이고, 모든 패널이 인스턴스가 살아 있는 동안 메모리에 남습니다. 긴 리스트는 패널 안에서 직접 가상화하세요.

@@ -469,6 +469,62 @@ describe('createCameraControl — 줌 마무리 (교차 축 pan · 더블탭 · 
     control.destroy();
   });
 
+  // ─── P — panBy / zoomBy (휠·트랙패드용 명령형 API) ────────────────────────
+
+  describe('panBy / zoomBy', () => {
+    it('P1: panBy 는 zoom 2 에서 화면 px/zoom 만큼 즉시 이동, 패널 범위 안으로 클램프 (교차 축 포함)', () => {
+      const { control, onChange } = makeControl();
+      control.animateToIndex(0, false);
+      control.animateToZoom(2, false);
+      onChange.mockClear();
+      control.panBy(40, -60); // x += 20, y += 30 (휠 +y = 아래 = 월드 −y → dy −60 → y +30)
+      expect(camera.position.x).toBe(20);
+      expect(camera.position.y).toBe(30);
+      expect(onChange).toHaveBeenCalledTimes(1);
+      control.panBy(1000, 1000); // 반폭 100 / 150 으로 클램프
+      expect(camera.position.x).toBe(100);
+      expect(camera.position.y).toBe(-150);
+      expect(rafQueue.size).toBe(0); // 트윈 없음
+      control.destroy();
+    });
+
+    it('P2: panBy 는 zoom 1 에서 움직이지 않는다 (반폭 0) — 페이저는 휠로 넘긴다', () => {
+      const { control, onChange } = makeControl();
+      control.animateToIndex(1, false);
+      onChange.mockClear();
+      control.panBy(100, 100);
+      expect(camera.position.x).toBe(400);
+      expect(camera.position.y).toBe(0);
+      expect(onChange).not.toHaveBeenCalled();
+      control.destroy();
+    });
+
+    it('P3: zoomBy 는 커서 아래 지점을 고정한 채 즉시 줌, [min,max] 하드 클램프, 결과 줌 반환', () => {
+      const { control } = makeControl();
+      control.animateToIndex(0, false);
+      expect(control.zoomBy(2, 300, 300)).toBe(2); // 월드 x=100 고정 → cameraX 50
+      expect(camera.zoom).toBe(2);
+      expect(camera.position.x).toBe(50);
+      expect((100 - camera.position.x) * camera.zoom + 200).toBe(300);
+      expect(control.zoomBy(10, 300, 300)).toBe(3); // 클램프
+      expect(camera.zoom).toBe(3);
+      expect(control.zoomBy(0.01, 200, 300)).toBe(1);
+      expect(camera.position.x).toBe(0); // zoom 1 → 패널 중심
+      control.destroy();
+    });
+
+    it('P4: zoomBy 뒤 더블탭은 줌아웃이다 (정착 줌이 갱신됨)', () => {
+      const { control, onPinchRelease } = makeControl({ doubleTapZoom: 2 });
+      control.animateToIndex(0, false);
+      control.zoomBy(1.5, 200, 300);
+      tap(200, 300);
+      now += 100;
+      tap(200, 300);
+      expect(onPinchRelease).toHaveBeenLastCalledWith(1);
+      control.destroy();
+    });
+  });
+
   // ─── R — 줌 고무줄 ──────────────────────────────────────────────────────────
 
   describe('줌 고무줄 (min/max 밖 핀치)', () => {

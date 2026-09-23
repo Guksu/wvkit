@@ -545,8 +545,31 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
       });
       const { control: c } = createControl();
       down(1, 200, 300);
+      expect(setCapture).not.toHaveBeenCalled(); // 슬롭(3px) 전에는 캡처하지 않는다
+      move(1, 205, 300);
       expect(setCapture).toHaveBeenCalledWith(1);
       c.destroy();
+      expect(releaseCapture).toHaveBeenCalledWith(1);
+    });
+
+    it('E8: 움직이지 않은 down/up 은 포인터를 캡처하지 않는다 — 패널 안 버튼의 마우스 click 이 원래 요소에 닿게', () => {
+      const setCapture = vi.fn();
+      const releaseCapture = vi.fn();
+      Object.assign(root, {
+        setPointerCapture: setCapture,
+        releasePointerCapture: releaseCapture,
+      });
+      createControl();
+      down(1, 200, 300);
+      move(1, 201, 301); // 슬롭 안
+      up(1, 201, 301);
+      expect(setCapture).not.toHaveBeenCalled();
+      expect(releaseCapture).not.toHaveBeenCalled();
+      // 슬롭을 넘으면 캡처하고 up 에서 해제
+      down(1, 200, 300);
+      move(1, 210, 300);
+      up(1, 210, 300);
+      expect(setCapture).toHaveBeenCalledTimes(1);
       expect(releaseCapture).toHaveBeenCalledWith(1);
     });
   });
