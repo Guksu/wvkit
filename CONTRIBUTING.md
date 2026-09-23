@@ -4,7 +4,7 @@ Thanks for your interest in contributing! wvkit is a pnpm + Turborepo monorepo p
 
 ## Setup
 
-Requirements: Node.js 20+ and [pnpm](https://pnpm.io/) 9+.
+Requirements: Node.js 22+ and [pnpm](https://pnpm.io/) 9+. (The library itself runs on Node 18+; the bundle size gate `pnpm size` uses `size-limit` 14, which needs Node 22.)
 
 ```bash
 git clone https://github.com/Guksu/wvkit.git
