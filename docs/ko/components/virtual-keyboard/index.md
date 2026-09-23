@@ -112,3 +112,6 @@ interface VirtualKeyboardState {
 - `baseHeight`는 마운트 시점에 결정되지만 자가 회복합니다: 뷰포트가 기준보다 커지는 순간(예: 키보드 닫힘)마다 기준값이 갱신되므로, 키보드가 열린 상태에서 인스턴스를 생성해도 그 첫 세션만 감지하지 못합니다.
 - Android WebView가 `adjustPan` 모드(`android:windowSoftInputMode`)면 키보드가 열려도 뷰포트 크기가 변하지 않아 — `visualViewport`도 `window.resize`도 발화하지 않아 — 감지가 불가능합니다. 호스트 앱이 `adjustResize`를 사용해야 합니다.
 - SSR 환경에서는 항상 `{ isOpen: false, keyboardHeight: 0 }`을 반환합니다.
+- **뷰포트 크기만 봅니다.** `visualViewport`를 `threshold`보다 많이 줄이는 것은 무엇이든(호스트 앱의 바텀시트, 인앱 브라우저 바) 키보드로 보고합니다. `VirtualKeyboard` API(`navigator.virtualKeyboard`)는 쓰지 않습니다.
+- **`interactive-widget=overlays-content`(Chrome 108+)면 감지가 불가능합니다.** 키보드가 페이지 위에 겹쳐지고 어떤 뷰포트도 줄어들지 않습니다. 기본값 `resizes-visual`을 유지하거나 `resizes-content`를 쓰세요.
+- **첫 뷰포트 이벤트 전에는 아무것도 보고하지 않습니다.** 생성 직후 `isOpen` / `keyboardHeight`는 `false` / `0`이며 초기 상태를 따로 조사하지 않습니다.

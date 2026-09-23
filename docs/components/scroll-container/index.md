@@ -210,7 +210,14 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 `three` is **not bundled** into `@guksu/wvkit-core` — it is declared `external` and must be provided by your host app as a peer dependency.
 
-When tree-shaken to only what `ScrollContainer` uses (core math + `CSS3DRenderer` + `OrthographicCamera`), `three` adds approximately **~150 KB gzipped** to your final bundle. `@guksu/wvkit-core` itself adds ~25 KB (~10 KB gzipped). Exact numbers depend on your bundler and other Three.js usage in the host app and will be measured per release in the published changelog.
+Measured with esbuild 0.25 (`--bundle --minify`, gzip -9) against `three` 0.184:
+
+| Bundle | Minified | Gzip |
+| --- | --- | --- |
+| `ScrollContainer` alone (`three` external) | 9.6 KB | 3.9 KB |
+| `ScrollContainer` + the tree-shaken `three` subset (`Scene`, `OrthographicCamera`, `CSS3DRenderer`) | 259 KB | 60 KB |
+
+Almost all of the cost is `three`. Exact numbers depend on your bundler and on other Three.js usage in the host app.
 
 ## Limitations
 
@@ -223,3 +230,10 @@ When tree-shaken to only what `ScrollContainer` uses (core math + `CSS3DRenderer
 - **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.
 - **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
 - **Cross-axis pan while zoomed is not supported** — the axis excluded by `direction` stays locked even when zoomed in.
+- **No wheel, trackpad, or keyboard input.** Only a pointer drag switches panels. Arrow keys, wheel, and ARIA roles are not wired — provide your own controls that call `scrollTo()`.
+- **No momentum on the pager axis.** Release always runs a fixed 300 ms ease-out tween to the snap target; a fling never carries across several panels.
+- **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
+- **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
+- **Each visible panel is a composited layer.** With `overscan: 1` three 3D-transformed layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
+- **Scroll position of a hidden panel survives in Chromium** (verified across a `display: none` round-trip) **but is unverified in WebKit.** Test on iOS before relying on it.
+- **`scrollTo(index)` while zoomed lands on the panel center**, not on the edge you were looking at.

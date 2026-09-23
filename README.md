@@ -340,6 +340,52 @@ lock.unlock();
 | Desktop Chrome / Firefox | ✅ | ✅ | ✅ | — | — |
 
 > ⚠️ Partial support or requires manual testing. SafeArea depends on the host native app passing `viewport-fit=cover`.
+>
+> This table is based on unit tests (happy-dom) and Playwright emulation (Chromium and WebKit device profiles). Real-device WKWebView / Android WebView results are not recorded yet — run [`debug/rn-webview-harness`](debug/rn-webview-harness/README.md) on your target devices before shipping.
+
+---
+
+## Caveats & Trade-offs
+
+Every component is headless and small, but each has sharp edges that are easy to hit in production. Short version below; every component page has a full **Limitations** section.
+
+### ScrollContainer
+
+- Needs `three`: about 60 KB gzip after tree-shaking, for a pager. CSS `scroll-snap` or a plain carousel is far lighter when you only need horizontal paging.
+- `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
+- Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
+- Zoom pans along the pager axis only (the cross axis stays locked). No wheel, keyboard, or trackpad input, no momentum across panels, no ARIA roles.
+- `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
+- Every visible panel is a 3D-transformed compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
+
+### StableInput
+
+- The visible input is read-only: no caret, no text selection, no copy/paste menu. Fine for search and chat bars, not for editing longer text.
+- Not a form field: the hidden input lives in `<body>` without a `name`, so `<form>` submit and `FormData` ignore it. Only `type`, `placeholder`, `inputMode`, and `autocomplete` are forwarded.
+- Desktop Tab order skips the field, password managers may not recognise it, and the IME display can lag one composition step.
+- `scrollAnchor` scrolls the window only, and only where `visualViewport` exists.
+
+### PullToRefresh
+
+- No axis lock and no start slop: at `scrollTop === 0` every touch enters `pulling` and downward `touchmove` is cancelled, so horizontal carousels inside the root stall and a plain tap cycles `pulling → resetting → idle`. Drive indicators from `distance` / `progress`.
+- Only the root's `scrollTop` is checked; nested scrollers are ignored. Desktop mouse drags also pull.
+- `onRefresh` errors are swallowed (`console.error`, back to `idle`). `setEnabled(false)` does not cancel a running gesture. iOS elastic bounce is not blocked.
+
+### useVirtualKeyboard
+
+- Pure viewport heuristic: any `visualViewport` shrink beyond `threshold` counts as a keyboard and `keyboardHeight` is an estimate. Android `adjustPan` and `interactive-widget=overlays-content` make detection impossible.
+- Nothing is reported until the first viewport event.
+
+### useSafeArea
+
+- Requires `viewport-fit=cover` and, on Android, a host app that draws edge-to-edge; otherwise every value is `0`.
+- Updates only on `resize` / `orientationchange`. Values may be stale for a frame after rotation and are `0` in SSR.
+
+### useScrollLock
+
+- Cancels every `touchmove` outside `allowScrollWithin` (pinch-zoom and touch widgets included). Inner scrollers still chain to the page at their edges on iOS unless they set `overscroll-behavior: contain`.
+- "No layout shift" assumes overlay scrollbars; with classic desktop scrollbars add `scrollbar-gutter: stable`.
+- One instance at a time. `destroy()` unlocks. Body inline styles are overwritten at `unlock()`.
 
 ---
 

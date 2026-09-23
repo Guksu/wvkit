@@ -120,3 +120,7 @@ watch(() => props.isOpen, (open) => {
 - `document.body` 스타일을 직접 수정합니다. 잠금 중에 body 스타일을 조작하는 다른 라이브러리와 충돌할 수 있습니다.
 - `createScrollLock` 인스턴스를 여러 개 동시에 사용하면 서로 충돌합니다. 단일 인스턴스를 공유하거나, 애플리케이션 레벨에서 잠금 카운트 패턴을 사용하세요.
 - SSR 환경에서는 모든 메서드가 no-op입니다.
+- **일반 스크롤바에서는 레이아웃이 밀립니다.** `<body>`에 `overflow: hidden`을 주면 문서 스크롤바가 사라집니다. 오버레이가 아닌 스크롤바(데스크톱 Windows/Linux)에서는 콘텐츠가 스크롤바 폭만큼 넓어집니다. "레이아웃 이동 없음"은 오버레이 스크롤바(모바일 WebView, macOS) 기준입니다. 데스크톱도 지원하면 `<html>`에 `scrollbar-gutter: stable`을 주세요.
+- **`allowScrollWithin` 밖의 모든 `touchmove`를 document 레벨에서 취소합니다.** 잠금 중에는 핀치 줌과 터치로 스크롤되는 위젯(지도, 캐러셀)이 멈춥니다. pointer 이벤트 기반 제스처(ScrollContainer, PullToRefresh의 pointer 경로)는 계속 동작합니다.
+- **`destroy()`는 잠금을 풉니다.** 잠금을 쥔 컴포넌트가 언마운트되면 페이지가 바로 풀립니다.
+- **body 인라인 스타일은 `lock()` 시점 값으로 되돌립니다.** 잠금 중 다른 코드가 바꾼 `overflow` / `overscroll-behavior`는 `unlock()`에서 덮어써집니다.

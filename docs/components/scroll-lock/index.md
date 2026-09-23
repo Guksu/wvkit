@@ -120,3 +120,7 @@ This prevents the page from jumping to the top when the modal is closed.
 - Directly modifies `document.body` styles — avoid combining with other libraries that also manipulate body styles while locked.
 - Multiple concurrent `createScrollLock` instances will conflict. Use a single instance and share it, or use a lock-count pattern at the application level.
 - In SSR environments all methods are no-ops.
+- **Layout shift with classic scrollbars.** `overflow: hidden` on `<body>` removes the document scrollbar. With non-overlay scrollbars (desktop Windows/Linux) the content widens by the scrollbar width. "No layout shift" holds for overlay scrollbars (mobile WebViews, macOS). Add `scrollbar-gutter: stable` on `<html>` if you also target desktop.
+- **Every `touchmove` outside `allowScrollWithin` is cancelled at the document level.** Pinch-zoom and any touch-scrolled widget (maps, carousels) freeze while locked. Pointer-event based gestures (ScrollContainer, PullToRefresh's pointer path) keep running.
+- **`destroy()` unlocks.** Unmounting the component that holds the lock releases the page immediately.
+- **Body inline styles are restored to the values seen at `lock()`.** `overflow` / `overscroll-behavior` changed by other code while locked are overwritten at `unlock()`.

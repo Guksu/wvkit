@@ -115,3 +115,6 @@ interface SafeAreaInsets {
 - `viewport-fit=cover` 메타 태그가 없으면 모든 값이 `0`입니다.
 - SSR 환경에서는 값이 `0` — 인셋은 마운트 시점에만 읽힙니다.
 - 방향 전환 이벤트가 레이아웃 리플로우 완료 이전에 발생할 수 있습니다. 이 경우 `requestAnimationFrame`으로 지연하면 정확한 값을 얻을 수 있습니다.
+- **`window`의 `resize`와 `orientationchange`에서만 갱신됩니다.** 이 이벤트를 내지 않는 inset 변화는 다음 이벤트까지 보고되지 않습니다. 최신 값이 필요하면 `getInsets()`를 직접 호출하세요.
+- **Android WebView는 호스트 앱이 edge-to-edge로 그리고 inset을 WebView에 넘길 때만 값을 줍니다.** 그렇지 않으면 `viewport-fit=cover`가 있어도 전부 `0`입니다.
+- **값은 sentinel 요소에서 읽은 px 숫자입니다.** 브라우저의 `env()` 지원(Safari 11.2+, Chrome 69+)만큼만 정확합니다.

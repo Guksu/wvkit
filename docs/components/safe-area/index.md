@@ -115,3 +115,6 @@ interface SafeAreaInsets {
 - Requires `viewport-fit=cover` in the viewport meta tag; without it all values are `0`.
 - Values are `0` in SSR environments — insets are read on mount only.
 - Orientation change events may fire slightly before layout reflow completes; a single `requestAnimationFrame` delay can help if you observe stale values.
+- **Updates only on `window` `resize` and `orientationchange`.** Inset changes that do not fire those events are not reported until the next one; call `getInsets()` when you need a fresh read.
+- **Android WebView reports insets only when the host app draws edge-to-edge** and forwards the insets to the WebView; otherwise every value is `0` even with `viewport-fit=cover`.
+- **Values are plain pixel numbers read from a sentinel element**, so they are only as accurate as the browser's `env()` support (Safari 11.2+, Chrome 69+).
