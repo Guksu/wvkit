@@ -54,6 +54,17 @@ pnpm typecheck  # TypeScript strict mode
 
 All three of `pnpm test`, `pnpm lint`, and `pnpm typecheck` must pass before a PR can be merged.
 
+## Package Gates
+
+CI also runs two checks against the built `dist` (run `pnpm build` first):
+
+```bash
+pnpm size          # size-limit: each entry bundled with esbuild + compressed must stay under .size-limit.json
+pnpm verify:deps   # zero runtime deps: dist loads in a directory with no node_modules; adapters reference only peers
+```
+
+Raise a limit in `.size-limit.json` only when the PR explains why the growth is worth it.
+
 ## Changeset Workflow (Releases)
 
 Releases are PR-based via [Changesets](https://github.com/changesets/changesets):

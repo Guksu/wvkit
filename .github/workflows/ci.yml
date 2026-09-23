@@ -36,6 +36,14 @@ jobs:
       - name: Package gate (publint + attw)
         run: pnpm lint:publint && pnpm lint:attw
 
+      # 번들 크기 게이트: 각 엔트리를 esbuild로 번들·압축한 크기가 .size-limit.json 상한을 넘으면 실패
+      - name: Bundle size gate (size-limit)
+        run: pnpm size
+
+      # 런타임 의존성 0 게이트: 의존성 없는 격리 디렉토리에서 dist 로드 + 외부 지정자 검사
+      - name: Zero runtime deps gate
+        run: pnpm verify:deps
+
       - name: Test
         run: pnpm test
 
