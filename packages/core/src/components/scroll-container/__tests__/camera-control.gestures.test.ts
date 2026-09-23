@@ -451,20 +451,26 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
       expect(onPanRelease).toHaveBeenCalledWith(1); // NaN이면 decideSnapTarget 비교가 전부 false → 0
     });
 
-    it('E4: vertical 핀치 — y축에 엣지 저항, x축은 pinchStart에 고정', () => {
+    it('E4: vertical 핀치 — y축 경계는 줌 반폭만큼 넓어지고 그 밖은 엣지 저항, x축은 pinchStart에 고정', () => {
       const { control: c } = createControl({
         direction: 'vertical',
         positions: VERTICAL_POSITIONS,
       });
-      c.animateToIndex(0, false); // camera y = −300 (max 경계)
+      c.animateToIndex(0, false); // camera y = −300 (zoom 1에서는 max 경계)
       down(1, 150, 300);
       down(2, 250, 300); // dist 100, mid (200,300) → worldAnchor (0, −300)
       move(1, 100, 400);
       move(2, 300, 400); // dist 200 → zoom 2, mid (200,400)
       expect(camera.zoom).toBe(2);
-      // rawY = −300 + (400−300)/2 = −250 > max −300 → 저항: −300 + 50×0.2 = −290
-      expect(camera.position.y).toBe(-290);
+      // zoom 2 → 반폭 = 600/2 × (1 − 1/2) = 150 → max 경계 −300 + 150 = −150
+      // rawY = −300 + (400−300)/2 = −250 ≤ −150 → 경계 안, 저항 없음 (패널 위쪽 가장자리로 이동 가능)
+      expect(camera.position.y).toBe(-250);
       expect(camera.position.x).toBe(0); // vertical에서 x 불변
+      // 경계를 넘는 mid (200,700): rawY = −300 + 400/2 = −100 > −150 → 저항: −150 + 50×0.2 = −140
+      move(1, 100, 700);
+      move(2, 300, 700);
+      expect(camera.zoom).toBe(2);
+      expect(camera.position.y).toBeCloseTo(-140, 10);
     });
 
     it('E5: 추적되지 않은 pointerId의 move/up은 무시된다', () => {

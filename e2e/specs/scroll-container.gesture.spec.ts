@@ -3,6 +3,7 @@ import {
   gotoDemo,
   getActiveIndex,
   getActiveZoom,
+  getCanvasWidth,
   getDirection,
   getSceneXShift,
   getSceneYShift,
@@ -117,7 +118,9 @@ test.describe('ScrollContainer · S6 pinch zoom', () => {
 });
 
 test.describe('ScrollContainer · S11 both 폴백 + 줌 상태 pan (B-24)', () => {
-  test("TC-24-05: direction=both는 horizontal로 폴백 — 가로 스와이프만 스냅, 세로 입력은 무시", async ({ page }) => {
+  test('TC-24-05: direction=both는 horizontal로 폴백 — 가로 스와이프만 스냅, 세로 입력은 무시', async ({
+    page,
+  }) => {
     await gotoDemo(page);
 
     // both 선택 → remountKey로 재마운트
@@ -141,7 +144,9 @@ test.describe('ScrollContainer · S11 both 폴백 + 줌 상태 pan (B-24)', () =
     expect(Math.abs((y1 ?? 0) - (y0 ?? 0))).toBeLessThanOrEqual(0.5);
   });
 
-  test('TC-24-06: zoom=2 상태의 가로 pan — 콘텐츠가 실제 이동하고 zoom은 오염되지 않는다', async ({ page }) => {
+  test('TC-24-06: zoom=2 상태의 가로 pan — 콘텐츠가 실제 이동하고 zoom은 오염되지 않는다', async ({
+    page,
+  }) => {
     await gotoDemo(page);
 
     await clickZoomTo(page, 2, false);
@@ -150,8 +155,10 @@ test.describe('ScrollContainer · S11 both 폴백 + 줌 상태 pan (B-24)', () =
     const x0 = await getSceneXShift(page);
     expect(x0).not.toBeNull();
 
-    // zoom=2에서는 화면 1px = 월드 0.5unit — 스냅 임계(0.3*width)를 확실히 넘도록 크게 스와이프
-    await swipeOnCanvas(page, -500, 0);
+    // zoom=2에서는 화면 1px = 월드 0.5unit. 패널 가장자리(폭/4)를 지나 다음 패널 앞 gap(폭/2)의
+    // 30%를 넘어야 스냅되므로 화면 기준 0.8×폭 이상 — 캔버스 폭에 비례해 스와이프
+    const width = await getCanvasWidth(page);
+    await swipeOnCanvas(page, -Math.round(width * 0.95), 0);
     await waitForScrollSettle(page, 1);
 
     // pan이 콘텐츠를 실제 이동시킨다 (다음 패널로 스냅 → scene X-shift 대폭 변화)
@@ -159,5 +166,66 @@ test.describe('ScrollContainer · S11 both 폴백 + 줌 상태 pan (B-24)', () =
     expect(Math.abs((x1 ?? 0) - (x0 ?? 0))).toBeGreaterThan(50);
     // pan이 zoom을 오염시키지 않는다
     expect(await getActiveZoom(page)).toBe(2);
+  });
+});
+
+// 줌 상태 pan 계약: 릴리스 후 패널 중심으로 되돌아가지 않고, 첫 패널 가장자리까지 도달할 수 있다.
+// getSceneXShift는 카메라 X의 부호 반전(−cameraX + 상수)이므로 Δshift = −ΔcameraX.
+test.describe('ScrollContainer · S12 줌 상태 pan — 위치 유지 + 가장자리 도달', () => {
+  test('zoom=2에서 작은 pan 후 릴리스 → 카메라가 그 자리에 머문다 (중심 복귀 없음)', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const x0 = await getSceneXShift(page);
+    expect(x0).not.toBeNull();
+
+    // 화면 −60px → 월드 +30 (패널 0 범위 [−폭/4, +폭/4] 안) — 스냅 없이 그 자리 유지
+    await swipeOnCanvas(page, -60, 0);
+    await waitForSceneStable(page);
+
+    expect(await getActiveIndex(page)).toBe(0);
+    expect(await getActiveZoom(page)).toBe(2);
+    const x1 = await getSceneXShift(page);
+    expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(-30, 0);
+  });
+
+  test('zoom=2에서 우측으로 크게 끌면 첫 패널 왼쪽 가장자리(cameraX = −폭/4)에서 멈춘다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const width = await getCanvasWidth(page);
+    const x0 = await getSceneXShift(page);
+    expect(x0).not.toBeNull();
+
+    // 저항 구간까지 충분히 끌고 릴리스 → 가장자리로 복귀
+    await swipeOnCanvas(page, Math.round(width * 0.9), 0);
+    await waitForSceneStable(page);
+
+    expect(await getActiveIndex(page)).toBe(0);
+    const x1 = await getSceneXShift(page);
+    expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(width / 4, 0);
+  });
+
+  test('zoom=2에서 가장자리를 지나 gap을 threshold 넘게 건너면 다음 패널 가까운 가장자리로 스냅', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const width = await getCanvasWidth(page);
+    const x0 = await getSceneXShift(page);
+
+    await swipeOnCanvas(page, -Math.round(width * 0.95), 0);
+    await waitForScrollSettle(page, 1);
+
+    expect(await getActiveIndex(page)).toBe(1);
+    expect(await getActiveZoom(page)).toBe(2);
+    // 패널 1의 왼쪽 가장자리: cameraX = 폭 − 폭/4 = 0.75폭
+    const x1 = await getSceneXShift(page);
+    expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(-width * 0.75, 0);
   });
 });
