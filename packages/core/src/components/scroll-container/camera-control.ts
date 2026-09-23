@@ -5,8 +5,10 @@ import {
   decideSnapTarget,
   easeOutCubic,
   nearestPanelIndex,
+  projectInertia,
   resolveZoomedRelease,
   screenPointToWorld,
+  snapDurationMs,
   zoomedHalfExtent,
 } from './matrix-utils';
 
@@ -20,7 +22,15 @@ import {
  *  - 1 pointer: axis-constrained pan + 엣지 저항
  *  - 2 pointer: 핀치 줌 + 줌 중심점 anchor (enablePinchZoom=true 일 때만)
  *  - 1 pointer 해제 → 스냅 결정 → 릴리스 트윈 시작 → onPanRelease (트윈은 컨트롤이 직접 소유)
- *  - 명령형 animateToIndex/animateToZoom: easeOutCubic RAF 트윈, 진행 중이면 cancel 후 재시작
+ *  - 명령형 animateToIndex/animateToZoom: easeOutCubic RAF 트윈(고정 300ms), 진행 중이면 cancel 후 재시작
+ *
+ * 관성(릴리스 속도 반영):
+ *  - 릴리스 트윈 시간은 `snapDurationMs`로 손가락 속도에 이어지게 정한다 — 빠른 플릭 120ms까지,
+ *    느린 릴리스 최대 400ms(줌 상태 자유 pan은 800ms). 프로그램 호출(scrollTo/zoomTo)은 고정 300ms.
+ *  - 페이저(zoom ≤ 1)는 네이티브 페이저처럼 한 제스처에 최대 한 패널만 넘긴다 (`decideSnapTarget`).
+ *  - 줌 상태 pan: 놓은 위치가 패널 범위 안이면 `projectInertia`(iOS 감속 0.998/ms)로 멈출 위치를 구해
+ *    그 패널의 가장자리 안에서 멈춘다 — 관성만으로는 다음 패널로 넘어가지 않는다 (iOS 사진 뷰어와 같음).
+ *    놓은 위치가 이미 가장자리 밖(gap·저항 구간)이면 `resolveZoomedRelease`가 방향·속도로 스냅을 정한다.
  *
  * 줌 상태(zoom > 1)의 pan:
  *  - pan 경계가 첫/끝 패널의 줌 반폭(`zoomedHalfExtent`)만큼 바깥으로 넓어져 패널 가장자리까지 볼 수 있다.
@@ -31,6 +41,11 @@ import {
 
 const TWEEN_DURATION_MS = 300;
 const VELOCITY_SAMPLE_WINDOW_MS = 100;
+/** 릴리스 스냅 트윈 시간 범위 — 페이저 스냅 */
+const SNAP_MIN_MS = 120;
+const SNAP_MAX_MS = 400;
+/** 줌 상태 자유 pan 감속의 상한 (한 패널 안에서 멀리 흘러갈 수 있으므로 더 길게) */
+const ZOOMED_PAN_MAX_MS = 800;
 
 export interface CameraControlOptions {
   root: HTMLElement;
@@ -276,7 +291,21 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       positions.length,
     );
     // 트윈을 먼저 시작하고 콜백을 낸다 — 콜백 안에서 호출자가 scrollTo 등으로 덮어쓸 수 있게.
-    animateToIndex(target, true);
+    // 트윈 시간은 손가락 속도에 이어지게 (빠른 플릭 → 짧고 단호하게, 느린 릴리스 → 길게).
+    const targetPos = positions[target];
+    if (targetPos) {
+      const distance = targetPos[axis] - currentValue;
+      const velocityAxisPerMs = start.lastDelta / dt;
+      const velocityToward = distance === 0 ? 0 : velocityAxisPerMs * Math.sign(distance);
+      const duration = snapDurationMs(
+        distance,
+        velocityToward,
+        panelSize,
+        SNAP_MIN_MS,
+        SNAP_MAX_MS,
+      );
+      startTween(targetPos.x, targetPos.y, camera.zoom, duration);
+    }
     onPanRelease(target);
   }
 
@@ -294,22 +323,56 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     // endPan(zoom ≤ 1)과 같은 dt 하한 — 릴리스 직전 미세 지터가 속도를 부풀리지 않게
     const sinceLastMove = performance.now() - start.lastMoveTime;
     const dt = Math.max(1, start.lastMoveInterval, sinceLastMove);
-    const velocity = sign * start.lastDelta * (VELOCITY_SAMPLE_WINDOW_MS / dt);
+    const velocityPerMs = (sign * start.lastDelta) / dt;
 
-    const { index, target } = resolveZoomedRelease(
-      s,
-      sStart,
-      velocity,
-      centers,
-      halfExtents,
-      snapThreshold,
-    );
+    // 놓은 위치가 어떤 패널의 범위 안인가? 안이면 관성으로 그 패널 가장자리까지만 감속해 멈춘다
+    // (관성만으로 다음 패널로 넘어가지 않음 — iOS 사진 뷰어와 같음).
+    // 밖(gap·저항 구간)이면 방향·속도로 스냅을 정한다.
+    const lo = (i: number): number => (centers[i] ?? 0) - (halfExtents[i] ?? 0);
+    const hi = (i: number): number => (centers[i] ?? 0) + (halfExtents[i] ?? 0);
+    let inside = -1;
+    for (let i = 0; i < centers.length; i++) {
+      if (s >= lo(i) && s <= hi(i)) {
+        inside = i;
+        break;
+      }
+    }
+    let index: number;
+    let target: number;
+    let maxMs: number;
+    if (inside >= 0) {
+      index = inside;
+      target = clamp(projectInertia(s, velocityPerMs), lo(inside), hi(inside));
+      maxMs = ZOOMED_PAN_MAX_MS;
+    } else {
+      const velocityWindow = velocityPerMs * VELOCITY_SAMPLE_WINDOW_MS;
+      ({ index, target } = resolveZoomedRelease(
+        s,
+        sStart,
+        velocityWindow,
+        centers,
+        halfExtents,
+        snapThreshold,
+      ));
+      maxMs = SNAP_MAX_MS;
+    }
     const targetAxisValue = sign * target;
-    if (Math.abs(targetAxisValue - camera.position[axis]) > 1e-6) {
+    const distance = targetAxisValue - camera.position[axis];
+    if (Math.abs(distance) > 1e-6) {
+      const velocityAxisPerMs = start.lastDelta / dt;
+      const velocityToward = velocityAxisPerMs * Math.sign(distance);
+      const duration = snapDurationMs(
+        distance,
+        velocityToward,
+        panelSizeAt(index),
+        SNAP_MIN_MS,
+        maxMs,
+      );
       startTween(
         axis === 'x' ? targetAxisValue : camera.position.x,
         axis === 'y' ? targetAxisValue : camera.position.y,
         zoom,
+        duration,
       );
     }
     onPanRelease(index);
@@ -463,11 +526,16 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     tween = null;
   }
 
-  function startTween(toX: number, toY: number, toZoom: number): void {
+  function startTween(
+    toX: number,
+    toY: number,
+    toZoom: number,
+    durationMs = TWEEN_DURATION_MS,
+  ): void {
     cancelAnimationInternal();
     tween = {
       start: performance.now(),
-      duration: TWEEN_DURATION_MS,
+      duration: Math.max(1, durationMs),
       fromX: camera.position.x,
       fromY: camera.position.y,
       fromZoom: camera.zoom,

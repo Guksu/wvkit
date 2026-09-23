@@ -148,7 +148,13 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 
 - Zooming keeps the point under the fingers fixed (anchor correction), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
 - While zoomed, a one-finger pan moves along the pager axis all the way to the panel's edges: the pan bounds grow by `(panelSize / 2) × (1 − 1 / zoom)` on each side.
-- Paging while zoomed: drag past the panel edge into the gap before the next panel. If the drag covers more than `snapThreshold` of that gap (velocity counts, as at zoom 1), the camera snaps to the next panel's near edge and `onIndexChange` fires; otherwise it returns to the edge you came from.
+- Paging while zoomed: drag past the panel edge into the gap before the next panel. If the drag covers more than `snapThreshold` of that gap, the camera snaps to the next panel's near edge and `onIndexChange` fires; otherwise it returns to the edge you came from. Inertia never pages on its own: a flick released inside the panel decelerates (iOS-style, 0.998 per ms) and stops at the panel edge at most, like a native photo viewer. Paging while zoomed always needs the finger to actually cross the edge.
+
+## Snap and inertia
+
+- Release always snaps to a panel (zoom ≤ 1) or to the projected stop, edge, or gap target (zoom > 1). The settle duration follows the finger: the ease-out curve starts at the release speed (`duration = 3 × distance / velocity`), clamped between 120 ms and a distance-proportional cap of 400 ms (800 ms for a zoomed free pan). Releasing from a standstill uses the cap; velocity pointing away from the target (rubber-band return) is ignored.
+- One panel per gesture. Like native pagers, a fling never skips panels; `snapThreshold` and the velocity weight decide between staying and moving one step.
+- `scrollTo()` / `zoomTo()` with `animated: true` use a fixed 300 ms ease-out.
 - `zoomTo()` clamps the camera into the active panel's range for the new zoom level, so zooming back to 1 lands on the panel center.
 - The cross axis (Y for `horizontal`) stays locked at every zoom level — give panels their own native scroll for that axis.
 
@@ -230,7 +236,7 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
 - **Cross-axis pan while zoomed is not supported** — the axis excluded by `direction` stays locked even when zoomed in.
 - **No wheel, trackpad, or keyboard input.** Only a pointer drag switches panels. Arrow keys, wheel, and ARIA roles are not wired — provide your own controls that call `scrollTo()`.
-- **No momentum on the pager axis.** Release always runs a fixed 300 ms ease-out tween to the snap target; a fling never carries across several panels.
+- **A fling moves at most one panel.** The settle duration follows the release velocity (120–400 ms), but there is no multi-panel momentum on the pager axis, by design (native pagers behave the same).
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
 - **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
 - **Each visible scrollable panel is its own compositor layer** (browsers composite scroll containers). With `overscan: 1` three such layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.

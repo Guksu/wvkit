@@ -349,7 +349,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 - About 4 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
-- Zoom pans along the pager axis only (the cross axis stays locked). No wheel, keyboard, or trackpad input, no momentum across panels, no ARIA roles.
+- Zoom pans along the pager axis only (the cross axis stays locked). No wheel, keyboard, or trackpad input, no ARIA roles. A fling moves at most one panel.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
 - Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
 
