@@ -375,6 +375,7 @@ interface DemoOptions {
   minZoom: number;
   maxZoom: number;
   enablePinchZoom: boolean;
+  doubleTapZoom: number | false;
 }
 
 function ScrollContainerInstance(props: DemoOptions) {
@@ -397,6 +398,7 @@ function ScrollContainerInstance(props: DemoOptions) {
     minZoom: props.minZoom,
     maxZoom: props.maxZoom,
     enablePinchZoom: props.enablePinchZoom,
+    doubleTapZoom: props.doubleTapZoom,
   });
 
   // 패널 안 버튼 클릭이 페이저를 거쳐도 정상 도달하는지 보여주는 카운터 (좋아요 토글)
@@ -489,6 +491,8 @@ export function ScrollContainerDemo() {
   const [minZoom, setMinZoom] = useState(1);
   const [maxZoom, setMaxZoom] = useState(3);
   const [enablePinchZoom, setEnablePinchZoom] = useState(true);
+  // 데모 기본값은 2 — 실제 앱에서는 기본 꺼짐(false). 패널 안 버튼을 두 번 탭해도 줌이 토글되는 것을 그대로 보여준다.
+  const [doubleTapZoom, setDoubleTapZoom] = useState<number | false>(2);
 
   const { tr } = useLang();
   const s = tr.scrollContainer;
@@ -502,6 +506,7 @@ export function ScrollContainerDemo() {
     minZoom,
     maxZoom,
     enablePinchZoom,
+    doubleTapZoom,
   ].join('|');
 
   return (
@@ -573,7 +578,7 @@ export function ScrollContainerDemo() {
             style={inputStyle}
           />
         </ControlItem>
-        <ControlItem label={c.enablePinchZoom} span>
+        <ControlItem label={c.enablePinchZoom}>
           <label style={checkboxRowStyle}>
             <input
               data-testid="ctl-enable-pinch-zoom"
@@ -583,6 +588,20 @@ export function ScrollContainerDemo() {
             />
             <span style={{ fontSize: 13 }}>{String(enablePinchZoom)}</span>
           </label>
+        </ControlItem>
+        <ControlItem label={c.doubleTapZoom}>
+          <select
+            data-testid="ctl-double-tap-zoom"
+            value={doubleTapZoom === false ? 'off' : String(doubleTapZoom)}
+            onChange={(e) =>
+              setDoubleTapZoom(e.target.value === 'off' ? false : Number(e.target.value))
+            }
+            style={selectStyle}
+          >
+            <option value="off">false</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
         </ControlItem>
       </ControlGrid>
 
@@ -595,6 +614,7 @@ export function ScrollContainerDemo() {
         minZoom={minZoom}
         maxZoom={maxZoom}
         enablePinchZoom={enablePinchZoom}
+        doubleTapZoom={doubleTapZoom}
       />
     </DemoCard>
   );

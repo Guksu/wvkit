@@ -12,7 +12,7 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
  *    scene 하나의 `translate(...) scale(...)`로 옮긴다 — 의존성 없음 (#4)
  *  - 패널은 scene 안에 절대 배치되고, overscan 기반 가상화로 창 밖 패널은 숨긴다 (#4)
  *  - 입력 처리는 `camera-control.ts`에 위임 (#3) — axis pan, snap, edge resistance, 핀치 줌, RAF 트윈,
- *    줌 상태 pan(패널 가장자리까지 이동, 릴리스 시 위치 유지)
+ *    줌 상태 pan(패널 가장자리까지 이동·교차 축 pan, 릴리스 시 위치 유지), 더블탭 줌, 줌 고무줄
  *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + 사용자 콜백 호출
  *
  * NOTE: `direction: 'both'`는 1차 구현에서 `horizontal`로 폴백합니다.
@@ -47,6 +47,7 @@ export function createScrollContainer(
   const snapThreshold = options.snapThreshold ?? 0.3;
   const resistance = options.resistance ?? 0.2;
   const enablePinchZoom = options.enablePinchZoom ?? true;
+  const doubleTapZoom = options.doubleTapZoom ?? false;
   // 'both'는 1차에서 horizontal로 폴백 (대각 스크롤은 후속 minor)
   const direction: 'horizontal' | 'vertical' =
     options.direction === 'vertical' ? 'vertical' : 'horizontal';
@@ -152,6 +153,7 @@ export function createScrollContainer(
     minZoom,
     maxZoom,
     enablePinchZoom,
+    doubleTapZoom,
     onChange: requestRender,
     onPanRelease: (targetIndex) => {
       if (destroyed) return;
@@ -165,6 +167,7 @@ export function createScrollContainer(
     },
     onPinchRelease: (newZoom) => {
       if (destroyed) return;
+      // 핀치 릴리스·더블탭 공통 — 컨트롤이 범위 안 값만 준다 (고무줄 복귀 트윈은 컨트롤이 소유).
       if (newZoom !== zoom) {
         zoom = newZoom;
         options.onZoomChange?.(zoom);
@@ -285,6 +288,16 @@ function validateOptions(options: ScrollContainerOptions): void {
     throw new WebviewHeadlessError(
       `ScrollContainer: maxZoom (${options.maxZoom}) must be >= minZoom (${options.minZoom})`,
     );
+  }
+  if (options.doubleTapZoom !== undefined && options.doubleTapZoom !== false) {
+    const min = options.minZoom ?? 1.0;
+    const max = options.maxZoom ?? 3.0;
+    const level = options.doubleTapZoom;
+    if (!Number.isFinite(level) || level <= min || level > max) {
+      throw new WebviewHeadlessError(
+        `ScrollContainer: doubleTapZoom must be in (minZoom, maxZoom] (got ${level}, minZoom ${min}, maxZoom ${max})`,
+      );
+    }
   }
   if (
     options.snapThreshold !== undefined &&

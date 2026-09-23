@@ -146,17 +146,21 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 
 ## Pinch zoom and panning while zoomed
 
-- Zooming keeps the point under the fingers fixed (anchor correction), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
+- Zooming keeps the point under the fingers fixed (anchor correction, measured from the host's top-left corner), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
 - While zoomed, a one-finger pan moves along the pager axis all the way to the panel's edges: the pan bounds grow by `(panelSize / 2) × (1 − 1 / zoom)` on each side.
+- **Cross axis.** While zoomed, the same pan also moves along the other axis (Y for `horizontal`), bounded by the panel's cross-axis extent `(crossSize / 2) × (1 − 1 / zoom)` — so a tall product photo can be inspected top to bottom. Past that extent the pan rubber-bands and springs back on release; a cross-axis flick decelerates the same way as the pager axis. At zoom 1 the cross axis stays locked, so a diagonal drag still moves the pager only. Panels that set `touch-action: pan-y` hand vertical touches to their own native scroll, so cross-axis pan only reaches panels that do not scroll on that axis (image viewers, cards).
 - Paging while zoomed: drag past the panel edge into the gap before the next panel. If the drag covers more than `snapThreshold` of that gap, the camera snaps to the next panel's near edge and `onIndexChange` fires; otherwise it returns to the edge you came from. Inertia never pages on its own: a flick released inside the panel decelerates (iOS-style, 0.998 per ms) and stops at the panel edge at most, like a native photo viewer. Paging while zoomed always needs the finger to actually cross the edge.
+- When the browser takes a touch for itself (`pointercancel`, e.g. a vertical touch on a `pan-y` panel that turns into native scroll), the pan is cancelled: the camera glides back to where the gesture started instead of keeping the partial movement, so content does not move twice.
+- **Zoom rubber band.** Pinching past `minZoom` or `maxZoom` keeps following the fingers with the zoom damped in scale space (`min × (raw / min)^resistance`), and springs back to the limit when the last finger lifts, like `bouncesZoom` on iOS. `onZoomChange` only ever reports values inside `[minZoom, maxZoom]`. Set `resistance: 0` for a hard stop.
+- **Double-tap zoom** is opt-in: `doubleTapZoom: 2` toggles between `minZoom` and 2× on a double tap (two taps within 300 ms and 40 px, each shorter than 300 ms with less than 10 px of movement). Zooming in keeps the tapped point fixed; zooming out lands on the panel center. A double tap on a button inside a panel still clicks it twice, so leave this off when panels give double taps their own meaning.
 
 ## Snap and inertia
 
 - Release always snaps to a panel (zoom ≤ 1) or to the projected stop, edge, or gap target (zoom > 1). The settle duration follows the finger: the ease-out curve starts at the release speed (`duration = 3 × distance / velocity`), clamped between 120 ms and a distance-proportional cap of 400 ms (800 ms for a zoomed free pan). Releasing from a standstill uses the cap; velocity pointing away from the target (rubber-band return) is ignored.
 - One panel per gesture. Like native pagers, a fling never skips panels; `snapThreshold` and the velocity weight decide between staying and moving one step.
 - `scrollTo()` / `zoomTo()` with `animated: true` use a fixed 300 ms ease-out.
-- `zoomTo()` clamps the camera into the active panel's range for the new zoom level, so zooming back to 1 lands on the panel center.
-- The cross axis (Y for `horizontal`) stays locked at every zoom level — give panels their own native scroll for that axis.
+- `zoomTo()` clamps the camera into the active panel's range (both axes) for the new zoom level, so zooming back to 1 lands on the panel center.
+- A tap that interrupts a zoom tween does not leave the zoom at an intermediate value: the release continues to the zoom that was last committed (`zoomTo`, pinch, or double tap).
 
 ## API Reference
 
@@ -175,9 +179,12 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 | `enablePinchZoom` | `boolean`                                  | `true`         | Whether two-pointer gestures perform pinch zoom.                                                     |
 | `minZoom`         | `number > 0`                               | `1.0`          | Minimum zoom level.                                                                                  |
 | `maxZoom`         | `number ≥ minZoom`                         | `3.0`          | Maximum zoom level.                                                                                  |
-| `onZoomChange`    | `(zoom: number) => void`                   | —              | Fired when zoom level changes.                                                                       |
+| `doubleTapZoom`   | `number \| false`                          | `false`        | Double-tap zoom target. A number in `(minZoom, maxZoom]` toggles between `minZoom` and that level. Independent of `enablePinchZoom`. |
+| `onZoomChange`    | `(zoom: number) => void`                   | —              | Fired when zoom level changes (pinch release, double tap, `zoomTo`).                                 |
 
-Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `snapThreshold ∉ (0,1]`, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
+`resistance` also damps the zoom rubber band when a pinch goes past `minZoom` / `maxZoom`.
+
+Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
 
 ### Instance Methods
 
@@ -230,11 +237,11 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **`panels` are `HTMLElement[]`, not React/Vue children.** Build the DOM nodes imperatively (e.g. `document.createElement`) and pass the array. A render-prop / `<PanelGroup>` higher-level API is on the roadmap.
 - **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.
 - **Options are fixed at mount.** Reactive option changes (e.g. flipping `direction` at runtime in a framework adapter) require remounting the component. Use a `key` prop on the wrapper.
-- **Pinch-zoom relies on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip pinch.
+- **Pinch-zoom and double-tap rely on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip both.
 - **`setPointerCapture` is not available in every WebView build.** The implementation is guarded with `try/catch`; in environments without capture support, pointer-leaving-root during a drag may cause the gesture to be released early.
 - **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.
 - **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
-- **Cross-axis pan while zoomed is not supported** — the axis excluded by `direction` stays locked even when zoomed in.
+- **Cross-axis pan while zoomed needs panels that do not scroll on that axis.** A panel with `touch-action: pan-y` gives vertical touches to its own native scroll, so on a `horizontal` pager only non-scrolling panels (image viewers, cards) pan vertically while zoomed.
 - **No wheel, trackpad, or keyboard input.** Only a pointer drag switches panels. Arrow keys, wheel, and ARIA roles are not wired — provide your own controls that call `scrollTo()`.
 - **A fling moves at most one panel.** The settle duration follows the release velocity (120–400 ms), but there is no multi-panel momentum on the pager axis, by design (native pagers behave the same).
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.

@@ -290,25 +290,42 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
       expect(world.x).toBeCloseTo(480, 10);
     });
 
-    it('C3: 줌 클램프 — factor가 min/max zoom 밖이면 잘리고 position은 유한값', () => {
-      const { control: c } = createControl();
+    it('C3: 줌 고무줄 — factor가 min/max zoom 밖이면 배율 감쇠(resistance 0.2), resistance 0 이면 하드 클램프', () => {
+      const { control: c, onPinchRelease } = createControl();
       c.animateToIndex(0, false);
-      // 줌인: dist 100 → 1000, factor 10 → maxZoom 3으로 클램프
+      // 줌인: dist 100 → 1000, factor 10 → raw 10 > maxZoom 3 → 3 × (10/3)^0.2
       down(1, 150, 300);
       down(2, 250, 300); // dist 100, mid (200,300)
       move(1, -300, 300);
       move(2, 700, 300); // dist 1000
-      expect(camera.zoom).toBe(3);
+      expect(camera.zoom).toBeCloseTo(3 * (10 / 3) ** 0.2, 10);
       expect(Number.isFinite(camera.position.x)).toBe(true);
+      up(1, -300, 300);
+      // 보고 값은 항상 범위 안 (복귀 트윈은 마지막 손가락 릴리스가 시작)
+      expect(onPinchRelease).toHaveBeenCalledWith(3);
+      up(2, 700, 300);
+      c.destroy();
+
+      // resistance 0 → 기존과 같은 하드 클램프
+      camera.zoom = 1;
+      camera.position.x = 0;
+      const { control: hard } = createControl({ resistance: 0 });
+      down(1, 150, 300);
+      down(2, 250, 300);
+      move(1, -300, 300);
+      move(2, 700, 300);
+      expect(camera.zoom).toBe(3);
       up(1, -300, 300);
       up(2, 700, 300);
       // 줌아웃: zoom 3에서 dist 300 → 30, factor 0.1 → 0.3 → minZoom 1로 클램프
+      camera.zoom = 3;
       down(1, 50, 300);
       down(2, 350, 300); // dist 300
       move(1, 185, 300);
       move(2, 215, 300); // dist 30
       expect(camera.zoom).toBe(1);
       expect(Number.isFinite(camera.position.x)).toBe(true);
+      hard.destroy();
     });
 
     it('C4: endPinch — 한 손가락 up 시 onPinchRelease가 camera.zoom으로 정확히 1회', () => {
@@ -338,16 +355,51 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
       expect(camera.zoom).toBe(1); // 간격 동일 → 줌 불변
     });
 
-    it('C6: 핀치 중 cross-axis(y) 고정 — midpoint y가 움직여도 horizontal에서 y 불변', () => {
+    it('C6: 핀치 중 cross-axis(y)는 새 줌의 반폭 안에서 앵커를 따라가고, 반폭 밖은 하드 클램프', () => {
       const { control: c } = createControl();
       c.animateToIndex(1, false);
-      const pinchStartY = camera.position.y; // 0
+      expect(camera.position.y).toBe(0);
       down(1, 200, 300);
-      down(2, 360, 300);
-      // 비대칭 move — midpoint y 300 → 250
+      down(2, 360, 300); // dist 160, mid (280,300) → worldAnchor.y = 0
+      // 비대칭 move — midpoint y 300 → 250, dist √(200²+100²)
       move(1, 180, 200);
       move(2, 380, 300);
-      expect(camera.position.y).toBe(pinchStartY);
+      const z = Math.hypot(200, 100) / 160;
+      expect(camera.zoom).toBeCloseTo(z, 10);
+      // y = anchor.y + (mid.y − h/2)/z = (250 − 300)/z ≈ −35.8, 반폭 300×(1−1/z) ≈ 85 안 → 그대로
+      const expectedY = (250 - 300) / z;
+      expect(Math.abs(expectedY)).toBeLessThan(300 * (1 - 1 / z));
+      expect(camera.position.y).toBeCloseTo(expectedY, 10);
+      // midpoint 를 크게 내리면 (y 550) raw = 250/z ≈ 179 > 반폭 85 → 하드 클램프 (저항 없음)
+      move(1, 180, 500);
+      move(2, 380, 600);
+      const half = 300 * (1 - 1 / camera.zoom);
+      expect(camera.position.y).toBeCloseTo(half, 10);
+    });
+
+    it('C7: 핀치 앵커는 root 좌상단 기준 — root 가 페이지 (0,0) 에 있지 않아도 손가락 아래 월드 점이 고정된다', () => {
+      // root 를 (100, 50) 으로 옮긴다 — 이전 구현은 clientX 를 그대로 써서 앵커가 100/z 만큼 어긋났다
+      root.getBoundingClientRect = () =>
+        ({
+          left: 100,
+          top: 50,
+          right: 500,
+          bottom: 650,
+          width: 400,
+          height: 600,
+          x: 100,
+          y: 50,
+        }) as DOMRect;
+      const { control: c } = createControl();
+      c.animateToIndex(0, false);
+      // root 중앙(로컬 200,300) = client (300,350) 에서 대칭 핀치 → 앵커 월드 (0,0) 유지 → 카메라 (0,0)
+      down(1, 250, 350);
+      down(2, 350, 350); // dist 100
+      move(1, 200, 350);
+      move(2, 400, 350); // dist 200 → zoom 2
+      expect(camera.zoom).toBe(2);
+      expect(camera.position.x).toBe(0);
+      expect(camera.position.y).toBe(0);
     });
   });
 

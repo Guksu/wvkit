@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyResistance,
+  applyZoomResistance,
   cameraPosForAnchor,
   clamp,
   decideSnapTarget,
@@ -333,5 +334,34 @@ describe('projectInertia', () => {
   it('유효하지 않은 감속률(≤0, ≥1)은 기본값으로', () => {
     expect(projectInertia(0, 1, 1)).toBeCloseTo(500, 6);
     expect(projectInertia(0, 1, 0)).toBeCloseTo(500, 6);
+  });
+});
+
+describe('applyZoomResistance', () => {
+  it('범위 안이면 그대로', () => {
+    expect(applyZoomResistance(2, 1, 3, 0.2)).toBe(2);
+    expect(applyZoomResistance(1, 1, 3, 0.2)).toBe(1);
+    expect(applyZoomResistance(3, 1, 3, 0.2)).toBe(3);
+  });
+  it('min 아래 → min × (raw/min)^resistance (배율 감쇠)', () => {
+    expect(applyZoomResistance(0.5, 1, 3, 0.2)).toBeCloseTo(0.5 ** 0.2, 10);
+    expect(applyZoomResistance(1, 2, 3, 0.5)).toBeCloseTo(2 * 0.5 ** 0.5, 10);
+  });
+  it('max 위 → max × (raw/max)^resistance', () => {
+    expect(applyZoomResistance(6, 1, 3, 0.5)).toBeCloseTo(3 * 2 ** 0.5, 10);
+  });
+  it('resistance 0 → 하드 클램프, 1 → 제한 없음', () => {
+    expect(applyZoomResistance(0.5, 1, 3, 0)).toBe(1);
+    expect(applyZoomResistance(10, 1, 3, 0)).toBe(3);
+    expect(applyZoomResistance(0.5, 1, 3, 1)).toBeCloseTo(0.5, 10);
+    expect(applyZoomResistance(10, 1, 3, 1)).toBeCloseTo(10, 10);
+  });
+  it('raw ≤ 0 이나 NaN → minZoom (앵커 보정 ÷zoom 발산 방지)', () => {
+    expect(applyZoomResistance(0, 1, 3, 0.2)).toBe(1);
+    expect(applyZoomResistance(-1, 1, 3, 0.2)).toBe(1);
+    expect(applyZoomResistance(Number.NaN, 1, 3, 0.2)).toBe(1);
+  });
+  it('max < min 이면 clamp 로 폴백 (applyResistance 와 같은 규약: min 우선)', () => {
+    expect(applyZoomResistance(2, 3, 1, 0.2)).toBe(3);
   });
 });

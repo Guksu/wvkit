@@ -44,6 +44,30 @@ export function applyResistance(
   return value;
 }
 
+/**
+ * 줌 고무줄(rubber band). `[minZoom, maxZoom]` 밖의 줌은 배율(로그) 공간에서 `resistance ∈ [0,1]` 지수로 감쇠.
+ *
+ *   raw < min → min × (raw / min)^resistance,  raw > max → max × (raw / max)^resistance
+ *
+ * 선형 감쇠가 아니라 배율 감쇠를 쓰는 이유: 줌은 곱셈량이라 선형으로 빼면 resistance 1에서 0에 닿아
+ * 앵커 보정(÷zoom)이 발산한다. 배율 감쇠는 raw > 0인 한 항상 양수다.
+ *
+ *   minZoom=1, raw=0.5, resistance=0.2 → 0.5^0.2 ≈ 0.87
+ *   resistance=0 → 하드 클램프, resistance=1 → 제한 없음 (엣지 저항과 같은 규약)
+ */
+export function applyZoomResistance(
+  raw: number,
+  minZoom: number,
+  maxZoom: number,
+  resistance: number,
+): number {
+  if (!(raw > 0)) return minZoom;
+  if (maxZoom < minZoom) return clamp(raw, minZoom, maxZoom);
+  if (raw < minZoom) return minZoom * (raw / minZoom) ** resistance;
+  if (raw > maxZoom) return maxZoom * (raw / maxZoom) ** resistance;
+  return raw;
+}
+
 export function screenPointToWorld(
   screenX: number,
   screenY: number,

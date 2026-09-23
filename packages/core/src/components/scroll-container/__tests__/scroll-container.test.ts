@@ -531,6 +531,93 @@ describe('createScrollContainer — validateOptions', () => {
   });
 });
 
+describe('createScrollContainer — doubleTapZoom', () => {
+  let root: HTMLElement;
+  let now: number;
+  beforeEach(() => {
+    root = makeRoot();
+    now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    root.remove();
+  });
+
+  function tap(x: number, y: number): void {
+    root.dispatchEvent(
+      new PointerEvent('pointerdown', { pointerId: 1, clientX: x, clientY: y, bubbles: true }),
+    );
+    now += 50;
+    root.dispatchEvent(
+      new PointerEvent('pointerup', { pointerId: 1, clientX: x, clientY: y, bubbles: true }),
+    );
+  }
+
+  it('doubleTapZoom ≤ minZoom, > maxZoom, NaN 은 WebviewHeadlessError', () => {
+    for (const doubleTapZoom of [1, 0.5, 4, Number.NaN]) {
+      expect(() =>
+        createScrollContainer(root, {
+          direction: 'horizontal',
+          panels: makePanels(2),
+          minZoom: 1,
+          maxZoom: 3,
+          doubleTapZoom,
+        }),
+      ).toThrow(WebviewHeadlessError);
+    }
+  });
+
+  it('doubleTapZoom: false 와 생략은 허용', () => {
+    const a = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(2),
+      doubleTapZoom: false,
+    });
+    a.destroy();
+    const b = createScrollContainer(root, { direction: 'horizontal', panels: makePanels(2) });
+    b.destroy();
+  });
+
+  it('더블탭 → onZoomChange(doubleTapZoom) + getZoom() 갱신, 다시 더블탭 → minZoom', () => {
+    const onZoomChange = vi.fn();
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(2),
+      doubleTapZoom: 2,
+      onZoomChange,
+    });
+    tap(300, 300);
+    now += 100;
+    tap(300, 300);
+    expect(onZoomChange).toHaveBeenCalledTimes(1);
+    expect(onZoomChange).toHaveBeenLastCalledWith(2);
+    expect(sc.getZoom()).toBe(2);
+    now += 500;
+    tap(300, 300);
+    now += 100;
+    tap(300, 300);
+    expect(onZoomChange).toHaveBeenLastCalledWith(1);
+    expect(sc.getZoom()).toBe(1);
+    sc.destroy();
+  });
+
+  it('기본값(비활성)에서는 연속 탭에도 줌이 바뀌지 않는다', () => {
+    const onZoomChange = vi.fn();
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(2),
+      onZoomChange,
+    });
+    tap(300, 300);
+    now += 100;
+    tap(300, 300);
+    expect(onZoomChange).not.toHaveBeenCalled();
+    expect(sc.getZoom()).toBe(1);
+    sc.destroy();
+  });
+});
+
 describe('createScrollContainer — direction', () => {
   let root: HTMLElement;
   beforeEach(() => {

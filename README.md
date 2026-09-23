@@ -315,6 +315,7 @@ lock.unlock();
 | `enablePinchZoom` | `boolean` | `true` | Enable pinch-to-zoom. |
 | `minZoom` | `number` | `1.0` | Minimum zoom level. |
 | `maxZoom` | `number` | `3.0` | Maximum zoom level. |
+| `doubleTapZoom` | `number \| false` | `false` | Double-tap toggles between `minZoom` and this level. |
 | `overscan` | `number` | `1` | Panels to keep mounted outside viewport. |
 | `snapThreshold` | `number` | `0.3` | Swipe ratio to trigger snap. |
 | `resistance` | `number` | `0.2` | Edge rubber-band resistance. |
@@ -349,7 +350,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 - About 4 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
-- Zoom pans along the pager axis only (the cross axis stays locked). No wheel, keyboard, or trackpad input, no ARIA roles. A fling moves at most one panel.
+- Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. No wheel, keyboard, or trackpad input, no ARIA roles. A fling moves at most one panel.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
 - Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
 
