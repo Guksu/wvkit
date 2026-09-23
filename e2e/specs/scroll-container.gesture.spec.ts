@@ -413,7 +413,12 @@ test.describe('ScrollContainer · S16 줌 고무줄 (minZoom 아래 핀치)', ()
 
 // 데스크톱 입력: 휠(트랙패드) 제스처당 한 패널, 키보드는 호스트 포커스일 때만, ARIA 는 활성 패널만 노출.
 test.describe('ScrollContainer · S17 데스크톱 입력 (휠 · 키보드 · ARIA)', () => {
-  test('가로 휠 한 제스처 → 다음 패널로 정확히 한 칸', async ({ page }) => {
+  // Playwright 는 mobile WebKit 에서 mouse.wheel 을 지원하지 않는다 ("Mouse wheel is not supported in mobile WebKit").
+  // 실제 iOS 에도 휠이 없으므로 그 프로젝트만 건너뛴다 (mobile-chrome 은 지원).
+  const NO_WHEEL = 'Playwright: mobile WebKit 은 mouse.wheel 을 지원하지 않는다';
+
+  test('가로 휠 한 제스처 → 다음 패널로 정확히 한 칸', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile-safari', NO_WHEEL);
     await gotoDemo(page);
     const canvas = page.getByTestId('sc-canvas');
     await canvas.hover();
@@ -425,7 +430,8 @@ test.describe('ScrollContainer · S17 데스크톱 입력 (휠 · 키보드 · A
     expect(await getActiveIndex(page)).toBe(1);
   });
 
-  test('세로 휠은 패널 자체 스크롤에 맡기고 페이지를 넘기지 않는다', async ({ page }) => {
+  test('세로 휠은 패널 자체 스크롤에 맡기고 페이지를 넘기지 않는다', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile-safari', NO_WHEEL);
     await gotoDemo(page);
     const canvas = page.getByTestId('sc-canvas');
     await canvas.hover();
