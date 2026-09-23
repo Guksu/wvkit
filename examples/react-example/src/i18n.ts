@@ -65,7 +65,7 @@ export const t = {
       title: 'ScrollContainer',
       description:
         'A horizontal/vertical viewport pager: a camera model rendered with one CSS transform, no dependencies. Axis-locked pan, snap, edge resistance, pinch zoom, panel virtualization. The panels below are built like an e-commerce home: sticky header, hero banner, category chips, product grid, long feed.',
-      note: "Drag sideways to switch tabs · scroll up/down inside a tab · pinch to zoom (pinching past minZoom/maxZoom rubber-bands back) · double-tap to zoom in/out · tap ♡. Panels use touch-action: pan-y, so while zoomed the browser keeps vertical touches for the panel's own scroll; switch to direction=vertical (non-scrolling card panels) to pan in both directions while zoomed.",
+      note: "Drag sideways to switch tabs · scroll up/down inside a tab · pinch to zoom (pinching past minZoom/maxZoom rubber-bands back) · double-tap to zoom in/out · tap ♡. Panels use touch-action: pan-y, so while zoomed the browser keeps vertical touches for the panel's own scroll; switch to direction=vertical (non-scrolling card panels) to pan in both directions while zoomed. Desktop: trackpad/wheel sideways, arrow keys with the canvas focused, Ctrl + wheel to zoom.",
       tabs: ['For you', 'BEST', 'NEW', 'Exclusive', 'Gifts', 'Curation'],
       chips: [
         'All',
@@ -170,7 +170,7 @@ export const t = {
       title: 'ScrollContainer',
       description:
         '가로/세로 뷰포트 페이저. 카메라 모델을 CSS transform 하나로 렌더링하며 의존성이 없습니다. 축 고정 pan, 스냅, 엣지 저항, 핀치 줌, 패널 가상화. 아래 패널은 실제 이커머스 홈처럼 구성했습니다: sticky 헤더, 히어로 배너, 카테고리 칩, 상품 그리드, 긴 피드.',
-      note: '옆으로 끌면 탭 전환 · 탭 안에서 위아래 스크롤 · 핀치 줌(minZoom/maxZoom을 넘기면 고무줄처럼 되돌아옴) · 더블탭으로 확대/축소 · ♡ 탭. 패널이 touch-action: pan-y라 줌 상태에서도 세로 터치는 브라우저가 패널 자체 스크롤에 씁니다. 줌 상태에서 양 방향으로 움직여 보려면 direction=vertical(스크롤 없는 카드 패널)로 바꾸세요.',
+      note: '옆으로 끌면 탭 전환 · 탭 안에서 위아래 스크롤 · 핀치 줌(minZoom/maxZoom을 넘기면 고무줄처럼 되돌아옴) · 더블탭으로 확대/축소 · ♡ 탭. 패널이 touch-action: pan-y라 줌 상태에서도 세로 터치는 브라우저가 패널 자체 스크롤에 씁니다. 줌 상태에서 양 방향으로 움직여 보려면 direction=vertical(스크롤 없는 카드 패널)로 바꾸세요. 데스크톱: 트랙패드·휠 옆으로 밀기, 캔버스에 포커스 두고 화살표, Ctrl + 휠 줌.',
       tabs: ['추천', 'BEST', 'NEW', '단독', '선물하기', '큐레이션'],
       chips: ['전체', '홈데코', '홈패브릭', '테이블웨어', '디지털', '문구', '향기', '푸드'],
       sectionTitle: '취향에 딱 맞는 아이템',

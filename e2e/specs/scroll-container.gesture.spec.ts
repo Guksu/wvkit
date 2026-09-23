@@ -13,6 +13,7 @@ import {
   doubleTapOnCanvas,
   getCameraPosition,
   clickZoomTo,
+  clickScrollTo,
   waitForScrollSettle,
   waitForSceneStable,
 } from '../fixtures/scroll-container';
@@ -407,5 +408,99 @@ test.describe('ScrollContainer · S16 줌 고무줄 (minZoom 아래 핀치)', ()
     const c = await getCameraPosition(page);
     expect(c?.zoom ?? 0).toBeCloseTo(3, 2);
     expect(await getActiveZoom(page)).toBe(3);
+  });
+});
+
+// 데스크톱 입력: 휠(트랙패드) 제스처당 한 패널, 키보드는 호스트 포커스일 때만, ARIA 는 활성 패널만 노출.
+test.describe('ScrollContainer · S17 데스크톱 입력 (휠 · 키보드 · ARIA)', () => {
+  test('가로 휠 한 제스처 → 다음 패널로 정확히 한 칸', async ({ page }) => {
+    await gotoDemo(page);
+    const canvas = page.getByTestId('sc-canvas');
+    await canvas.hover();
+    // 트랙패드 관성처럼 여러 이벤트를 빠르게 — 한 제스처로 묶여 한 칸만
+    for (let i = 0; i < 6; i++) await page.mouse.wheel(60, 0);
+    await waitForScrollSettle(page, 1);
+    expect(await getActiveIndex(page)).toBe(1);
+    await waitForSceneStable(page);
+    expect(await getActiveIndex(page)).toBe(1);
+  });
+
+  test('세로 휠은 패널 자체 스크롤에 맡기고 페이지를 넘기지 않는다', async ({ page }) => {
+    await gotoDemo(page);
+    const canvas = page.getByTestId('sc-canvas');
+    await canvas.hover();
+    const before = await page.evaluate(
+      () =>
+        (document.querySelector('[data-panel-index="0"]') as HTMLElement | null)?.scrollTop ?? -1,
+    );
+    await page.mouse.wheel(0, 200);
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(
+      () =>
+        (document.querySelector('[data-panel-index="0"]') as HTMLElement | null)?.scrollTop ?? -1,
+    );
+    expect(after).toBeGreaterThan(before);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('캔버스에 포커스 → ArrowRight / End / Home 으로 이동', async ({ page }) => {
+    await gotoDemo(page);
+    const canvas = page.getByTestId('sc-canvas');
+    await expect(canvas).toHaveAttribute('tabindex', '0');
+    await canvas.focus();
+    await page.keyboard.press('ArrowRight');
+    await waitForScrollSettle(page, 1);
+    await page.keyboard.press('End');
+    await waitForScrollSettle(page, 5);
+    await page.keyboard.press('Home');
+    await waitForScrollSettle(page, 0);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('Escape 는 줌 상태에서 zoom 1 로', async ({ page }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    await page.getByTestId('sc-canvas').focus();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('1.000');
+  });
+
+  test('마우스 클릭이 패널 안 버튼(♡)에 닿는다 — likes 카운터 증가', async ({ page }) => {
+    await gotoDemo(page);
+    await expect(page.getByTestId('row-likes-value')).toHaveText('0');
+    const like = page.locator('[data-panel-index="0"] [data-like]').first();
+    await like.scrollIntoViewIfNeeded();
+    await like.click();
+    await expect(page.getByTestId('row-likes-value')).toHaveText('1');
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('ARIA: 호스트 carousel 역할, 패널 slide 라벨, 활성 패널만 aria-hidden 없음', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    const canvas = page.getByTestId('sc-canvas');
+    await expect(canvas).toHaveAttribute('role', 'group');
+    await expect(canvas).toHaveAttribute('aria-roledescription', 'carousel');
+    const hidden = async () =>
+      await page.evaluate(() =>
+        Array.from(document.querySelectorAll<HTMLElement>('[data-panel-index]')).map((p) => [
+          p.dataset.panelIndex,
+          p.getAttribute('aria-roledescription'),
+          p.getAttribute('aria-label'),
+          p.getAttribute('aria-hidden'),
+        ]),
+      );
+    const before = await hidden();
+    expect(before.find((r) => r[0] === '0')).toEqual(['0', 'slide', '1 / 6', null]);
+    expect(before.find((r) => r[0] === '1')).toEqual(['1', 'slide', '2 / 6', 'true']);
+
+    await clickScrollTo(page, 2, false);
+    await waitForScrollSettle(page, 2);
+    const after = await hidden();
+    expect(after.find((r) => r[0] === '2')?.[3]).toBeNull();
+    expect(after.find((r) => r[0] === '1')?.[3]).toBe('true');
+    expect(after.find((r) => r[0] === '3')?.[3]).toBe('true');
   });
 });

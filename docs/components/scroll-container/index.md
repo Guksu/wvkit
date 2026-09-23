@@ -154,6 +154,14 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 - **Zoom rubber band.** Pinching past `minZoom` or `maxZoom` keeps following the fingers with the zoom damped in scale space (`min × (raw / min)^resistance`), and springs back to the limit when the last finger lifts, like `bouncesZoom` on iOS. `onZoomChange` only ever reports values inside `[minZoom, maxZoom]`. Set `resistance: 0` for a hard stop.
 - **Double-tap zoom** is opt-in: `doubleTapZoom: 2` toggles between `minZoom` and 2× on a double tap (two taps within 300 ms and 40 px, each shorter than 300 ms with less than 10 px of movement). Zooming in keeps the tapped point fixed; zooming out lands on the panel center. A double tap on a button inside a panel still clicks it twice, so leave this off when panels give double taps their own meaning.
 
+## Desktop input and accessibility
+
+WebView teams develop and QA in a desktop browser, so the pager also works without a touch screen. Touch devices never send these events, so they cost nothing there.
+
+- **Wheel and trackpad** (`wheel: true`, default). One wheel gesture along the pager axis moves one panel: deltas are accumulated per gesture (events less than 120 ms apart) and the pager steps once the sum passes 40 px, then ignores the rest of that gesture so trackpad momentum does not skip several panels. A wheel whose cross-axis component is larger (a vertical scroll on a horizontal pager) is left alone, and so is a wheel over a nested scroller that can still scroll in that direction (a chip row with `overflow-x: auto`). While zoomed, the wheel pans the camera inside the panel instead of paging. `Ctrl` + wheel, which is how a trackpad pinch reaches the page, zooms around the cursor. Only consumed wheel events are `preventDefault`-ed, which also stops the macOS horizontal-swipe history navigation in Chromium. Safari still needs `overscroll-behavior-x: none` on the page for that.
+- **Keyboard** (`keyboard: true`, default). When the host itself has focus: the arrow keys along the pager axis move one panel, `Home` / `End` jump to the first / last panel, and `Escape` returns to `minZoom` while zoomed. Keys are ignored while focus is inside a panel (an input, a button), so panel content keeps its own keyboard behaviour. The host gets `tabindex="0"` if it has no `tabindex`; style `:focus-visible` yourself.
+- **ARIA** (`a11y: true`, default), following the WAI-ARIA APG carousel pattern: the host gets `role="group"` and `aria-roledescription="carousel"`, each panel gets `role="group"`, `aria-roledescription="slide"` and `aria-label="n / N"`, and every panel except the active one gets `aria-hidden="true"` and `inert` so off-screen panels are out of the screen-reader and Tab order. Attributes you already set are left untouched, and the accessible name is yours to provide: put `aria-label` on the host. `inert` is ignored by browsers that do not know it (WebView before Chrome 102, iOS before 15.5); `aria-hidden` still applies there.
+
 ## Snap and inertia
 
 - Release always snaps to a panel (zoom ≤ 1) or to the projected stop, edge, or gap target (zoom > 1). The settle duration follows the finger: the ease-out curve starts at the release speed (`duration = 3 × distance / velocity`), clamped between 120 ms and a distance-proportional cap of 400 ms (800 ms for a zoomed free pan). Releasing from a standstill uses the cap; velocity pointing away from the target (rubber-band return) is ignored.
@@ -180,7 +188,10 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 | `minZoom`         | `number > 0`                               | `1.0`          | Minimum zoom level.                                                                                  |
 | `maxZoom`         | `number ≥ minZoom`                         | `3.0`          | Maximum zoom level.                                                                                  |
 | `doubleTapZoom`   | `number \| false`                          | `false`        | Double-tap zoom target. A number in `(minZoom, maxZoom]` toggles between `minZoom` and that level. Independent of `enablePinchZoom`. |
-| `onZoomChange`    | `(zoom: number) => void`                   | —              | Fired when zoom level changes (pinch release, double tap, `zoomTo`).                                 |
+| `onZoomChange`    | `(zoom: number) => void`                   | —              | Fired when zoom level changes (pinch release, double tap, `Ctrl` + wheel, `zoomTo`).                 |
+| `wheel`           | `boolean`                                  | `true`         | Wheel / trackpad input: one panel per gesture, camera pan while zoomed, `Ctrl` + wheel zoom.          |
+| `keyboard`        | `boolean`                                  | `true`         | Arrow keys, `Home` / `End`, `Escape` while the host has focus. Adds `tabindex="0"` to the host if it has none. |
+| `a11y`            | `boolean`                                  | `true`         | Carousel ARIA roles on host and panels; inactive panels get `aria-hidden` and `inert`.               |
 
 `resistance` also damps the zoom rubber band when a pinch goes past `minZoom` / `maxZoom`.
 
@@ -227,7 +238,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 10.2 KB | 4.1 KB |
+| `@guksu/wvkit-core/scroll-container` | 16.4 KB | 6.5 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
@@ -242,7 +253,9 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.
 - **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
 - **Cross-axis pan while zoomed needs panels that do not scroll on that axis.** A panel with `touch-action: pan-y` gives vertical touches to its own native scroll, so on a `horizontal` pager only non-scrolling panels (image viewers, cards) pan vertically while zoomed.
-- **No wheel, trackpad, or keyboard input.** Only a pointer drag switches panels. Arrow keys, wheel, and ARIA roles are not wired — provide your own controls that call `scrollTo()`.
+- **A wheel gesture moves one panel and cannot page while zoomed.** Trackpad momentum is ignored after the first step, and a fast mouse-wheel spin counts as one gesture until it pauses for 120 ms. While zoomed, the wheel pans inside the panel; use the arrow keys or zoom out to change panels.
+- **Keyboard shortcuts only work while the host has focus.** Focus inside a panel keeps its own key handling. The host's focus ring is not styled for you.
+- **`inert` on inactive panels blocks pointer events too.** With `minZoom` below 1, neighbouring panels that are visible cannot be clicked until they become active. Set `a11y: false` if you need that.
 - **A fling moves at most one panel.** The settle duration follows the release velocity (120–400 ms), but there is no multi-panel momentum on the pager axis, by design (native pagers behave the same).
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
 - **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.

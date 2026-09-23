@@ -30,6 +30,7 @@ import {
  *
  * 좌표: 모든 포인터 좌표는 root 좌상단 기준이다 (제스처 시작 시 `getBoundingClientRect`를 한 번 읽어 고정).
  * clientX/Y를 그대로 쓰면 root가 페이지 (0,0)에 있지 않을 때 핀치·더블탭의 앵커가 어긋난다.
+ * 포인터 캡처는 `CAPTURE_SLOP_PX` 만큼 움직인 뒤에 잡는다 — 움직이지 않은 마우스 클릭이 패널 안 버튼에 닿게.
  *
  * 관성(릴리스 속도 반영):
  *  - 릴리스 트윈 시간은 `snapDurationMs`로 손가락 속도에 이어지게 정한다 — 빠른 플릭 120ms까지,
@@ -71,6 +72,13 @@ const TAP_MAX_MS = 300;
 const TAP_SLOP_PX = 10;
 const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_DIST_PX = 40;
+/**
+ * 포인터 캡처는 down 즉시가 아니라 이만큼 움직인 뒤에 잡는다. down 에서 바로 잡으면 호환 마우스 이벤트
+ * (mousedown/mouseup)도 root 로 향해 `click` 이 root 에서 발화하고, 패널 안 버튼은 마우스로 클릭할 수 없다
+ * (터치는 탭에서 click 을 따로 합성하므로 영향이 없어 눈에 띄지 않았다). 움직인 뒤 잡으면 드래그 중
+ * root 밖으로 나가도 제스처가 이어지고, 움직이지 않은 클릭은 원래 요소가 받는다.
+ */
+const CAPTURE_SLOP_PX = 3;
 
 export interface CameraControlOptions {
   root: HTMLElement;
@@ -113,6 +121,16 @@ export interface CameraControl {
   animateToZoom(level: number, animated: boolean): void;
   /** 진행 중인 RAF 트윈을 즉시 취소 (카메라 위치는 그대로). */
   cancelAnimation(): void;
+  /**
+   * 화면 px 델타만큼 카메라를 옮긴다 (휠·트랙패드 pan). 즉시 적용, 트윈 없음.
+   * 결과는 정착 줌 기준 패널 범위 안으로 클램프 — zoom ≤ 1 이면 반폭이 0 이라 움직이지 않는다 (페이저는 휠로 넘긴다).
+   */
+  panBy(dxPx: number, dyPx: number): void;
+  /**
+   * root 기준 화면 좌표 `(sx, sy)` 아래 지점을 고정한 채 줌을 `factor` 배 한다 (ctrl+휠 · 트랙패드 핀치).
+   * `[minZoom, maxZoom]` 하드 클램프, 즉시 적용. 결과 줌을 돌려준다 (호출자가 onZoomChange 로 보고).
+   */
+  zoomBy(factor: number, sx: number, sy: number): number;
   /** 리스너/트윈/포인터 캡처 일괄 해제. */
   destroy(): void;
 }
@@ -141,6 +159,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
 
   // --- 포인터 추적 (root 좌상단 기준 좌표) ---
   const pointers = new Map<number, { x: number; y: number }>();
+  // down 위치 — 캡처 슬롭 판정용
+  const pointerOrigins = new Map<number, { x: number; y: number }>();
   // 제스처(첫 손가락 down)마다 한 번 읽는다 — move 마다 rect를 읽으면 레이아웃 강제.
   let rootOrigin = { x: 0, y: 0 };
 
@@ -673,12 +693,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     }
     const p = toLocal(ev);
     pointers.set(ev.pointerId, p);
-    try {
-      root.setPointerCapture(ev.pointerId);
-      capturedPointerIds.add(ev.pointerId);
-    } catch {
-      // happy-dom 등 일부 환경은 setPointerCapture 미지원 — 무시
-    }
+    pointerOrigins.set(ev.pointerId, p);
     if (pointers.size === 1) {
       startPan(ev.pointerId);
       pressStart = doubleTapZoom !== false ? { time: performance.now(), x: p.x, y: p.y } : null;
@@ -693,9 +708,26 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     }
   }
 
+  function capturePointer(pointerId: number): void {
+    try {
+      root.setPointerCapture(pointerId);
+      capturedPointerIds.add(pointerId);
+    } catch {
+      // happy-dom 등 일부 환경은 setPointerCapture 미지원 — 무시
+    }
+  }
+
   function onPointerMove(ev: PointerEvent): void {
     if (!pointers.has(ev.pointerId)) return;
-    pointers.set(ev.pointerId, toLocal(ev));
+    const p = toLocal(ev);
+    pointers.set(ev.pointerId, p);
+    // 슬롭을 넘게 움직였으면 캡처 — 이후 root 밖으로 나가도 move/up 을 계속 받는다
+    if (!capturedPointerIds.has(ev.pointerId)) {
+      const origin = pointerOrigins.get(ev.pointerId);
+      if (origin && Math.hypot(p.x - origin.x, p.y - origin.y) >= CAPTURE_SLOP_PX) {
+        capturePointer(ev.pointerId);
+      }
+    }
     if (pinchStart) {
       updatePinch();
     } else if (panStart) {
@@ -707,12 +739,15 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     if (!pointers.has(ev.pointerId)) return;
     const p = toLocal(ev);
     pointers.delete(ev.pointerId);
-    try {
-      root.releasePointerCapture(ev.pointerId);
-    } catch {
-      // 캡처되지 않았던 경우 등 — 무시
+    pointerOrigins.delete(ev.pointerId);
+    if (capturedPointerIds.has(ev.pointerId)) {
+      try {
+        root.releasePointerCapture(ev.pointerId);
+      } catch {
+        // 이미 해제된 경우 등 — 무시
+      }
+      capturedPointerIds.delete(ev.pointerId);
     }
-    capturedPointerIds.delete(ev.pointerId);
     if (pinchStart) {
       endPinch();
       // 남은 손가락 수에 따라 제스처 승계 — 2개 이상이면 pinch 재시작
@@ -831,6 +866,45 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     startTween(x, y, z);
   }
 
+  function panBy(dxPx: number, dyPx: number): void {
+    cancelAnimationInternal();
+    // 휠 델타: +x = 오른쪽으로 스크롤 = 카메라 오른쪽(+x), +y = 아래로 스크롤 = 카메라 아래(월드 −y)
+    const z = camera.zoom || 1;
+    const { x, y } = clampIntoPanel(
+      camera.position.x + dxPx / z,
+      camera.position.y - dyPx / z,
+      targetZoom,
+    );
+    if (x === camera.position.x && y === camera.position.y && camera.zoom === targetZoom) return;
+    camera.position.x = x;
+    camera.position.y = y;
+    camera.zoom = targetZoom;
+    onChange();
+  }
+
+  function zoomBy(factor: number, sx: number, sy: number): number {
+    cancelAnimationInternal();
+    const z = clamp(targetZoom * (factor > 0 ? factor : 1), minZoom, maxZoom);
+    const { width, height } = getRootSize();
+    const world = screenPointToWorld(
+      sx,
+      sy,
+      camera.position.x,
+      camera.position.y,
+      camera.zoom,
+      width,
+      height,
+    );
+    const anchored = cameraPosForAnchor(world.x, world.y, sx, sy, z, width, height);
+    const { x, y } = clampIntoPanel(anchored.x, anchored.y, z);
+    targetZoom = z;
+    camera.position.x = x;
+    camera.position.y = y;
+    camera.zoom = z;
+    onChange();
+    return z;
+  }
+
   function destroy(): void {
     cancelAnimationInternal();
     // m-5: 진행 중 제스처 중간에 destroy되면 setPointerCapture가 누수 — 남은 모든 캡처를 명시 release.
@@ -845,6 +919,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     for (const off of listeners) off();
     listeners.length = 0;
     pointers.clear();
+    pointerOrigins.clear();
     panStart = null;
     pinchStart = null;
     pressStart = null;
@@ -855,6 +930,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     animateToIndex,
     animateToZoom,
     cancelAnimation: cancelAnimationInternal,
+    panBy,
+    zoomBy,
     destroy,
   };
 }

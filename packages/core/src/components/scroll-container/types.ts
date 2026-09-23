@@ -49,8 +49,26 @@ export interface ScrollContainerOptions {
    * 패널 안 버튼을 두 번 빠르게 탭해도 줌이 토글되므로, 더블탭에 다른 뜻(좋아요 등)을 둔 패널이면 켜지 마세요.
    */
   doubleTapZoom?: number | false;
-  /** 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·`zoomTo`). */
+  /** 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·ctrl+휠·`zoomTo`). */
   onZoomChange?: (zoom: number) => void;
+  /**
+   * 휠·트랙패드 입력. 기본값 `true`.
+   * 페이저: 축 방향 휠 제스처 하나당 한 패널 (누적 40px). 교차 축 성분이 더 크거나, 그 방향으로 더 스크롤할 수
+   * 있는 중첩 스크롤러 위면 네이티브에 맡긴다. 줌 상태: 카메라 pan. ctrl+휠(트랙패드 핀치): 커서 고정 줌.
+   * 소비한 휠만 `preventDefault` 한다 (macOS 가로 스와이프 뒤로가기 방지).
+   */
+  wheel?: boolean;
+  /**
+   * 키보드 입력. 기본값 `true`. 호스트 자신에 포커스가 있을 때만: 축 방향 화살표(이전/다음), Home/End(첫/끝),
+   * Escape(줌 상태면 minZoom). 호스트에 `tabindex` 가 없으면 `0` 을 준다.
+   */
+  keyboard?: boolean;
+  /**
+   * ARIA 속성 부여. 기본값 `true`. 호스트 `role="group"` + `aria-roledescription="carousel"`, 패널 `role="group"` +
+   * `aria-roledescription="slide"` + `aria-label="n / N"`, 비활성 패널 `aria-hidden` + `inert`. 이미 있는 속성은
+   * 건드리지 않는다. 접근 가능한 이름은 앱이 호스트에 `aria-label` 로 준다.
+   */
+  a11y?: boolean;
 }
 
 export interface ScrollContainerInstance {
