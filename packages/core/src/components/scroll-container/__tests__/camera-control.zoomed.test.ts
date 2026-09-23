@@ -73,9 +73,9 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     return true;
   }
 
-  /** 트윈 종료까지 시간을 넘긴 뒤 잔여 프레임 전부 실행 (TWEEN_DURATION_MS = 300). */
+  /** 트윈 종료까지 시간을 넘긴 뒤 잔여 프레임 전부 실행 (릴리스 트윈 최대 800ms, 프로그램 트윈 300ms). */
   function settle(): void {
-    now += 400;
+    now += 900;
     for (let i = 0; i < 20 && flushFrame(); i++) {
       // no-op
     }
@@ -155,6 +155,8 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     down(1, 200, 300);
     now += 16;
     move(1, 140, 300); // dx=−60 → x = 30 (범위 [−100,100] 안)
+    now += 200;
+    move(1, 140, 300); // 멈춤 (lastDelta 0 → 관성 없음)
     now += 16;
     up(1, 140, 300);
     expect(onPanRelease).toHaveBeenCalledWith(0);
@@ -180,7 +182,7 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     control.destroy();
   });
 
-  it('Z4: zoom 2에서 gap을 threshold 넘게 건너면 다음 패널의 가까운 가장자리(300)로 스냅, onPanRelease(1)', () => {
+  it('Z4: zoom 2에서 gap을 threshold 넘게 건너 정지 릴리스 → 다음 패널의 가까운 가장자리(300)로 스냅, onPanRelease(1)', () => {
     const { control, onPanRelease } = makeControl();
     control.animateToIndex(0, false);
     control.animateToZoom(2, false);
@@ -189,7 +191,7 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     move(1, 100, 300); // dx=−200 → x=100 (패널 0 가장자리)
     now += 100;
     move(1, -60, 300); // dx=−360 → x=180 → gap [100,300] 진행 비율 0.4 > 0.3
-    now += 100;
+    now += 1000; // 멈춘 채 한참 뒤 릴리스 → 속도 ≈ 0 (관성 투영 없음)
     up(1, -60, 300);
     expect(onPanRelease).toHaveBeenCalledWith(1);
     settle();
@@ -198,7 +200,7 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     control.destroy();
   });
 
-  it('Z5: zoom 2에서 gap을 조금만 건너면 출발 패널 가장자리(100)로 복귀, onPanRelease(0)', () => {
+  it('Z5: zoom 2에서 gap을 조금만 건너 정지 릴리스 → 출발 패널 가장자리(100)로 복귀, onPanRelease(0)', () => {
     const { control, onPanRelease } = makeControl();
     control.animateToIndex(0, false);
     control.animateToZoom(2, false);
@@ -206,8 +208,8 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     now += 100;
     move(1, 100, 300); // x=100
     now += 100;
-    move(1, 20, 300); // dx=−280 → x=140 → 비율 0.2, 속도 (40/200)×(100/100)×0.3 = 0.06 → 0.26 < 0.3
-    now += 100;
+    move(1, 20, 300); // dx=−280 → x=140 → gap 진행 비율 0.2 < 0.3
+    now += 1000; // 정지 릴리스
     up(1, 20, 300);
     expect(onPanRelease).toHaveBeenCalledWith(0);
     settle();
@@ -290,6 +292,8 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     now += 16;
     move(1, 200, 500); // dy=+200 → y = −300 + 200/2 = −200 (범위 [−450,−150] 안)
     expect(camera.position.y).toBe(-200);
+    now += 200;
+    move(1, 200, 500); // 멈춤 → 관성 없음
     now += 16;
     up(1, 200, 500);
     expect(onPanRelease).toHaveBeenCalledWith(0);
@@ -310,7 +314,9 @@ describe('createCameraControl — 줌 상태 pan (위치 유지 · 가장자리 
     move(1, 200, 200); // dy=−300 → y = −450 (패널 0 아래 가장자리)
     now += 100;
     move(1, 200, -40); // dy=−540 → y = −570 → gap [−450,−750] 진행 비율 120/300 = 0.4 > 0.3
-    now += 100;
+    now += 200;
+    move(1, 200, -40); // 멈춤 → 관성 없음 (정지 릴리스의 gap 판정)
+    now += 16;
     up(1, 200, -40);
     expect(onPanRelease).toHaveBeenCalledWith(1);
     settle();

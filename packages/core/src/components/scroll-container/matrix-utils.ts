@@ -213,3 +213,43 @@ export function resolveZoomedRelease(
   }
   return { index: best, target: s };
 }
+
+/**
+ * 릴리스 속도에 이어지는 스냅 트윈 시간(ms).
+ *
+ * easeOutCubic의 t=0 기울기는 3이므로 트윈의 초기 속도는 `3·distance / duration`이다.
+ * 손가락이 놓인 순간의 속도 `velocityToward`(목표 방향 양수, 단위/ms)와 이어지도록
+ * `duration = 3·distance / velocityToward`로 잡는다 — 빨리 튕길수록 짧고 단호하게, 천천히 놓을수록 길게.
+ *
+ *  - 상한은 거리에 비례: `minMs + (distance / referenceDistance) · (maxMs − minMs)` (작은 복귀는 짧게)
+ *  - 목표와 반대 방향 속도(엣지 저항 구간에서 바깥으로 튕김)나 정지 상태면 상한을 그대로 쓴다
+ *  - 하한 `minMs` 아래로는 내려가지 않는다 (너무 빠른 플릭도 눈에 보이게)
+ */
+export function snapDurationMs(
+  distance: number,
+  velocityToward: number,
+  referenceDistance: number,
+  minMs: number,
+  maxMs: number,
+): number {
+  const d = Math.abs(distance);
+  const ref = referenceDistance > 0 ? referenceDistance : 1;
+  const cap = clamp(minMs + (d / ref) * (maxMs - minMs), minMs, maxMs);
+  if (!(velocityToward > 0) || d === 0) return cap;
+  return clamp((3 * d) / velocityToward, minMs, cap);
+}
+
+/**
+ * 관성 투영 — 릴리스 속도로 감속했을 때 멈추는 위치.
+ *
+ * iOS UIScrollView의 감속(프레임당 0.998, ms 기준)과 같은 지수 감쇠를 쓰면 총 이동거리는
+ * `v / (1 − rate)` 이다. rate 0.998 → 속도(단위/ms) × 500.
+ */
+export function projectInertia(
+  position: number,
+  velocityPerMs: number,
+  decelerationRate = 0.998,
+): number {
+  const r = decelerationRate > 0 && decelerationRate < 1 ? decelerationRate : 0.998;
+  return position + velocityPerMs / (1 - r);
+}

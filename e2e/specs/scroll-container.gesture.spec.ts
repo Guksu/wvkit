@@ -181,8 +181,8 @@ test.describe('ScrollContainer · S12 줌 상태 pan — 위치 유지 + 가장�
     const x0 = await getSceneXShift(page);
     expect(x0).not.toBeNull();
 
-    // 화면 −60px → 월드 +30 (패널 0 범위 [−폭/4, +폭/4] 안) — 스냅 없이 그 자리 유지
-    await swipeOnCanvas(page, -60, 0);
+    // 화면 −60px → 월드 +30 (패널 0 범위 [−폭/4, +폭/4] 안), 멈춘 뒤 놓기 — 스냅·관성 없이 그 자리 유지
+    await swipeOnCanvas(page, -60, 0, { holdMs: 300 });
     await waitForSceneStable(page);
 
     expect(await getActiveIndex(page)).toBe(0);
@@ -227,5 +227,47 @@ test.describe('ScrollContainer · S12 줌 상태 pan — 위치 유지 + 가장�
     // 패널 1의 왼쪽 가장자리: cameraX = 폭 − 폭/4 = 0.75폭
     const x1 = await getSceneXShift(page);
     expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(-width * 0.75, 0);
+  });
+});
+
+// 관성: 줌 상태 플릭은 손을 뗀 위치보다 더 흘러가서 멈춘다 (투영 = 속도 × 500).
+test.describe('ScrollContainer · S13 관성 (릴리스 속도 반영)', () => {
+  test('zoom=2에서 빠른 플릭 → 릴리스 지점보다 더 나아가 패널 범위 안 또는 가장자리에서 멈춘다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const width = await getCanvasWidth(page);
+    const x0 = await getSceneXShift(page);
+    expect(x0).not.toBeNull();
+
+    // 화면 −40px 를 60ms 안에 (빠른 플릭) → 릴리스 시점 카메라 +20 월드, 관성으로 그보다 앞까지
+    await swipeOnCanvas(page, -40, 0, { steps: 4, duration: 60 });
+    await waitForSceneStable(page);
+
+    // 관성만으로는 다음 패널로 넘어가지 않는다
+    expect(await getActiveIndex(page)).toBe(0);
+    const x1 = await getSceneXShift(page);
+    const moved = (x0 ?? 0) - (x1 ?? 0); // Δshift = −ΔcameraX → 카메라 전진량
+    // 손을 뗀 지점(20)보다 더 갔고, 패널 0 의 가장자리(폭/4)를 넘지 않는다
+    expect(moved).toBeGreaterThan(20 + 5);
+    expect(moved).toBeLessThanOrEqual(width / 4 + 1);
+  });
+
+  test('zoom=2에서 멈춘 뒤 놓으면 그 자리에 머문다 (관성 없음)', async ({ page }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const x0 = await getSceneXShift(page);
+
+    // 끌고 나서 멈춘 채(holdMs) 놓기 → 릴리스 속도 0 → 관성 투영 없음
+    await swipeOnCanvas(page, -40, 0, { steps: 4, duration: 120, holdMs: 300 });
+    await waitForSceneStable(page);
+
+    const x1 = await getSceneXShift(page);
+    const moved = (x0 ?? 0) - (x1 ?? 0);
+    // 릴리스 지점(화면 40px → zoom 2 에서 월드 20) 그대로
+    expect(moved).toBeCloseTo(20, 0);
   });
 });

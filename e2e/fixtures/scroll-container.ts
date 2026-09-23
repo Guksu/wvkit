@@ -112,6 +112,8 @@ interface SwipeOpts {
   /** 시작 비율 (0~1, 기본 0.5 = 캔버스 정중앙) */
   startRatioX?: number;
   startRatioY?: number;
+  /** 마지막 move 뒤 이 시간(ms)만큼 멈춘 채 같은 좌표로 move 를 한 번 더 보내고 up — 속도 0 릴리스 재현 */
+  holdMs?: number;
 }
 
 /**
@@ -123,9 +125,9 @@ export async function swipeOnCanvas(
   dy: number,
   opts: SwipeOpts = {},
 ): Promise<void> {
-  const { steps = 14, duration = 280, startRatioX = 0.5, startRatioY = 0.5 } = opts;
+  const { steps = 14, duration = 280, startRatioX = 0.5, startRatioY = 0.5, holdMs = 0 } = opts;
   await page.evaluate(
-    async ({ dx, dy, steps, duration, startRatioX, startRatioY }) => {
+    async ({ dx, dy, steps, duration, startRatioX, startRatioY, holdMs }) => {
       const el = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
       if (!el) throw new Error('sc-canvas not found');
       const rect = el.getBoundingClientRect();
@@ -158,9 +160,15 @@ export async function swipeOnCanvas(
         dispatch('pointermove', startX + dx * t, startY + dy * t, 1, -1);
         await new Promise((r) => setTimeout(r, dt));
       }
+      if (holdMs > 0) {
+        // 멈춤: 같은 좌표 move → lastDelta 0 → 릴리스 속도 0 (관성 없음)
+        await new Promise((r) => setTimeout(r, holdMs));
+        dispatch('pointermove', startX + dx, startY + dy, 1, -1);
+        await new Promise((r) => setTimeout(r, 16));
+      }
       dispatch('pointerup', startX + dx, startY + dy, 0, 0);
     },
-    { dx, dy, steps, duration, startRatioX, startRatioY },
+    { dx, dy, steps, duration, startRatioX, startRatioY, holdMs },
   );
 }
 

@@ -6,8 +6,10 @@ import {
   decideSnapTarget,
   easeOutCubic,
   nearestPanelIndex,
+  projectInertia,
   resolveZoomedRelease,
   screenPointToWorld,
+  snapDurationMs,
   zoomedHalfExtent,
 } from '../matrix-utils';
 
@@ -286,5 +288,50 @@ describe('resolveZoomedRelease', () => {
     const zero = [0, 0, 0, 0];
     expect(resolveZoomedRelease(160, 0, 0, centers, zero, 0.3)).toEqual({ index: 1, target: 400 });
     expect(resolveZoomedRelease(100, 0, 0, centers, zero, 0.3)).toEqual({ index: 0, target: 0 });
+  });
+});
+
+describe('snapDurationMs', () => {
+  // referenceDistance 400, min 120, max 400
+  it('정지 상태 릴리스 → 거리에 비례한 상한 (전체 패널 거리면 max)', () => {
+    expect(snapDurationMs(400, 0, 400, 120, 400)).toBe(400);
+    // 거리 100 → 120 + 0.25×280 = 190
+    expect(snapDurationMs(100, 0, 400, 120, 400)).toBe(190);
+  });
+  it('목표와 반대 방향 속도는 무시하고 상한을 쓴다 (엣지 저항 복귀)', () => {
+    expect(snapDurationMs(100, -5, 400, 120, 400)).toBe(190);
+  });
+  it('속도가 이어지도록 3·d/v — 거리 200, 속도 3/ms → 200ms', () => {
+    expect(snapDurationMs(200, 3, 400, 120, 400)).toBe(200);
+  });
+  it('빠른 플릭은 하한 min에서 멈춘다', () => {
+    expect(snapDurationMs(200, 100, 400, 120, 400)).toBe(120);
+  });
+  it('느린 속도는 거리 비례 상한을 넘지 않는다', () => {
+    // 3·100/0.1 = 3000 → cap 190
+    expect(snapDurationMs(100, 0.1, 400, 120, 400)).toBe(190);
+  });
+  it('거리 0 → 상한(min)', () => {
+    expect(snapDurationMs(0, 5, 400, 120, 400)).toBe(120);
+  });
+  it('음수 거리도 절댓값으로 처리', () => {
+    expect(snapDurationMs(-200, 3, 400, 120, 400)).toBe(200);
+  });
+});
+
+describe('projectInertia', () => {
+  it('기본 감속률 0.998 → 위치 + 속도×500', () => {
+    expect(projectInertia(100, 0.4)).toBeCloseTo(300, 6);
+    expect(projectInertia(100, -0.2)).toBeCloseTo(0, 6);
+  });
+  it('속도 0 → 제자리', () => {
+    expect(projectInertia(50, 0)).toBe(50);
+  });
+  it('감속률을 바꾸면 이동거리가 v/(1−rate)', () => {
+    expect(projectInertia(0, 1, 0.99)).toBeCloseTo(100, 6);
+  });
+  it('유효하지 않은 감속률(≤0, ≥1)은 기본값으로', () => {
+    expect(projectInertia(0, 1, 1)).toBeCloseTo(500, 6);
+    expect(projectInertia(0, 1, 0)).toBeCloseTo(500, 6);
   });
 });
