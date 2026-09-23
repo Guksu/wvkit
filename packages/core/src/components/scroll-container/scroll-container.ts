@@ -1,15 +1,16 @@
-import * as THREE from 'three';
-import { CSS3DObject, CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { WebviewHeadlessError } from '../../errors';
+import { createCamera } from './camera';
 import { type CameraControl, createCameraControl } from './camera-control';
+import { createPanelRenderer } from './panel-renderer';
 import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
 
 /**
- * 가로/세로 패널 스크롤 컨테이너 (Three.js + CSS3DRenderer + OrthographicCamera + CameraControl).
+ * 가로/세로 패널 스크롤 컨테이너 (카메라 모델 + CSS transform 렌더러 + CameraControl).
  *
  * 아키텍처:
- *  - Scene + OrthographicCamera + CSS3DRenderer 셋업 (#4)
- *  - 패널은 CSS3DObject로 wrap해 scene에 추가, frustum + overscan 기반 가상화 (#4)
+ *  - 카메라(`camera.ts`)는 위치 x·y와 zoom만 가진다. 렌더러(`panel-renderer.ts`)가 그 값을
+ *    scene 하나의 `translate(...) scale(...)`로 옮긴다 — 의존성 없음 (#4)
+ *  - 패널은 scene 안에 절대 배치되고, overscan 기반 가상화로 창 밖 패널은 숨긴다 (#4)
  *  - 입력 처리는 `camera-control.ts`에 위임 (#3) — axis pan, snap, edge resistance, 핀치 줌, RAF 트윈,
  *    줌 상태 pan(패널 가장자리까지 이동, 릴리스 시 위치 유지)
  *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + 사용자 콜백 호출
@@ -54,26 +55,12 @@ export function createScrollContainer(
   let width = Math.max(1, root.clientWidth || 1);
   let height = Math.max(1, root.clientHeight || 1);
 
-  // --- Three.js scene / camera / renderer 셋업 ---
-  const scene = new THREE.Scene();
-  const camera = new THREE.OrthographicCamera(
-    -width / 2,
-    width / 2,
-    height / 2,
-    -height / 2,
-    0.1,
-    2000,
-  );
-  camera.position.set(0, 0, 1000);
-
-  const renderer = new CSS3DRenderer();
-  renderer.setSize(width, height);
-  // 레이아웃 필수 인라인 스타일 (CLAUDE.md 예외): 렌더러 surface를 root 좌상단에 오버레이.
+  // --- 카메라 / 렌더러 셋업 ---
   // pointer-events는 건드리지 않음 — 패널 콘텐츠 인터랙션을 보존하고, 입력은 자연 bubbling으로
   // root까지 전달되어 CameraControl이 root 리스너에서 수신.
-  renderer.domElement.style.position = 'absolute';
-  renderer.domElement.style.top = '0';
-  renderer.domElement.style.left = '0';
+  const camera = createCamera(initialZoom);
+  const renderer = createPanelRenderer(options.panels);
+  renderer.setSize(width, height);
   root.appendChild(renderer.domElement);
 
   // --- 패널 위치 계산 ---
@@ -101,23 +88,22 @@ export function createScrollContainer(
   }
   computePositions();
 
-  // --- 패널을 CSS3DObject로 wrap해서 scene에 추가 ---
-  const cssObjects: CSS3DObject[] = [];
-  for (let i = 0; i < panelCount; i++) {
-    const panel = options.panels[i];
-    const p = positions[i];
-    if (!panel || !p) continue;
-    // 패널 element 자체는 pointer 이벤트가 root까지 버블링되도록 자연스러운 기본 상태 유지
-    const obj = new CSS3DObject(panel);
-    obj.position.set(p.x, p.y, 0);
-    cssObjects.push(obj);
-    scene.add(obj);
+  // --- 패널 좌표를 렌더러에 반영 ---
+  function applyPanelPositions(): void {
+    for (let i = 0; i < panelCount; i++) {
+      const p = positions[i];
+      if (!p) continue;
+      renderer.setPanelPosition(i, p.x, p.y);
+    }
   }
+  applyPanelPositions();
 
   // --- 상태 ---
   let activeIndex = initialIndex;
   let zoom = initialZoom;
   let destroyed = false;
+  // 가상화 창 안/밖 상태 — mount/unmount 차분만 렌더러에 전달. null = 아직 미적용(첫 적용 때 전부 기록).
+  const panelInWindow: Array<boolean | null> = new Array(panelCount).fill(null);
 
   // --- 내부 적용 함수 (초기 적용 + ResizeObserver 보정에서 사용) ---
   function applyActiveIndexToCameraDirectly(): void {
@@ -129,27 +115,22 @@ export function createScrollContainer(
 
   function applyZoomToCameraDirectly(): void {
     camera.zoom = zoom;
-    camera.updateProjectionMatrix();
   }
 
   // 가상화: |i - activeIndex| <= overscan 패널만 visible. mount/unmount 차분만 적용.
   function applyVirtualization(): void {
-    for (let i = 0; i < cssObjects.length; i++) {
-      const obj = cssObjects[i];
-      const panel = options.panels[i];
-      if (!obj || !panel) continue;
+    for (let i = 0; i < panelCount; i++) {
       const inWindow = Math.abs(i - activeIndex) <= overscan;
-      if (obj.visible !== inWindow) {
-        obj.visible = inWindow;
-        // CSS3DRenderer는 visible=false 객체를 일관되게 숨기지 않으므로 display 토글 병행.
-        panel.style.display = inWindow ? '' : 'none';
+      if (panelInWindow[i] !== inWindow) {
+        panelInWindow[i] = inWindow;
+        renderer.setPanelVisible(i, inWindow);
       }
     }
   }
 
   function requestRender(): void {
     if (destroyed) return;
-    renderer.render(scene, camera);
+    renderer.render(camera);
   }
 
   // --- 초기 적용 + 1회 렌더 ---
@@ -201,19 +182,9 @@ export function createScrollContainer(
       if (newW === width && newH === height) return;
       width = newW;
       height = newH;
-      camera.left = -width / 2;
-      camera.right = width / 2;
-      camera.top = height / 2;
-      camera.bottom = -height / 2;
-      camera.updateProjectionMatrix();
       renderer.setSize(width, height);
       computePositions();
-      for (let i = 0; i < cssObjects.length; i++) {
-        const p = positions[i];
-        const obj = cssObjects[i];
-        if (!p || !obj) continue;
-        obj.position.set(p.x, p.y, 0);
-      }
+      applyPanelPositions();
       // 트윈이 진행 중이었어도 새 좌표 기준으로 즉시 보정 (resize는 드물고 명확해야 함)
       control?.cancelAnimation();
       applyActiveIndexToCameraDirectly();
@@ -259,7 +230,7 @@ export function createScrollContainer(
   function destroy(): void {
     if (destroyed) return;
     destroyed = true;
-    // 순서: 입력/RAF 정리 → 리사이즈 옵저버 → scene 정리 → DOM 정리
+    // 순서: 입력/RAF 정리 → 리사이즈 옵저버 → 렌더러(패널 detach + 인라인 스타일 복원 + DOM 제거)
     if (control) {
       control.destroy();
       control = null;
@@ -268,22 +239,8 @@ export function createScrollContainer(
       resizeObserver.disconnect();
       resizeObserver = null;
     }
-    for (const obj of cssObjects) {
-      scene.remove(obj);
-    }
-    cssObjects.length = 0;
-    for (const panel of options.panels) {
-      panel.style.display = '';
-    }
-    // m-3: parentNode === root 동등성 비교를 존재성으로 완화 — 외부에서 renderer.domElement를
-    // 다른 컨테이너로 옮긴 경우에도 detach가 보장됨.
-    const parent = renderer.domElement.parentNode;
-    if (parent) {
-      parent.removeChild(renderer.domElement);
-    }
-    // m-4: scene이 보유한 CSS3DObject 참조를 일괄 해제. camera/renderer 자체는 클로저 GC가 처리 —
-    // destroy 이후 외부에서 더 이상 접근하지 않으므로 명시적 null 할당 없이도 회수됨.
-    scene.clear();
+    // 렌더러가 domElement를 어디에 있든(외부에서 옮겼어도) 스스로 제거한다 (m-3).
+    renderer.destroy();
   }
 
   return {

@@ -1,4 +1,4 @@
-import type * as THREE from 'three';
+import type { PanCamera } from './camera';
 import {
   applyResistance,
   clamp,
@@ -34,7 +34,7 @@ const VELOCITY_SAMPLE_WINDOW_MS = 100;
 
 export interface CameraControlOptions {
   root: HTMLElement;
-  camera: THREE.OrthographicCamera;
+  camera: PanCamera;
   /** 'both' → 'horizontal' 폴백이 이미 적용된 축. */
   direction: 'horizontal' | 'vertical';
   positions: ReadonlyArray<{ x: number; y: number }>;
@@ -380,7 +380,6 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     camera.position.x = newCameraX;
     camera.position.y = newCameraY;
     camera.zoom = newZoom;
-    camera.updateProjectionMatrix();
     onChange();
   }
 
@@ -488,7 +487,6 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     camera.position.y = tween.fromY + (tween.toY - tween.fromY) * k;
     if (tween.fromZoom !== tween.toZoom) {
       camera.zoom = tween.fromZoom + (tween.toZoom - tween.fromZoom) * k;
-      camera.updateProjectionMatrix();
     }
     onChange();
     if (t < 1) {
@@ -536,7 +534,6 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       camera.position.x = x;
       camera.position.y = y;
       camera.zoom = z;
-      camera.updateProjectionMatrix();
       onChange();
       return;
     }

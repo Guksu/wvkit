@@ -1,6 +1,4 @@
-import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MockInstance } from 'vitest';
 import { createScrollContainer } from '../scroll-container';
 
 /**
@@ -9,14 +7,12 @@ import { createScrollContainer } from '../scroll-container';
  * 단위 테스트(#5)와의 차이:
  *  - createScrollContainer 팩토리를 통한 실제 와이어링 (CameraControl ↔ ScrollContainer ↔ 사용자 콜백)
  *  - PointerEvent dispatchEvent로 제스처 → 콜백 경로 종합 검증
- *  - `THREE.OrthographicCamera.prototype.updateProjectionMatrix` 스파이로 zoom 경로 호출 검증
+ *  - zoom 경로는 scene 노드(root > domElement > scene)의 `transform`에 `scale(z)`가 기록되는지로 검증
  *
- * 렌더 호출 검증 제약:
- *  - three.js v0.184의 `CSS3DRenderer`는 `this.render = function(...) {}` 형태로 *인스턴스*에 함수를
- *    할당한다 (prototype 메서드가 아님). 따라서 `vi.spyOn(CSS3DRenderer.prototype, 'render')`는
- *    "render does not exist" 에러로 실패한다. 외부에서 인스턴스에 접근할 수 없으므로 직접 스파이가 불가.
- *  - 대안: 렌더 결과의 *관측 가능한 부수효과*(`panel.style.display` 변경, 카메라 행렬 호출, DOM 부착/제거)
- *    로 우회 검증한다. "정적 상태에서 render 호출 안 함"은 "정적 상태에서 부수효과 없음"으로 치환.
+ * 렌더 호출 검증:
+ *  - 렌더러 인스턴스는 외부에 노출되지 않으므로 렌더 결과의 *관측 가능한 부수효과*
+ *    (`panel.style.display` 변경, scene transform, DOM 부착/제거)로 검증한다.
+ *    "정적 상태에서 render 호출 안 함"은 "정적 상태에서 부수효과 없음"으로 치환.
  *
  * happy-dom v15가 PointerEvent를 지원함은 #5 단위 테스트에서 확인됨.
  */
@@ -50,13 +46,16 @@ function pointerEvent(
   }
 }
 
+/** root > domElement > scene — 카메라 transform이 기록되는 노드. */
+function sceneEl(root: HTMLElement): HTMLElement {
+  return (root.firstChild as HTMLElement).firstChild as HTMLElement;
+}
+
 describe('ScrollContainer — integration', () => {
   let root: HTMLElement;
-  let updateProjSpy: MockInstance;
 
   beforeEach(() => {
     root = makeRoot();
-    updateProjSpy = vi.spyOn(THREE.OrthographicCamera.prototype, 'updateProjectionMatrix');
   });
 
   afterEach(() => {
@@ -146,9 +145,9 @@ describe('ScrollContainer — integration', () => {
     });
   });
 
-  // --- 시나리오 3: zoomTo → onZoomChange + updateProjectionMatrix 스파이 ---
-  describe('scenario 3 — zoomTo updates zoom and calls updateProjectionMatrix', () => {
-    it('zoomTo(2, animated:false) fires onZoomChange + calls camera.updateProjectionMatrix', () => {
+  // --- 시나리오 3: zoomTo → onZoomChange + scene transform에 scale 반영 ---
+  describe('scenario 3 — zoomTo updates zoom and renders scale into the scene transform', () => {
+    it('zoomTo(2, animated:false) fires onZoomChange + scene transform carries scale(2)', () => {
       const onZoomChange = vi.fn();
       const sc = createScrollContainer(root, {
         direction: 'horizontal',
@@ -157,15 +156,15 @@ describe('ScrollContainer — integration', () => {
         maxZoom: 3,
         onZoomChange,
       });
-      const initialUpdateProjCount = updateProjSpy.mock.calls.length;
+      expect(sceneEl(root).style.transform).toContain('scale(1)');
 
       sc.zoomTo(2, { animated: false });
 
       expect(sc.getZoom()).toBe(2);
       expect(onZoomChange).toHaveBeenCalledTimes(1);
       expect(onZoomChange).toHaveBeenCalledWith(2);
-      // OrthographicCamera는 zoom 변경 시 updateProjectionMatrix 명시 호출이 필요
-      expect(updateProjSpy.mock.calls.length).toBeGreaterThan(initialUpdateProjCount);
+      // 카메라 zoom은 scene transform의 scale()로 즉시 렌더된다
+      expect(sceneEl(root).style.transform).toContain('scale(2)');
       sc.destroy();
     });
   });
@@ -242,10 +241,18 @@ describe('ScrollContainer — integration', () => {
         onZoomChange,
       });
       expect(() => {
-        root.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 150, clientY: 300 }));
-        root.dispatchEvent(pointerEvent('pointerdown', { pointerId: 2, clientX: 250, clientY: 300 }));
-        root.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 100, clientY: 300 }));
-        root.dispatchEvent(pointerEvent('pointermove', { pointerId: 2, clientX: 300, clientY: 300 }));
+        root.dispatchEvent(
+          pointerEvent('pointerdown', { pointerId: 1, clientX: 150, clientY: 300 }),
+        );
+        root.dispatchEvent(
+          pointerEvent('pointerdown', { pointerId: 2, clientX: 250, clientY: 300 }),
+        );
+        root.dispatchEvent(
+          pointerEvent('pointermove', { pointerId: 1, clientX: 100, clientY: 300 }),
+        );
+        root.dispatchEvent(
+          pointerEvent('pointermove', { pointerId: 2, clientX: 300, clientY: 300 }),
+        );
         root.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 100, clientY: 300 }));
         root.dispatchEvent(pointerEvent('pointerup', { pointerId: 2, clientX: 300, clientY: 300 }));
       }).not.toThrow();
@@ -309,16 +316,18 @@ describe('ScrollContainer — integration', () => {
       expect(onZoomChange).not.toHaveBeenCalled();
     });
 
-    it('after destroy, camera.updateProjectionMatrix is not called by gestures', () => {
+    it('after destroy, gestures do not touch the scene transform', () => {
       const sc = createScrollContainer(root, {
         direction: 'horizontal',
         panels: makePanels(3),
       });
+      const scene = sceneEl(root); // destroy가 detach하므로 참조 유지
       sc.destroy();
-      const callsAfterDestroy = updateProjSpy.mock.calls.length;
+      const transformAfterDestroy = scene.style.transform;
       root.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 100, clientY: 100 }));
-      root.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 100, clientY: 100 }));
-      expect(updateProjSpy.mock.calls.length).toBe(callsAfterDestroy);
+      root.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 20, clientY: 100 }));
+      root.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 20, clientY: 100 }));
+      expect(scene.style.transform).toBe(transformAfterDestroy);
     });
   });
 

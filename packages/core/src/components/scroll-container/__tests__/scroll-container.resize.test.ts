@@ -51,14 +51,14 @@ function setRootSize(root: HTMLElement, width: number, height: number): void {
   Object.defineProperty(root, 'clientHeight', { value: height, configurable: true });
 }
 
-/** root.firstChild = CSS3DRenderer.domElement (setSize가 width/height px 문자열 기록). */
+/** root.firstChild = 렌더러 domElement (setSize가 width/height px 문자열 기록). */
 function rendererEl(root: HTMLElement): HTMLElement {
   return root.firstChild as HTMLElement;
 }
 
-/** domElement > viewElement > cameraElement — 카메라 행렬이 transform으로 기록되는 노드. */
+/** domElement > scene — 카메라 transform(translate + scale)이 기록되는 노드. */
 function cameraEl(root: HTMLElement): HTMLElement {
-  return rendererEl(root).firstChild!.firstChild as HTMLElement;
+  return rendererEl(root).firstChild as HTMLElement;
 }
 
 interface DomSnapshot {

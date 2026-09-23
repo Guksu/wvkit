@@ -14,7 +14,7 @@ test.describe('ScrollContainer · S1 smoke', () => {
     const canvas = page.getByTestId('sc-canvas');
     await expect(canvas).toBeVisible();
 
-    // CSS3DRenderer가 자식 div를 한 개 이상 생성하는지 확인
+    // 렌더러가 자식 div(렌더 표면)를 한 개 이상 생성하는지 확인
     await expect.poll(async () => (await canvas.locator(':scope > *').count())).toBeGreaterThan(0);
 
     await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
