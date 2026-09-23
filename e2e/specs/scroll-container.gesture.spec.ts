@@ -9,6 +9,9 @@ import {
   getSceneYShift,
   swipeOnCanvas,
   pinchOnCanvas,
+  liftPinch,
+  doubleTapOnCanvas,
+  getCameraPosition,
   clickZoomTo,
   waitForScrollSettle,
   waitForSceneStable,
@@ -269,5 +272,140 @@ test.describe('ScrollContainer · S13 관성 (릴리스 속도 반영)', () => {
     const moved = (x0 ?? 0) - (x1 ?? 0);
     // 릴리스 지점(화면 40px → zoom 2 에서 월드 20) 그대로
     expect(moved).toBeCloseTo(20, 0);
+  });
+});
+
+// 교차 축 pan: zoom > 1 이면 페이저 축의 반대 축도 패널의 교차 축 반폭 (h/2)(1 − 1/z) 안에서 움직인다.
+// (합성 PointerEvent 라 패널의 touch-action: pan-y 는 개입하지 않는다 — 실기기에서는 브라우저가 세로 터치를 가져간다.)
+test.describe('ScrollContainer · S14 줌 상태 교차 축 pan', () => {
+  test('zoom=2에서 세로 드래그 → camera.y 가 dy/2 만큼 움직이고 정지 릴리스 후 유지', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const c0 = await getCameraPosition(page);
+    expect(c0?.y ?? 1).toBeCloseTo(0, 0);
+
+    await swipeOnCanvas(page, 0, -60, { holdMs: 300 });
+    await waitForSceneStable(page);
+
+    const c1 = await getCameraPosition(page);
+    // 화면 −60px → 월드 −30 (부호: 스크린 Y↓, 월드 Y↑)
+    expect(c1?.y ?? 0).toBeCloseTo(-30, 0);
+    expect(c1?.x ?? 1).toBeCloseTo(0, 0);
+    expect(await getActiveZoom(page)).toBe(2);
+  });
+
+  test('zoom=2에서 세로로 크게 끌면 교차 축 반폭(h/4)에서 멈춘다', async ({ page }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const height = await page.evaluate(
+      () =>
+        (document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null)?.clientHeight ??
+        0,
+    );
+
+    await swipeOnCanvas(page, 0, Math.round(height * 0.9));
+    await waitForSceneStable(page);
+
+    const c1 = await getCameraPosition(page);
+    expect(c1?.y ?? 0).toBeCloseTo(height / 4, 0);
+  });
+
+  test('zoom=1에서는 세로 드래그가 카메라를 움직이지 않는다 (교차 축 고정)', async ({ page }) => {
+    await gotoDemo(page);
+    await swipeOnCanvas(page, 0, -80, { holdMs: 200 });
+    await waitForSceneStable(page);
+    const c1 = await getCameraPosition(page);
+    expect(c1?.y ?? 1).toBeCloseTo(0, 0);
+    expect(c1?.x ?? 1).toBeCloseTo(0, 0);
+  });
+});
+
+// 더블탭 줌 (데모 기본 doubleTapZoom=2): 탭한 지점을 고정한 채 확대, 다시 더블탭하면 1로 (패널 중심).
+test.describe('ScrollContainer · S15 더블탭 줌', () => {
+  test('더블탭 → activeZoom 2, 탭한 지점(오른쪽 1/4)이 화면에서 고정된다', async ({ page }) => {
+    await gotoDemo(page);
+    const width = await getCanvasWidth(page);
+
+    await doubleTapOnCanvas(page, { ratioX: 0.75, ratioY: 0.5 });
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    await waitForSceneStable(page);
+
+    const c = await getCameraPosition(page);
+    expect(c?.zoom ?? 0).toBeCloseTo(2, 2);
+    // 탭 지점 아래 월드 x = 0.25w. 줌 2 에서 같은 화면 위치에 두려면 cameraX = 0.25w − 0.25w/2 = 0.125w
+    expect(c?.x ?? 0).toBeCloseTo(width * 0.125, 0);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('줌 상태에서 더블탭 → activeZoom 1, 카메라는 패널 중심', async ({ page }) => {
+    await gotoDemo(page);
+    await doubleTapOnCanvas(page, { ratioX: 0.75 });
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    await waitForSceneStable(page);
+
+    await doubleTapOnCanvas(page, { ratioX: 0.3, ratioY: 0.4 });
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('1.000');
+    await waitForSceneStable(page);
+
+    const c = await getCameraPosition(page);
+    expect(c?.zoom ?? 0).toBeCloseTo(1, 2);
+    expect(c?.x ?? 1).toBeCloseTo(0, 0);
+    expect(c?.y ?? 1).toBeCloseTo(0, 0);
+  });
+
+  test('doubleTapZoom=false 로 바꾸면 더블탭해도 zoom 1 유지', async ({ page }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-double-tap-zoom').selectOption('off');
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('1.000');
+
+    await doubleTapOnCanvas(page);
+    await waitForSceneStable(page);
+    expect(await getActiveZoom(page)).toBe(1);
+  });
+
+  test('두 탭 사이가 길면(600ms) 더블탭이 아니다', async ({ page }) => {
+    await gotoDemo(page);
+    await doubleTapOnCanvas(page, { gapMs: 600 });
+    await waitForSceneStable(page);
+    expect(await getActiveZoom(page)).toBe(1);
+  });
+});
+
+// 줌 고무줄: minZoom(1) 아래로 핀치하면 제스처 중에는 1 보다 작은 scale 을 보여주고, 놓으면 1 로 돌아온다.
+test.describe('ScrollContainer · S16 줌 고무줄 (minZoom 아래 핀치)', () => {
+  test('핀치인 중 scale < 1, 손을 떼면 scale 1·activeZoom 1.000 으로 복귀', async ({ page }) => {
+    await gotoDemo(page);
+    expect(await getActiveZoom(page)).toBe(1);
+
+    await pinchOnCanvas(page, 240, 120, { release: false });
+    const mid = await getCameraPosition(page);
+    // raw 0.5 → 1 × 0.5^0.2 ≈ 0.87 (resistance 0.2)
+    expect(mid?.zoom ?? 1).toBeLessThan(1);
+    expect(mid?.zoom ?? 0).toBeGreaterThan(0.8);
+
+    await liftPinch(page, 120);
+    await waitForSceneStable(page);
+
+    const c = await getCameraPosition(page);
+    expect(c?.zoom ?? 0).toBeCloseTo(1, 2);
+    expect(c?.x ?? 1).toBeCloseTo(0, 0);
+    expect(await getActiveZoom(page)).toBe(1);
+  });
+
+  test('maxZoom(3) 위로 핀치하면 놓은 뒤 activeZoom 3.000 으로 정착', async ({ page }) => {
+    await gotoDemo(page);
+    await pinchOnCanvas(page, 60, 300, { release: false }); // factor 5 → raw 5 > 3
+    const mid = await getCameraPosition(page);
+    expect(mid?.zoom ?? 0).toBeGreaterThan(3);
+
+    await liftPinch(page, 300);
+    await waitForSceneStable(page);
+    const c = await getCameraPosition(page);
+    expect(c?.zoom ?? 0).toBeCloseTo(3, 2);
+    expect(await getActiveZoom(page)).toBe(3);
   });
 });

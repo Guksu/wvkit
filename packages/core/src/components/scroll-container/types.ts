@@ -33,7 +33,7 @@ export interface ScrollContainerOptions {
   overscan?: number;
   /** 스냅 트리거에 필요한 스와이프 비율 (0 < x ≤ 1). 기본값 `0.3`. */
   snapThreshold?: number;
-  /** 엣지 고무줄 저항값 (0 ≤ x ≤ 1). 기본값 `0.2`. */
+  /** 엣지 고무줄 저항값 (0 ≤ x ≤ 1). 기본값 `0.2`. 핀치가 `minZoom`/`maxZoom`을 넘을 때의 줌 고무줄에도 쓰인다. */
   resistance?: number;
   /** 핀치 줌 활성화 여부. 기본값 `true`. */
   enablePinchZoom?: boolean;
@@ -41,7 +41,15 @@ export interface ScrollContainerOptions {
   minZoom?: number;
   /** 최대 줌 레벨. 기본값 `3.0`. (`minZoom` 이상) */
   maxZoom?: number;
-  /** 줌 레벨이 변경될 때 호출. */
+  /**
+   * 더블탭 줌 토글 목표 레벨. 숫자를 주면 활성화: `minZoom`에서 더블탭하면 탭한 지점을 고정한 채 이 레벨까지
+   * 확대하고, 줌 상태에서 더블탭하면 `minZoom`으로 돌아온다(패널 중심). 기본값 `false`(비활성).
+   * (`minZoom` 초과 `maxZoom` 이하. `enablePinchZoom`과 독립.)
+   *
+   * 패널 안 버튼을 두 번 빠르게 탭해도 줌이 토글되므로, 더블탭에 다른 뜻(좋아요 등)을 둔 패널이면 켜지 마세요.
+   */
+  doubleTapZoom?: number | false;
+  /** 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·`zoomTo`). */
   onZoomChange?: (zoom: number) => void;
 }
 

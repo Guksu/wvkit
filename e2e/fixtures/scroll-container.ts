@@ -83,6 +83,24 @@ export async function getSceneYShift(page: Page): Promise<number | null> {
 }
 
 /**
+ * scene transform 을 카메라 값으로 되돌린다 — X = w/2 − camX·z, Y = h/2 + camY·z 이므로
+ *   camX = (w/2 − X)/z, camY = (Y − h/2)/z.
+ * 줌이 바뀌는 시나리오(더블탭·고무줄)에서는 shift 차분 대신 카메라 값 자체를 비교한다.
+ */
+export async function getCameraPosition(
+  page: Page,
+): Promise<{ x: number; y: number; zoom: number } | null> {
+  const m = parseSceneTransform(await getSceneTransform(page));
+  if (!m) return null;
+  const { width, height } = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+    return { width: canvas?.clientWidth ?? 0, height: canvas?.clientHeight ?? 0 };
+  });
+  const z = m.scale || 1;
+  return { x: (width / 2 - m.x) / z, y: (m.y - height / 2) / z, zoom: z };
+}
+
+/**
  * 현재 캔버스 DOM에 살아 있는 패널 인덱스 목록 (렌더러는 한 번도 보이지 않은 패널을 DOM에 붙이지 않고,
  * 창 밖으로 나간 패널은 display:none 으로 숨긴다).
  * 데모의 buildPanels가 패널 루트에 `data-panel-index`를 부여하므로 그것으로 식별한다 (콘텐츠 구조 무관).
@@ -180,11 +198,11 @@ export async function pinchOnCanvas(
   page: Page,
   startGap: number,
   endGap: number,
-  opts: { steps?: number; duration?: number } = {},
+  opts: { steps?: number; duration?: number; release?: boolean } = {},
 ): Promise<void> {
-  const { steps = 14, duration = 280 } = opts;
+  const { steps = 14, duration = 280, release = true } = opts;
   await page.evaluate(
-    async ({ startGap, endGap, steps, duration }) => {
+    async ({ startGap, endGap, steps, duration, release }) => {
       const el = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
       if (!el) throw new Error('sc-canvas not found');
       const rect = el.getBoundingClientRect();
@@ -231,10 +249,87 @@ export async function pinchOnCanvas(
         await new Promise((r) => setTimeout(r, dt));
       }
 
+      // release=false: 손가락을 뗀 뒤의 복귀(고무줄)를 보기 전에 제스처 중 상태를 읽을 수 있게 둔다 → liftPinch
+      if (!release) return;
       make(1, 'pointerup', cx - half(endGap), cy, 0, 0, true);
       make(2, 'pointerup', cx + half(endGap), cy, 0, 0, false);
     },
-    { startGap, endGap, steps, duration },
+    { startGap, endGap, steps, duration, release },
+  );
+}
+
+/** `pinchOnCanvas(..., { release: false })` 뒤 두 손가락을 뗀다 (같은 gap 위치). */
+export async function liftPinch(page: Page, gap: number): Promise<void> {
+  await page.evaluate((gap) => {
+    const el = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+    if (!el) throw new Error('sc-canvas not found');
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    for (const [pid, x, primary] of [
+      [1, cx - gap / 2, true],
+      [2, cx + gap / 2, false],
+    ] as const) {
+      el.dispatchEvent(
+        new PointerEvent('pointerup', {
+          pointerId: pid,
+          pointerType: 'touch',
+          isPrimary: primary,
+          clientX: x,
+          clientY: cy,
+          screenX: x,
+          screenY: cy,
+          bubbles: true,
+          cancelable: true,
+          buttons: 0,
+          button: 0,
+        }),
+      );
+    }
+  }, gap);
+}
+
+/**
+ * 캔버스 위 더블탭 — 같은 지점에 down/up 두 번 (탭 사이 gapMs, 기본 120ms).
+ * 좌표는 캔버스 비율 (기본 정중앙).
+ */
+export async function doubleTapOnCanvas(
+  page: Page,
+  opts: { ratioX?: number; ratioY?: number; gapMs?: number } = {},
+): Promise<void> {
+  const { ratioX = 0.5, ratioY = 0.5, gapMs = 120 } = opts;
+  await page.evaluate(
+    async ({ ratioX, ratioY, gapMs }) => {
+      const el = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+      if (!el) throw new Error('sc-canvas not found');
+      const rect = el.getBoundingClientRect();
+      const x = rect.left + rect.width * ratioX;
+      const y = rect.top + rect.height * ratioY;
+      const dispatch = (type: string, buttons: number) => {
+        el.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: x,
+            clientY: y,
+            screenX: x,
+            screenY: y,
+            bubbles: true,
+            cancelable: true,
+            buttons,
+            button: 0,
+          }),
+        );
+      };
+      for (let i = 0; i < 2; i++) {
+        dispatch('pointerdown', 1);
+        await new Promise((r) => setTimeout(r, 40));
+        dispatch('pointerup', 0);
+        if (i === 0) await new Promise((r) => setTimeout(r, gapMs));
+      }
+    },
+    { ratioX, ratioY, gapMs },
   );
 }
 

@@ -146,17 +146,21 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 
 ## 핀치 줌과 줌 상태 pan
 
-- 줌은 손가락 아래 지점을 고정한 채(앵커 보정) 확대되고, 손을 뗀 자리에 카메라가 그대로 머뭅니다 — 패널 중심으로 되돌아가지 않습니다.
+- 줌은 손가락 아래 지점을 고정한 채(앵커 보정, 호스트 좌상단 기준) 확대되고, 손을 뗀 자리에 카메라가 그대로 머뭅니다 — 패널 중심으로 되돌아가지 않습니다.
 - 줌 상태의 한 손가락 pan은 페이저 축을 따라 패널 가장자리까지 갑니다. pan 경계가 양쪽으로 `(panelSize / 2) × (1 − 1 / zoom)`만큼 넓어집니다.
+- **교차 축.** 줌 상태에서는 같은 pan이 반대 축(`horizontal`이면 Y)으로도 움직입니다. 범위는 패널의 교차 축 반폭 `(crossSize / 2) × (1 − 1 / zoom)`입니다. 세로로 긴 상품 사진을 위아래로 살펴볼 수 있습니다. 그 범위 밖은 고무줄처럼 늘어났다 놓으면 돌아오고, 교차 축 플릭도 페이저 축과 같은 방식으로 감속합니다. 줌 1에서는 교차 축이 고정되어 대각 드래그가 여전히 페이저만 움직입니다. `touch-action: pan-y`를 준 패널은 세로 터치를 자체 네이티브 스크롤에 넘기므로, 교차 축 pan은 그 축으로 스크롤하지 않는 패널(이미지 뷰어·카드)에서만 동작합니다.
 - 줌 상태에서 페이지 넘기기: 패널 가장자리를 지나 다음 패널 앞의 간격(gap)으로 끌면 됩니다. 그 간격의 `snapThreshold` 비율을 넘게 끌면 다음 패널의 가까운 가장자리로 스냅되고 `onIndexChange`가 발화합니다. 못 넘기면 출발한 가장자리로 돌아갑니다. 관성만으로는 페이지가 넘어가지 않습니다: 패널 안에서 놓은 플릭은 감속(iOS와 같은 0.998/ms)하다가 많아야 패널 가장자리에서 멈춥니다. 네이티브 사진 뷰어와 같습니다. 줌 상태에서 페이지를 넘기려면 손가락이 실제로 가장자리를 지나야 합니다.
+- 브라우저가 터치를 가져가면(`pointercancel`, 예: `pan-y` 패널의 세로 터치가 네이티브 스크롤로 바뀔 때) pan은 취소됩니다. 그때까지의 이동을 유지하지 않고 제스처 시작 위치로 부드럽게 되돌아가므로 콘텐츠가 두 번 움직이지 않습니다.
+- **줌 고무줄.** 핀치가 `minZoom`이나 `maxZoom`을 넘어도 손가락을 계속 따라가되 줌을 배율 공간에서 감쇠하고(`min × (raw / min)^resistance`), 마지막 손가락을 떼면 경계로 돌아옵니다. iOS의 `bouncesZoom`과 같습니다. `onZoomChange`는 항상 `[minZoom, maxZoom]` 안의 값만 냅니다. 딱 멈추게 하려면 `resistance: 0`을 주세요.
+- **더블탭 줌**은 선택 사항입니다. `doubleTapZoom: 2`를 주면 더블탭(300ms·40px 안의 두 탭, 각 탭은 300ms 미만·10px 미만 이동)으로 `minZoom`과 2배를 오갑니다. 확대할 때는 탭한 지점이 고정되고, 축소할 때는 패널 중심으로 갑니다. 패널 안 버튼을 더블탭해도 클릭은 두 번 그대로 일어나니, 더블탭에 다른 뜻을 둔 패널이면 켜지 마세요.
 
 ## 스냅과 관성
 
 - 손을 떼면 항상 패널(zoom ≤ 1) 또는 투영된 정지점·가장자리·gap 목표(zoom > 1)로 스냅합니다. 정착 시간은 손가락 속도에 이어집니다: ease-out 곡선이 놓는 순간 속도로 시작하도록 `duration = 3 × 거리 / 속도`로 정하고, 120ms와 거리 비례 상한 400ms(줌 상태 자유 pan은 800ms) 사이로 자릅니다. 멈춘 채 놓으면 상한을 쓰고, 목표 반대 방향 속도(고무줄 복귀)는 무시합니다.
 - 한 제스처에 한 패널. 네이티브 페이저처럼 플릭이 패널을 건너뛰지 않습니다. `snapThreshold`와 속도 가중치가 "머물기"와 "한 칸 이동" 사이를 결정합니다.
 - `scrollTo()` / `zoomTo()`의 `animated: true`는 고정 300ms ease-out입니다.
-- `zoomTo()`는 새 줌 기준으로 활성 패널 범위 안에 카메라를 넣습니다. 줌을 1로 되돌리면 패널 중심에 놓입니다.
-- 교차 축(`horizontal`이면 Y)은 어떤 줌에서도 고정입니다 — 그 축은 패널 자체의 네이티브 스크롤에 맡기세요.
+- `zoomTo()`는 새 줌 기준으로 활성 패널 범위 안(양 축)에 카메라를 넣습니다. 줌을 1로 되돌리면 패널 중심에 놓입니다.
+- 줌 트윈 도중 탭으로 끊어도 줌이 중간값에 머물지 않습니다. 릴리스가 마지막으로 정한 줌(`zoomTo`·핀치·더블탭)으로 이어갑니다.
 
 ## API 레퍼런스
 
@@ -175,9 +179,12 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 | `enablePinchZoom` | `boolean`                                  | `true`         | 두 손가락 제스처로 핀치 줌을 수행할지 여부.                                                         |
 | `minZoom`         | `number > 0`                               | `1.0`          | 최소 줌 레벨.                                                                                       |
 | `maxZoom`         | `number ≥ minZoom`                         | `3.0`          | 최대 줌 레벨.                                                                                       |
-| `onZoomChange`    | `(zoom: number) => void`                   | —              | 줌 레벨이 변경될 때 호출.                                                                           |
+| `doubleTapZoom`   | `number \| false`                          | `false`        | 더블탭 줌 목표. `(minZoom, maxZoom]` 안의 숫자를 주면 더블탭으로 `minZoom`과 그 레벨을 오갑니다. `enablePinchZoom`과 독립. |
+| `onZoomChange`    | `(zoom: number) => void`                   | —              | 줌 레벨이 변경될 때 호출 (핀치 릴리스·더블탭·`zoomTo`).                                            |
 
-잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `snapThreshold ∉ (0,1]`, `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
+`resistance`는 핀치가 `minZoom` / `maxZoom`을 넘을 때의 줌 고무줄에도 쓰입니다.
+
+잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
 
 ### 인스턴스 메서드
 
@@ -230,11 +237,11 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 - **`panels`는 `HTMLElement[]`** 이며 React/Vue 자식 컴포넌트가 아닙니다. DOM 노드를 명령형(예: `document.createElement`)으로 만들어 배열로 전달하세요. 상위 레벨 render-prop / `<PanelGroup>` API는 로드맵에 있습니다.
 - **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.
 - **옵션은 마운트 시점에 고정됩니다.** 런타임에 옵션(예: `direction`)을 바꾸려면 프레임워크 어댑터에서 컴포넌트를 재마운트해야 합니다 — wrapper에 `key` prop을 사용하세요.
-- **핀치 줌은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 핀치가 조용히 무시됩니다.
+- **핀치 줌과 더블탭은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 둘 다 조용히 무시됩니다.
 - **`setPointerCapture`가 모든 WebView 빌드에서 사용 가능하진 않습니다.** 구현은 `try/catch`로 가드되어 있고, 캡처를 지원하지 않는 환경에서는 드래그 중 포인터가 root를 벗어나면 제스처가 일찍 종료될 수 있습니다.
 - **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.
 - **`<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해** 제스처를 취소합니다(데스크톱). 패널 안 이미지에 `draggable="false"`를 주세요.
-- **줌 상태 교차 축 pan은 지원하지 않습니다** — `direction`이 제외한 축은 줌인해도 고정입니다.
+- **줌 상태 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다.** `touch-action: pan-y`를 준 패널은 세로 터치를 자체 네이티브 스크롤에 넘기므로, `horizontal` 페이저에서는 스크롤 없는 패널(이미지 뷰어·카드)만 줌 상태에서 세로로 움직입니다.
 - **휠·트랙패드·키보드 입력이 없습니다.** 포인터 드래그만 패널을 넘깁니다. 방향키, 휠, ARIA 역할은 연결돼 있지 않으니 `scrollTo()`를 부르는 컨트롤을 직접 두세요.
 - **플릭은 최대 한 패널만 넘깁니다.** 정착 시간은 놓는 속도에 따라 120~400ms로 달라지지만, 페이저 축에서 여러 패널을 지나가는 관성은 의도적으로 없습니다(네이티브 페이저와 같음).
 - **패널 안 텍스트를 선택할 수 없습니다.** `CSS3DObject`가 모든 패널 요소에 `user-select: none`(과 `draggable="false"`)을 설정합니다. 패널 안 인풋은 동작합니다.
