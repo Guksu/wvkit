@@ -112,3 +112,6 @@ interface VirtualKeyboardState {
 - `baseHeight` is set on mount, but self-heals: whenever the viewport grows past the baseline (e.g. the keyboard closes), the baseline is updated — so creating an instance while the keyboard is already open only misses that first keyboard session.
 - Android WebView in `adjustPan` mode (`android:windowSoftInputMode`) does not resize the viewport when the keyboard opens — neither `visualViewport` nor `window.resize` fires, so detection is impossible. The host app must use `adjustResize`.
 - In SSR environments all values are `{ isOpen: false, keyboardHeight: 0 }`.
+- **Viewport-based only.** Anything that shrinks `visualViewport` by more than `threshold` (a host-app bottom sheet, an in-app browser bar) is reported as a keyboard. The `VirtualKeyboard` API (`navigator.virtualKeyboard`) is not used.
+- **`interactive-widget=overlays-content` (Chrome 108+) disables detection.** The keyboard then overlays the page and no viewport resizes. Keep the default `resizes-visual` or use `resizes-content`.
+- **Nothing is reported until the first viewport event.** `isOpen` / `keyboardHeight` stay `false` / `0` after creation; the initial state is not probed.

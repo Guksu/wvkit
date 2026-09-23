@@ -340,6 +340,52 @@ lock.unlock();
 | Desktop Chrome / Firefox | ✅ | ✅ | ✅ | — | — |
 
 > ⚠️ 부분 지원 또는 수동 테스트 필요. SafeArea는 호스트 네이티브 앱이 `viewport-fit=cover`를 설정해야 동작합니다.
+>
+> 이 표는 단위 테스트(happy-dom)와 Playwright 에뮬레이션(Chromium·WebKit 기기 프로필) 기준입니다. WKWebView / Android WebView 실기기 결과는 아직 기록되지 않았습니다. 출시 전에 [`debug/rn-webview-harness`](debug/rn-webview-harness/README.md)로 대상 기기에서 확인하세요.
+
+---
+
+## 단점과 주의점
+
+모든 컴포넌트는 헤드리스이고 작지만, 실무에서 부딪히기 쉬운 날카로운 모서리가 각각 있습니다. 아래는 요약이고, 컴포넌트 문서마다 **알려진 제한사항** 절이 따로 있습니다.
+
+### ScrollContainer
+
+- `three`가 필요합니다. 트리셰이킹 후 약 60 KB gzip이 페이저 하나 때문에 들어옵니다. 가로 페이징만 필요하면 CSS `scroll-snap`이나 일반 캐러셀이 훨씬 가볍습니다.
+- `panels`는 미리 만든 `HTMLElement[]`이고, 다른 non-callback 옵션처럼 마운트 시점에 고정됩니다. 패널 구성을 바꾸려면 재마운트해야 하고 그때 스크롤 위치가 사라집니다.
+- 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
+- 줌 상태 pan은 페이저 축으로만 움직입니다(교차 축 고정). 휠·키보드·트랙패드 입력, 패널을 건너뛰는 관성, ARIA 역할이 없습니다.
+- 패널 안의 `position: fixed`는 패널과 함께 스크롤됩니다. 패널 안 텍스트는 선택할 수 없습니다. 데스크톱에서는 `<img>`에 `draggable="false"`가 필요합니다.
+- 보이는 패널마다 3D transform 컴포지터 레이어가 생기고 패널 DOM은 절대 언마운트되지 않습니다. `overscan`을 작게 두고 긴 리스트는 패널 안에서 직접 가상화하세요. 숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만 WebKit은 미검증입니다.
+
+### StableInput
+
+- 보이는 인풋은 읽기 전용입니다. 커서도, 텍스트 선택도, 복사·붙여넣기 메뉴도 없습니다. 검색창·채팅 입력줄에는 맞지만 긴 글 편집에는 맞지 않습니다.
+- 폼 필드가 아닙니다. 숨김 인풋은 `name` 없이 `<body>`에 있어 `<form>` submit과 `FormData`가 무시합니다. `type`, `placeholder`, `inputMode`, `autocomplete`만 전달됩니다.
+- 데스크톱 Tab 순서에서 건너뛰어지고, 패스워드 매니저가 인식하지 못할 수 있으며, IME 표시가 한 조합 단계 늦을 수 있습니다.
+- `scrollAnchor`는 window만 스크롤하고, `visualViewport`가 있는 곳에서만 동작합니다.
+
+### PullToRefresh
+
+- 축 고정도 시작 여유도 없습니다. `scrollTop === 0`이면 모든 터치가 `pulling`이 되고 아래 방향 `touchmove`가 취소되므로, root 안의 가로 캐러셀이 멈추고 그냥 탭해도 `pulling → resetting → idle`을 한 바퀴 돕니다. 인디케이터는 `distance` / `progress`로 그리세요.
+- root의 `scrollTop`만 검사하고 중첩 스크롤러는 무시합니다. 데스크톱 마우스 드래그도 당깁니다.
+- `onRefresh` 에러는 삼켜집니다(`console.error` 후 `idle` 복귀). `setEnabled(false)`는 진행 중인 제스처를 취소하지 않습니다. iOS 탄성 바운스는 막지 않습니다.
+
+### useVirtualKeyboard
+
+- 순수 뷰포트 휴리스틱입니다. `visualViewport`가 `threshold`보다 많이 줄어들면 무엇이든 키보드로 치고, `keyboardHeight`는 추정값입니다. Android `adjustPan`과 `interactive-widget=overlays-content`에서는 감지가 불가능합니다.
+- 첫 뷰포트 이벤트 전에는 아무것도 보고하지 않습니다.
+
+### useSafeArea
+
+- `viewport-fit=cover`가 필요하고, Android에서는 호스트 앱이 edge-to-edge로 그려야 합니다. 아니면 값이 전부 `0`입니다.
+- `resize` / `orientationchange`에서만 갱신됩니다. 회전 직후 한 프레임 동안 값이 오래된 것일 수 있고, SSR에서는 `0`입니다.
+
+### useScrollLock
+
+- `allowScrollWithin` 밖의 모든 `touchmove`를 취소합니다(핀치 줌과 터치 위젯 포함). iOS에서 내부 스크롤러는 `overscroll-behavior: contain`을 주지 않으면 가장자리에서 페이지로 스크롤이 이어집니다.
+- "레이아웃 이동 없음"은 오버레이 스크롤바 기준입니다. 일반 데스크톱 스크롤바에서는 `scrollbar-gutter: stable`을 추가하세요.
+- 한 번에 인스턴스 하나만 쓰세요. `destroy()`는 잠금을 풉니다. body 인라인 스타일은 `unlock()`에서 덮어써집니다.
 
 ---
 

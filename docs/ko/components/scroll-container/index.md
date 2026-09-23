@@ -210,7 +210,14 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 `three`는 `@guksu/wvkit-core`에 **번들되지 않습니다** — `external`로 선언되어 호스트 앱이 peer dependency로 제공해야 합니다.
 
-ScrollContainer가 사용하는 부분만 (코어 수학 + `CSS3DRenderer` + `OrthographicCamera`) 트리셰이킹할 때 `three`는 최종 번들에 약 **~150 KB gzipped** 정도 추가됩니다. `@guksu/wvkit-core` 자체는 약 25 KB (~10 KB gzipped) 추가. 정확한 수치는 번들러와 호스트 앱의 다른 Three.js 사용에 따라 다르며, 릴리스마다 changelog에서 측정·공지됩니다.
+esbuild 0.25(`--bundle --minify`, gzip -9)로 `three` 0.184 기준 측정:
+
+| 번들 | Minified | Gzip |
+| --- | --- | --- |
+| `ScrollContainer` 단독 (`three` external) | 9.6 KB | 3.9 KB |
+| `ScrollContainer` + 트리셰이킹된 `three` 일부 (`Scene`, `OrthographicCamera`, `CSS3DRenderer`) | 259 KB | 60 KB |
+
+비용 대부분이 `three`입니다. 정확한 수치는 번들러와 호스트 앱의 다른 Three.js 사용에 따라 달라집니다.
 
 ## 알려진 제한사항
 
@@ -223,3 +230,10 @@ ScrollContainer가 사용하는 부분만 (코어 수학 + `CSS3DRenderer` + `Or
 - **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.
 - **`<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해** 제스처를 취소합니다(데스크톱). 패널 안 이미지에 `draggable="false"`를 주세요.
 - **줌 상태 교차 축 pan은 지원하지 않습니다** — `direction`이 제외한 축은 줌인해도 고정입니다.
+- **휠·트랙패드·키보드 입력이 없습니다.** 포인터 드래그만 패널을 넘깁니다. 방향키, 휠, ARIA 역할은 연결돼 있지 않으니 `scrollTo()`를 부르는 컨트롤을 직접 두세요.
+- **페이저 축에 관성이 없습니다.** 릴리스는 항상 300ms ease-out 트윈으로 스냅 목표까지만 갑니다. 한 번 튕겨서 여러 패널을 지나가지 않습니다.
+- **패널 안 텍스트를 선택할 수 없습니다.** `CSS3DObject`가 모든 패널 요소에 `user-select: none`(과 `draggable="false"`)을 설정합니다. 패널 안 인풋은 동작합니다.
+- **패널 DOM은 절대 언마운트되지 않습니다.** 가상화는 `overscan` 창 밖 패널을 떼어내거나 숨길 뿐이고, 모든 패널이 인스턴스가 살아 있는 동안 메모리에 남습니다. 긴 리스트는 패널 안에서 직접 가상화하세요.
+- **보이는 패널마다 컴포지터 레이어가 하나씩 생깁니다.** `overscan: 1`이면 3D transform 레이어 3개가 동시에 살아 있습니다. 헤드리스 Chromium에서 이미지 150장 피드 패널은 412 × 47,773 px 레이어가 됐습니다. 저사양 기기에서는 `overscan`을 작게 두세요.
+- **숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만**(`display: none` 왕복 확인) **WebKit은 미검증입니다.** iOS에서 확인한 뒤 의존하세요.
+- **줌 상태의 `scrollTo(index)`는 패널 중심으로 갑니다.** 보고 있던 가장자리가 아닙니다.

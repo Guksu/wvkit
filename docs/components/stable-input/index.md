@@ -136,3 +136,9 @@ The display input gets `data-focused="true"` when the hidden input has focus. Us
 - IME composition (CJK input) works but the display input may lag by one composition cycle. For production CJK apps, test carefully.
 - Touches that move more than 10px between `touchstart` and `touchend` are treated as scroll gestures and do not focus the input — a scroll that starts and ends on the input will not open the keyboard.
 - `scrollAnchor` relies on `visualViewport` — no adjustment occurs on browsers that don't support it.
+- **No caret, no text selection, no copy/paste menu on the visible input.** The display input is `readOnly` and never focused; it only mirrors the hidden input's value. Users cannot place the cursor in the middle of the text. This fits search and chat bars, not editing of longer text.
+- **Not a native form field.** The hidden input is appended to `document.body` (outside your `<form>`) and has no `name`, so form submit and `FormData` never include it. Read the value through `onChange` / `getValue()` and submit yourself.
+- **Desktop tab order skips the field.** The display input has `tabIndex="-1"` and the hidden input sits at the end of `<body>`, so Tab reaches it last.
+- **Only `type`, `placeholder`, `inputMode`, and `autocomplete` are forwarded** to the hidden input. `maxLength`, `pattern`, `required`, `name`, and other attributes are not applied.
+- **`scrollAnchor` scrolls the window only** (`window.scrollBy` / `window.scrollTo`). An input inside an inner scroller is not brought into view.
+- **Each instance appends one hidden input to `<body>`.** Always call `destroy()` on unmount.

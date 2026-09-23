@@ -135,3 +135,9 @@ const { containerRef, focus, setValue } = useStableInput({
 - IME 조합 입력 (한/중/일)은 동작하지만 디스플레이 인풋이 한 조합 사이클 지연될 수 있습니다. 프로덕션 앱에서는 충분히 테스트하세요.
 - `touchstart`와 `touchend` 사이 이동 거리가 10px을 넘는 터치는 스크롤 제스처로 간주해 포커스하지 않습니다 — 인풋 위에서 시작해 인풋 위에서 끝난 스크롤로 키보드가 열리지 않습니다.
 - `scrollAnchor`는 `visualViewport`에 의존합니다 — 미지원 브라우저에서는 스크롤 조정이 이루어지지 않습니다.
+- **보이는 인풋에는 커서(caret)도, 텍스트 선택도, 복사·붙여넣기 메뉴도 없습니다.** 디스플레이 인풋은 `readOnly`이고 포커스되지 않으며 숨김 인풋의 값을 비출 뿐입니다. 사용자가 텍스트 중간에 커서를 둘 수 없습니다. 검색창·채팅 입력줄에는 맞지만 긴 글 편집에는 맞지 않습니다.
+- **네이티브 폼 필드가 아닙니다.** 숨김 인풋은 `document.body`에(사용자의 `<form>` 밖에) 붙고 `name`이 없어서 폼 submit과 `FormData`에 포함되지 않습니다. 값은 `onChange` / `getValue()`로 읽어 직접 전송하세요.
+- **데스크톱 Tab 순서에서 건너뛰어집니다.** 디스플레이 인풋은 `tabIndex="-1"`이고 숨김 인풋은 `<body>` 맨 끝에 있어 Tab이 가장 마지막에 도달합니다.
+- **숨김 인풋에 전달되는 속성은 `type`, `placeholder`, `inputMode`, `autocomplete`뿐입니다.** `maxLength`, `pattern`, `required`, `name` 등은 적용되지 않습니다.
+- **`scrollAnchor`는 window만 스크롤합니다** (`window.scrollBy` / `window.scrollTo`). 내부 스크롤러 안의 인풋은 보이는 위치로 옮겨지지 않습니다.
+- **인스턴스마다 숨김 인풋 하나가 `<body>`에 추가됩니다.** 언마운트 시 반드시 `destroy()`를 호출하세요.

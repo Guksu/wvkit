@@ -192,3 +192,7 @@ refreshing→ (onRefresh rejected/threw)            → console.error + resettin
 - **`onRefresh` 에러는 swallow됨 (D6)**. Promise 거부 / 동기 throw는 `console.error`로 로깅되고 state는 `idle`로 복귀. 별도 `'error'` state는 없으므로 사용자가 직접 에러 UI를 관리해야 합니다.
 - **세로 당김만 지원**. 가로 스와이프는 무시. 대각선 당김은 Y 성분 기준 세로로 처리.
 - **`PointerEvent`와 `TouchEvent` 양쪽 모두 wire됨**. `activeSource` 플래그로 iOS 브라우저(touch에서 pointer 합성)가 같은 제스처를 이중 처리하지 않도록 가드. `PointerEvent`가 없는 매우 오래된 WebView는 `TouchEvent` 경로로 동작.
+- **축 고정도, 시작 여유(slop)도 없습니다.** `scrollTop === 0`이면 모든 한 손가락 터치가 `touchstart`에서 바로 `pulling`이 되고, 아래 방향 성분이 있는 모든 `touchmove`에 `preventDefault()`를 겁니다. 리스트 맨 위에서 손가락이 조금이라도 아래로 흐르면 root 안의 가로 캐러셀·내부 스크롤러가 네이티브로 스크롤되지 않고, 움직임 없는 탭도 `pulling → resetting → idle`을 한 바퀴 돕니다(`onPull(0, 0)` 프레임 포함). 인디케이터는 `state !== 'idle'`이 아니라 `distance` / `progress`로 그리세요.
+- **root의 `scrollTop`만 검사합니다.** 아래로 스크롤된 중첩 스크롤러가 있어도 당김이 시작됩니다.
+- **데스크톱 마우스 드래그도 당깁니다.** pointer 경로는 `preventDefault()`를 하지 않아, 리스트 맨 위에서 아래로 텍스트를 드래그 선택하면 인디케이터가 움직입니다.
+- **`setEnabled(false)`는 진행 중인 제스처를 취소하지 않습니다.** 새 제스처만 막습니다.
