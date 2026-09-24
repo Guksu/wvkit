@@ -23,8 +23,7 @@ import type {
  *  - 데스크톱 입력(`desktop-input.ts`): 휠·트랙패드·키보드 → scrollTo / panBy / zoomBy. ARIA(`a11y.ts`)는 활성 패널만 노출
  *  - 본 파일은 CameraControl의 콜백을 받아 active/zoom 상태 갱신 + 가상화 + ARIA + 사용자 콜백 호출
  *
- * NOTE: `direction: 'both'`는 1차 구현에서 `horizontal`로 폴백합니다.
- *       대각 스크롤 + 스냅 정책은 후속 minor 릴리스에서 정식 지원.
+ * NOTE: `direction: 'both'` 는 사용 중단(deprecated). `horizontal` 과 똑같이 처리하고 1.0 에서 제거한다.
  */
 export function createScrollContainer(
   root: HTMLElement,
@@ -41,7 +40,7 @@ export function createScrollContainer(
   let minZoom = 1;
   let maxZoom = 3;
   let overscan = 1;
-  // 'both'는 1차에서 horizontal로 폴백 (대각 스크롤은 후속 minor)
+  // 'both' 는 사용 중단 — horizontal 로 처리 (1.0 에서 제거)
   let direction: 'horizontal' | 'vertical' = 'horizontal';
   let axis: 'x' | 'y' = 'x';
   /** 인덱스가 커지는 방향의 축 부호 — 가로 +x, 세로 −y */

@@ -837,7 +837,7 @@ describe('createScrollContainer — direction', () => {
     sc.destroy();
   });
 
-  it("'both' direction falls back without throwing (1차 horizontal 폴백)", () => {
+  it("'both' direction (사용 중단) — horizontal 과 같게 동작하고 오류가 없다", () => {
     const onIndexChange = vi.fn();
     const sc = createScrollContainer(root, {
       direction: 'both',
