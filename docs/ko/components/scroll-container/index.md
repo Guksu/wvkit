@@ -476,7 +476,7 @@ React·Vue 층은 CI 에서 `size-limit` 로 잽니다(minified, brotli, `@guksu
 
 ## 알려진 제한사항
 
-- **`direction: 'both'` 는 사용 중단입니다.** `horizontal` 과 똑같이 동작하고(패널은 X 축으로 한 줄, pan 도 X 축만) 1.0 에서 제거합니다. 두 축으로 넘기는 페이저는 없습니다. Swiper(`direction`), Embla(`axis`), Android ViewPager2(`orientation`)도 한 축으로만 넘깁니다.
+- **`direction: 'both'` 는 사용 중단입니다.** `horizontal` 과 똑같이 동작하고(패널은 X 축으로 한 줄, 넘기기도 X 축만) 1.0 에서 제거합니다. 두 축으로 넘기는 페이저는 없습니다. Swiper(`direction`), Embla(`axis`), Android ViewPager2(`orientation`)도 한 축으로만 넘깁니다.
 - **core 와 훅은 `panels` 를 `HTMLElement[]` 로 받습니다.** DOM 노드를 직접 만들어 배열로 넘기거나, [컴포넌트](#컴포넌트-scrollcontainer-·-scrollpanel)로 패널을 React/Vue 자식으로 쓰세요.
 - **컴포넌트는 서버에서 패널 내용을 그리지 않습니다.** 패널 내용은 브라우저에서 마운트된 뒤 나타납니다. 제어형 `activeIndex` prop 은 없습니다. `onIndexChange` 와 `ref` 핸들을 쓰세요.
 - **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.

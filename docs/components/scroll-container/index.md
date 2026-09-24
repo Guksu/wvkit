@@ -476,7 +476,7 @@ The React and Vue layers are measured by `size-limit` in CI (minified, brotli, w
 
 ## Limitations
 
-- **`direction: 'both'` is deprecated.** It behaves exactly like `horizontal` (panels in a row along the X axis, pan on X only) and will be removed in 1.0. There is no two-axis pager; Swiper (`direction`), Embla (`axis`) and Android ViewPager2 (`orientation`) also page along one axis.
+- **`direction: 'both'` is deprecated.** It behaves exactly like `horizontal` (panels in a row along the X axis, paging on X only) and will be removed in 1.0. There is no two-axis pager; Swiper (`direction`), Embla (`axis`) and Android ViewPager2 (`orientation`) also page along one axis.
 - **The core and the hooks take `panels` as `HTMLElement[]`.** Build the DOM nodes yourself and pass the array, or use the [components](#components-scrollcontainer-·-scrollpanel) to write panels as React/Vue children.
 - **Components do not render panel content on the server.** Panel content appears after mount in the browser. There is no controlled `activeIndex` prop; use `onIndexChange` and the `ref` handle.
 - **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.

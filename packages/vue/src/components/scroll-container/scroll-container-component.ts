@@ -40,6 +40,7 @@ import { diffScrollContainerOptions } from './use-scroll-container';
  */
 
 const scrollContainerProps = {
+  /** 카메라 pan 축 제약. `'both'` 는 사용 중단 — `'horizontal'` 과 같고 1.0 에서 제거한다. */
   direction: { type: String as PropType<ScrollContainerDirection>, required: true as const },
   initialIndex: { type: Number, default: undefined },
   panelHeight: { type: Function as PropType<(index: number) => number>, default: undefined },

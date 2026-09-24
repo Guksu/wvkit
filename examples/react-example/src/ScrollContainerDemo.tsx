@@ -656,7 +656,7 @@ export function ScrollContainerDemo() {
           >
             <option value="horizontal">horizontal</option>
             <option value="vertical">vertical</option>
-            <option value="both">both (deprecated)</option>
+            <option value="both">both ({c.deprecated})</option>
           </select>
         </ControlItem>
         <ControlItem label={c.overscan(overscan)}>

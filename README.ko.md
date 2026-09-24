@@ -330,7 +330,7 @@ lock.unlock();
 | 옵션 | 타입 | 기본값 | 설명 |
 |------|------|--------|------|
 | `direction` | `'horizontal' \| 'vertical' \| 'both'` | — (필수) | 카메라 pan 축 제약. `'both'` 는 사용 중단 — `'horizontal'` 과 같고 1.0 에서 제거. |
-| `panels` | `HTMLElement[]` | — | 표시할 패널 엘리먼트 배열. |
+| `panels` | `HTMLElement[]` | — (필수) | 표시할 패널 엘리먼트 배열. |
 | `initialIndex` | `number` | `0` | 초기 활성 패널 인덱스. |
 | `enablePinchZoom` | `boolean` | `true` | 핀치 줌 활성화. |
 | `minZoom` | `number` | `1.0` | 최소 줌 레벨. |

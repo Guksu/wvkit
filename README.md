@@ -330,7 +330,7 @@ lock.unlock();
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `direction` | `'horizontal' \| 'vertical' \| 'both'` | — (required) | Camera pan axis constraint. `'both'` is deprecated: same as `'horizontal'`, removed in 1.0. |
-| `panels` | `HTMLElement[]` | — | Panel elements to display. |
+| `panels` | `HTMLElement[]` | — (required) | Panel elements to display. |
 | `initialIndex` | `number` | `0` | Initially active panel index. |
 | `enablePinchZoom` | `boolean` | `true` | Enable pinch-to-zoom. |
 | `minZoom` | `number` | `1.0` | Minimum zoom level. |
