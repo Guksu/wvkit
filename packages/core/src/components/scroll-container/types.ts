@@ -6,12 +6,12 @@
  *
  * - `horizontal`: X 축 pan만 허용 — 가로 패널 전환 (네이티브 뷰페이저 패턴)
  * - `vertical`: Y 축 pan만 허용 — 세로 패널 전환
- * - `both`: X+Y 양축 pan 허용 — 대각 스크롤 가능 (정밀 제어는 CameraControl 구현에서 규정)
+ * - `both`: **사용 중단(deprecated)** — `horizontal` 과 똑같이 동작한다. 1.0 에서 제거한다. `horizontal` 을 쓸 것.
  */
 export type ScrollContainerDirection = 'horizontal' | 'vertical' | 'both';
 
 export interface ScrollContainerOptions {
-  /** 카메라 pan 축 제약. */
+  /** 카메라 pan 축 제약. `'both'` 는 사용 중단 — `'horizontal'` 과 같고 1.0 에서 제거한다. */
   direction: ScrollContainerDirection;
   /**
    * scene에 배치할 패널 엘리먼트들. 순서 = index.

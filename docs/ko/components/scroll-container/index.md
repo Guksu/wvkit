@@ -21,7 +21,7 @@
 
 - `horizontal`: X 축 pan만 — 가로 패널 전환
 - `vertical`: Y 축 pan만 — 세로 패널 전환
-- `both`: X+Y 자유 pan *(1.0에서는 `horizontal`로 폴백, 대각 스냅 정책은 후속 minor에서 정식 지원)*
+- `both`: **사용 중단.** `horizontal` 과 똑같이 동작하고 1.0 에서 제거합니다. `horizontal` 을 쓰세요.
 
 ## 설치
 
@@ -379,7 +379,7 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 
 | Prop              | 타입                                       | 기본값         | 설명                                                                                                |
 | ----------------- | ------------------------------------------ | -------------- | --------------------------------------------------------------------------------------------------- |
-| `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(필수)_       | 카메라 pan 축 제약. `'both'`는 1차 릴리스에서 `'horizontal'`로 폴백.                                |
+| `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(필수)_       | 카메라 pan 축 제약. `'both'` 는 사용 중단 — `'horizontal'` 과 같게 동작하고 1.0 에서 제거합니다. |
 | `panels`          | `HTMLElement[]`                            | _(필수)_       | scene에 `CSS3DObject`로 추가될 미리 만들어진 DOM 노드. 빈 배열은 throw.                             |
 | `initialIndex`    | `number`                                   | `0`            | 마운트 시 활성 패널 인덱스. `[0, panels.length-1]`로 클램프.                                        |
 | `panelHeight`     | `(index: number) => number`                | _(root 높이)_  | `vertical`용 패널별 픽셀 높이. 지정 안 하면 root 클라이언트 높이 사용.|
@@ -476,7 +476,7 @@ React·Vue 층은 CI 에서 `size-limit` 로 잽니다(minified, brotli, `@guksu
 
 ## 알려진 제한사항
 
-- **`direction: 'both'`**는 현재 `horizontal`로 폴백 — 패널은 X축 일렬 배치되고 pan도 X 축만 동작합니다. 대각 스냅 정책은 후속 minor 릴리스에서 정식 지원됩니다.
+- **`direction: 'both'` 는 사용 중단입니다.** `horizontal` 과 똑같이 동작하고(패널은 X 축으로 한 줄, 넘기기도 X 축만) 1.0 에서 제거합니다. 두 축으로 넘기는 페이저는 없습니다. Swiper(`direction`), Embla(`axis`), Android ViewPager2(`orientation`)도 한 축으로만 넘깁니다.
 - **core 와 훅은 `panels` 를 `HTMLElement[]` 로 받습니다.** DOM 노드를 직접 만들어 배열로 넘기거나, [컴포넌트](#컴포넌트-scrollcontainer-·-scrollpanel)로 패널을 React/Vue 자식으로 쓰세요.
 - **컴포넌트는 서버에서 패널 내용을 그리지 않습니다.** 패널 내용은 브라우저에서 마운트된 뒤 나타납니다. 제어형 `activeIndex` prop 은 없습니다. `onIndexChange` 와 `ref` 핸들을 쓰세요.
 - **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.

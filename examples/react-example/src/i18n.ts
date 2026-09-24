@@ -99,6 +99,7 @@ export const t = {
     },
     controls: {
       direction: 'direction',
+      deprecated: 'deprecated',
       overscan: (n: number) => `overscan: ${n}`,
       snapThreshold: 'snapThreshold',
       resistance: 'resistance',
@@ -212,6 +213,7 @@ export const t = {
     },
     controls: {
       direction: 'direction',
+      deprecated: '사용 중단',
       overscan: (n: number) => `overscan: ${n}`,
       snapThreshold: 'snapThreshold',
       resistance: 'resistance',

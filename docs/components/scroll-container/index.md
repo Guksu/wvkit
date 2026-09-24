@@ -21,7 +21,7 @@ The `direction` option no longer means "swipe direction" — it constrains which
 
 - `horizontal`: pan X only — horizontal pager pattern
 - `vertical`: pan Y only — vertical pager pattern
-- `both`: X+Y free pan *(falls back to `horizontal` in 1.0; diagonal snap policy lands in a follow-up minor)*
+- `both`: **deprecated.** It behaves exactly like `horizontal` and will be removed in 1.0. Use `horizontal`.
 
 ## Installation
 
@@ -379,7 +379,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 
 | Prop              | Type                                       | Default        | Description                                                                                          |
 | ----------------- | ------------------------------------------ | -------------- | ---------------------------------------------------------------------------------------------------- |
-| `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(required)_   | Camera pan axis constraint. `'both'` falls back to `'horizontal'` in this release.                   |
+| `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(required)_   | Camera pan axis constraint. `'both'` is deprecated: it behaves like `'horizontal'` and will be removed in 1.0. |
 | `panels`          | `HTMLElement[]`                            | _(required)_   | Pre-built DOM nodes added to the scene as `CSS3DObject`s. Must be non-empty.                         |
 | `initialIndex`    | `number`                                   | `0`            | Active panel index at mount. Clamped to `[0, panels.length-1]`.                                      |
 | `panelHeight`     | `(index: number) => number`                | _(root height)_ | Per-panel pixel height for `vertical`. Falls back to root client height.|
@@ -476,7 +476,7 @@ The React and Vue layers are measured by `size-limit` in CI (minified, brotli, w
 
 ## Limitations
 
-- **`direction: 'both'`** currently falls back to `horizontal` — panels are laid out along the X axis, and pan is X-only. Diagonal snap policy lands in a follow-up minor release.
+- **`direction: 'both'` is deprecated.** It behaves exactly like `horizontal` (panels in a row along the X axis, paging on X only) and will be removed in 1.0. There is no two-axis pager; Swiper (`direction`), Embla (`axis`) and Android ViewPager2 (`orientation`) also page along one axis.
 - **The core and the hooks take `panels` as `HTMLElement[]`.** Build the DOM nodes yourself and pass the array, or use the [components](#components-scrollcontainer-·-scrollpanel) to write panels as React/Vue children.
 - **Components do not render panel content on the server.** Panel content appears after mount in the browser. There is no controlled `activeIndex` prop; use `onIndexChange` and the `ref` handle.
 - **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.

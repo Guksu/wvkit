@@ -837,17 +837,18 @@ describe('createScrollContainer — direction', () => {
     sc.destroy();
   });
 
-  it("'both' direction falls back without throwing (1차 horizontal 폴백)", () => {
+  it("'both' direction (사용 중단) — horizontal 과 같게 동작하고 오류가 없다", () => {
     const onIndexChange = vi.fn();
-    const sc = createScrollContainer(root, {
-      direction: 'both',
-      panels: makePanels(3),
-      onIndexChange,
-    });
-    expect(() => sc.scrollTo(1)).not.toThrow();
-    // horizontal 폴백이 실제 horizontal처럼 동작함을 고정 — 인덱스 전이 + 콜백 발화 (B-22)
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, { direction: 'both', panels, onIndexChange });
+    // 가로 배치 — 패널 1 은 오른쪽(x = 400)에 놓인다 (세로라면 translate(0px, …))
+    expect(panels[1]!.style.transform).toContain('translate(400px, 0px)');
+    // 가로 키보드 — 오른쪽 화살표가 다음 패널로 간다
+    root.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     expect(sc.getActiveIndex()).toBe(1);
     expect(onIndexChange).toHaveBeenCalledWith(1);
+    expect(() => sc.scrollTo(2)).not.toThrow();
+    expect(sc.getActiveIndex()).toBe(2);
     sc.destroy();
   });
 });
