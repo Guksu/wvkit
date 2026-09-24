@@ -1,5 +1,22 @@
 # @wvkit/vue-example
 
+## 0.0.4
+
+### Patch Changes
+
+- Updated dependencies [5ea2cd0]
+- Updated dependencies [6fd98d7]
+- Updated dependencies [c5e3be0]
+- Updated dependencies [ff7a45e]
+- Updated dependencies [7790a7e]
+- Updated dependencies [0c3c0d8]
+- Updated dependencies [5d5a344]
+- Updated dependencies [1edced3]
+- Updated dependencies [0f2b136]
+- Updated dependencies [2fd8514]
+  - @guksu/wvkit-core@0.5.0
+  - @guksu/wvkit-vue@0.5.0
+
 ## 0.0.3
 
 ### Patch Changes
