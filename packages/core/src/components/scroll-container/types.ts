@@ -51,7 +51,10 @@ export interface ScrollContainerOptions {
   onIndexChange?: (index: number) => void;
   /** 활성 패널 양쪽으로 미리 scene에 유지할 패널 수. 기본값 `1`. */
   overscan?: number;
-  /** 스냅 트리거에 필요한 스와이프 비율 (0 < x ≤ 1). 기본값 `0.3`. */
+  /**
+   * 천천히 놓을 때 다음 패널로 넘기기 위한 드래그 비율 (0 < x ≤ 1, 두 정착 위치 사이 거리 대비). 기본값 `0.3`.
+   * 누른 지점에서 25px 넘게 움직이고 0.4px/ms 넘게 빠르게 놓은 플릭은 이 값과 상관없이 플릭 방향으로 한 칸 넘긴다.
+   */
   snapThreshold?: number;
   /**
    * 드래그 시작 여유(px, 0 이상). 기본값 `10`.

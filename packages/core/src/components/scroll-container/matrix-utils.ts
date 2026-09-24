@@ -131,6 +131,33 @@ export function nearestPanelIndex(
 }
 
 /**
+ * 짧은 플릭 판정 — Android ViewPager `determineTargetPage` 의 플릭 조건과 같다.
+ *
+ * 손가락이 페이저 축으로 `minDistance` px 넘게 움직였고 놓는 속도가 `minVelocity` px/ms 를 넘으면
+ * 거리 비율과 상관없이 정한다: 속도가 움직인 방향과 같으면 그쪽으로 한 칸, 반대면 제자리.
+ * 조건을 넘지 못하면 `null` — 거리 비율 판정(`decideSnapTarget`)에 맡긴다.
+ *
+ *   ViewPager: MIN_DISTANCE_FOR_FLING = 25dp, MIN_FLING_VELOCITY = 400dp/s (CSS px ≈ dp → 0.4 px/ms)
+ *
+ * `moved`·`velocity` 는 인덱스가 커지는 방향이 + 인 값, `fingerDistance` 는 누른 지점부터의 축 거리(크기).
+ */
+export function flingTarget(
+  startIndex: number,
+  fingerDistance: number,
+  moved: number,
+  velocity: number,
+  panelCount: number,
+  minDistance = 25,
+  minVelocity = 0.4,
+): number | null {
+  if (panelCount <= 0 || moved === 0) return null;
+  if (!(fingerDistance > minDistance && Math.abs(velocity) > minVelocity)) return null;
+  const target =
+    Math.sign(velocity) === Math.sign(moved) ? startIndex + Math.sign(moved) : startIndex;
+  return clamp(target, 0, panelCount - 1);
+}
+
+/**
  * 스냅 결정: 시작 인덱스, 드래그 비율(패널 단위), 속도 비율(패널/초)을 받아 다음 인덱스 산출.
  *
  *  - `dragRatio + velocityRatio*velocityWeight` 가 `snapThreshold` 초과면 다음/이전 패널로 이동
