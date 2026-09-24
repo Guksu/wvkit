@@ -1,5 +1,12 @@
 # @wvkit/react-example
 
+## 0.0.5
+
+### Patch Changes
+
+- Updated dependencies [8241db9]
+  - @guksu/wvkit-react@0.6.0
+
 ## 0.0.4
 
 ### Patch Changes
