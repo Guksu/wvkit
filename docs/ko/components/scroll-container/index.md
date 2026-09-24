@@ -238,22 +238,22 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 
 ### 지원하지 않음: 세로 페이저 + 세로로 스크롤되는 패널
 
-`direction: 'vertical'` 은 세로로 스크롤되는 패널(`overflow-y: auto`)과 함께 동작하지 않습니다. 페이저와 패널이 같은 세로 스와이프를 원하기 때문입니다. 헤드리스 Chromium 에서 640px 세로 페이저에 3,000px 높이 패널을 넣고 잰 결과입니다:
+`direction: 'vertical'` 은 세로로 스크롤되는 패널(`overflow-y: auto`)과 함께 동작하지 않습니다. 페이저와 패널이 같은 세로 스와이프를 원하기 때문입니다. 헤드리스 Chromium 에서 640px 세로 페이저에 내용 높이 3,000px 인 패널을 넣고 잰 결과입니다:
 
 | 입력 | 결과 |
 | --- | --- |
-| 터치 스와이프 | 패널이 스크롤됩니다. 패널을 끝까지 내려도 페이저는 다음 패널로 넘어가지 않습니다. 브라우저가 터치를 가져가고(`pointercancel`), 페이저도 `pan-y` 패널 위의 터치를 받지 않습니다. |
+| 터치 스와이프 | 패널이 스크롤됩니다. 패널을 끝까지 내려도 스와이프로는 어느 방향으로도 패널이 넘어가지 않습니다. 브라우저가 터치를 가져가고(`pointercancel`), 페이저도 `pan-y` 패널 위의 터치를 받지 않습니다. |
 | 휠·트랙패드 | 패널이 스크롤됩니다. 패널이 끝에 닿으면 휠이 다음 패널로 넘깁니다. 그 뒤 같은 휠 동작의 나머지가 새 패널을 스크롤할 수 있습니다. |
 | 마우스 드래그 | 다음 패널로 넘어갑니다. 패널은 스크롤되지 않습니다. |
 | 키보드(`ArrowDown`) | 다음 패널로 넘어갑니다. |
 
-그래서 휴대폰에서는 스와이프로 다음 패널에 갈 수 없습니다. 대신 아래 중 하나를 쓰세요:
+그래서 휴대폰에서는 스와이프로 다른 패널에 갈 수 없습니다. 대신 아래 중 하나를 쓰세요:
 
 - 스크롤되는 패널을 **가로** 페이저에 넣기 (위에서 설명한 구성).
 - 세로 페이저에는 **스크롤되지 않는 패널** 쓰기: 높이가 고정된 카드, 전체 화면 이미지·영상.
 - 페이지마다 스크롤도 되는 세로 피드라면 브라우저 기본 **CSS scroll snap** 쓰기 (바깥 스크롤 요소에 `scroll-snap-type: y mandatory`). 안쪽 스크롤이 끝에 닿으면 브라우저가 스크롤을 바깥으로 넘깁니다("scroll chaining", MDN 의 [`overscroll-behavior`](https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior) 참고). 같은 스와이프 안에서 넘어가는지는 브라우저마다 다릅니다.
 
-다른 페이저도 같은 한계가 있습니다. Android ViewPager2 는 "같은 방향의 중첩 스크롤 뷰를 기본으로 지원하지 않는다"고 적혀 있습니다([Android 문서](https://developer.android.com/develop/ui/views/animations/vp2-migration#nested-scrollables)). Swiper 관리자는 스크롤되는 내용 안에 Swiper 를 하나 더 넣으라고 안내합니다([토론](https://github.com/nolimits4web/swiper/discussions/4314)). 반대로 Jetpack Compose `VerticalPager` 는 Compose 의 중첩 스크롤로 이를 지원합니다.
+다른 페이저도 기본 상태로는 이 경우를 처리하지 않습니다. Android ViewPager2 문서에는 "같은 방향의 중첩 스크롤 뷰를 기본으로 지원하지 않는다"고 적혀 있고, `requestDisallowInterceptTouchEvent()` 를 쓰는 우회 방법이 나옵니다([Android 문서](https://developer.android.com/develop/ui/views/animations/vp2-migration#nested-scrollables)). Swiper 슬라이드 안의 스크롤 요소에 대해서는, Swiper 관리자가 그 요소를 "Scroll container" 설정의 Swiper 로 한 번 더 감싸 보라고 제안합니다([토론](https://github.com/nolimits4web/swiper/discussions/4314)). Jetpack Compose `VerticalPager` 는 Compose 의 [중첩 스크롤](https://developer.android.com/develop/ui/compose/touch-input/scroll/nested-scroll-modifiers)로 이를 처리합니다.
 
 ## 실행 중에 패널·옵션 바꾸기
 
@@ -504,7 +504,7 @@ React·Vue 층은 CI 에서 `size-limit` 로 잽니다(minified, brotli, `@guksu
 - **`setPointerCapture`가 모든 WebView 빌드에서 사용 가능하진 않습니다.** 구현은 `try/catch`로 가드되어 있고, 캡처를 지원하지 않는 환경에서는 드래그 중 포인터가 root를 벗어나면 제스처가 일찍 종료될 수 있습니다.
 - **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.
 - **`<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해** 제스처를 취소합니다(데스크톱). 패널 안 이미지에 `draggable="false"`를 주세요.
-- **세로 페이저에 세로로 스크롤되는 패널은 지원하지 않습니다.** 터치 기기에서는 패널 스크롤이 끝나도 다음 패널로 넘어가지 못합니다. [지원하지 않음: 세로 페이저 + 세로로 스크롤되는 패널](#지원하지-않음-세로-페이저-세로로-스크롤되는-패널)을 보세요.
+- **세로 페이저에 세로로 스크롤되는 패널은 지원하지 않습니다.** 터치 기기에서는 패널 스크롤이 끝나도 스와이프로 패널을 전혀 넘길 수 없습니다. [지원하지 않음: 세로 페이저 + 세로로 스크롤되는 패널](#지원하지-않음-세로-페이저-세로로-스크롤되는-패널)을 보세요.
 - **줌 상태 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다.** `touch-action: pan-y`를 준 패널은 세로 터치를 자체 네이티브 스크롤에 넘기므로, `horizontal` 페이저에서는 스크롤 없는 패널(이미지 뷰어·카드)만 줌 상태에서 세로로 움직입니다.
 - **휠 제스처 하나는 한 패널만 넘기고, 줌 상태에서는 페이지를 넘기지 못합니다.** 첫 이동 뒤의 트랙패드 관성은 무시되고, 마우스 휠을 빠르게 돌려도 120ms 쉬기 전까지는 한 제스처입니다. 줌 상태에서 휠은 패널 안을 움직이니, 패널을 바꾸려면 화살표를 쓰거나 줌을 풀어야 합니다.
 - **키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다.** 패널 안에 포커스가 있으면 그쪽 키 동작이 그대로입니다. 호스트의 포커스 링은 직접 스타일링해야 합니다.

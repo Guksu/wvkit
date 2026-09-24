@@ -238,22 +238,22 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 
 ### Not supported: a vertical pager with vertically scrolling panels
 
-`direction: 'vertical'` does not work with panels that scroll vertically (`overflow-y: auto`). The pager and the panel both want the same vertical swipe. Measured in headless Chromium, with 3,000 px tall panels on a 640 px vertical pager:
+`direction: 'vertical'` does not work with panels that scroll vertically (`overflow-y: auto`). The pager and the panel both want the same vertical swipe. Measured in headless Chromium, on a 640 px vertical pager whose panels hold 3,000 px of content:
 
 | Input | What happens |
 | --- | --- |
-| Touch swipe | The panel scrolls. The pager never changes panels, even when the panel is scrolled to its end. The browser keeps the touch (`pointercancel`), and the pager also ignores touches on a `pan-y` panel. |
+| Touch swipe | The panel scrolls. A swipe never changes panels, in either direction, even when the panel is scrolled to its end. The browser keeps the touch (`pointercancel`), and the pager also ignores touches on a `pan-y` panel. |
 | Wheel or trackpad | The panel scrolls. Once the panel is at its end, the wheel changes panels. The rest of that wheel gesture can then scroll the new panel. |
 | Mouse drag | The pager changes panels. The panel does not scroll. |
 | Keyboard (`ArrowDown`) | The pager changes panels. |
 
-So on a phone, users cannot swipe to the next panel. Use one of these instead:
+So on a phone, users cannot swipe to another panel. Use one of these instead:
 
 - A **horizontal** pager with scrolling panels, as described above.
 - A vertical pager with **panels that do not scroll**: fixed-height cards, full-screen images or videos.
 - For a vertical feed where each page also scrolls, the browser's own **CSS scroll snap** (`scroll-snap-type: y mandatory` on the outer scroller). When an inner scroller reaches its end, the browser passes the scroll to the outer one ("scroll chaining", see [`overscroll-behavior`](https://developer.mozilla.org/en-US/docs/Web/CSS/overscroll-behavior) on MDN). Whether this happens within the same swipe depends on the browser.
 
-Other pagers have the same limit. Android ViewPager2 "does not natively support nested scroll views in cases where the scroll view has the same orientation" ([Android docs](https://developer.android.com/develop/ui/views/animations/vp2-migration#nested-scrollables)). Swiper's maintainer suggests nesting a second Swiper for scrollable content ([discussion](https://github.com/nolimits4web/swiper/discussions/4314)). Jetpack Compose `VerticalPager` does support it, through Compose's nested scrolling.
+Other pagers do not handle this out of the box either. Android ViewPager2 "does not natively support nested scroll views in cases where the scroll view has the same orientation"; its docs show a workaround with `requestDisallowInterceptTouchEvent()` ([Android docs](https://developer.android.com/develop/ui/views/animations/vp2-migration#nested-scrollables)). For a scroller inside a Swiper slide, Swiper's maintainer suggests wrapping it in one more Swiper with the "Scroll container" setup ([discussion](https://github.com/nolimits4web/swiper/discussions/4314)). Jetpack Compose `VerticalPager` handles it through Compose's [nested scrolling](https://developer.android.com/develop/ui/compose/touch-input/scroll/nested-scroll-modifiers).
 
 ## Changing panels and options at runtime
 
@@ -504,7 +504,7 @@ The React and Vue layers are measured by `size-limit` in CI (minified, brotli, w
 - **`setPointerCapture` is not available in every WebView build.** The implementation is guarded with `try/catch`; in environments without capture support, pointer-leaving-root during a drag may cause the gesture to be released early.
 - **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.
 - **Mouse drag over an `<img>` starts native drag-and-drop** (desktop), which cancels the gesture — set `draggable="false"` on images inside panels.
-- **A vertical pager with vertically scrolling panels is not supported.** On touch devices it cannot change panels at all, not even at the end of the panel's scroll. See [Not supported: a vertical pager with vertically scrolling panels](#not-supported-a-vertical-pager-with-vertically-scrolling-panels).
+- **A vertical pager with vertically scrolling panels is not supported.** On touch devices, a swipe never changes panels, not even at the end of the panel's scroll. See [Not supported: a vertical pager with vertically scrolling panels](#not-supported-a-vertical-pager-with-vertically-scrolling-panels).
 - **Cross-axis pan while zoomed needs panels that do not scroll on that axis.** A panel with `touch-action: pan-y` gives vertical touches to its own native scroll, so on a `horizontal` pager only non-scrolling panels (image viewers, cards) pan vertically while zoomed.
 - **A wheel gesture moves one panel and cannot page while zoomed.** Trackpad momentum is ignored after the first step, and a fast mouse-wheel spin counts as one gesture until it pauses for 120 ms. While zoomed, the wheel pans inside the panel; use the arrow keys or zoom out to change panels.
 - **Keyboard shortcuts only work while the host has focus.** Focus inside a panel keeps its own key handling. The host's focus ring is not styled for you.
