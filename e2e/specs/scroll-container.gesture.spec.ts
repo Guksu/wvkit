@@ -14,6 +14,7 @@ import {
   getCameraPosition,
   clickZoomTo,
   clickScrollTo,
+  hoverCanvasAwayFromHorizontalScrollers,
   waitForScrollSettle,
   waitForSceneStable,
 } from '../fixtures/scroll-container';
@@ -417,17 +418,39 @@ test.describe('ScrollContainer · S17 데스크톱 입력 (휠 · 키보드 · A
   // 실제 iOS 에도 휠이 없으므로 그 프로젝트만 건너뛴다 (mobile-chrome 은 지원).
   const NO_WHEEL = 'Playwright: mobile WebKit 은 mouse.wheel 을 지원하지 않는다';
 
-  test('가로 휠 한 제스처 → 다음 패널로 정확히 한 칸', async ({ page }, testInfo) => {
+  test('가로 휠 → 다음 패널로 한 칸', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'mobile-safari', NO_WHEEL);
     await gotoDemo(page);
-    const canvas = page.getByTestId('sc-canvas');
-    await canvas.hover();
-    // 트랙패드 관성처럼 여러 이벤트를 빠르게 — 한 제스처로 묶여 한 칸만
-    for (let i = 0; i < 6; i++) await page.mouse.wheel(60, 0);
+    // 칩 줄(가로 스크롤러) 위에서는 휠이 칩을 먼저 스크롤한다 (설계) — 그런 요소가 없는 지점에서 굴린다.
+    await hoverCanvasAwayFromHorizontalScrollers(page);
+    // 이벤트 한 번으로 임계값(40px)을 넘긴다. 모바일 에뮬레이션은 delta 를 기기 배율로 나눠 전달하므로
+    // (Pixel 7 ×2.625: 200 → 76) 여유를 둔다. 여러 이벤트를 이어 보내는 "한 제스처 = 한 칸" 판정은 이벤트 간격(120ms)이
+    // 기계 부하에 따라 흔들려 e2e 로는 결정적이지 않다 — 시계를 고정한 단위 테스트(desktop-input W1)가 검증한다.
+    await page.mouse.wheel(200, 0);
     await waitForScrollSettle(page, 1);
-    expect(await getActiveIndex(page)).toBe(1);
     await waitForSceneStable(page);
     expect(await getActiveIndex(page)).toBe(1);
+  });
+
+  test('칩 줄 위 가로 휠은 칩을 스크롤하고 페이지를 넘기지 않는다 (중첩 스크롤러 우선)', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name === 'mobile-safari', NO_WHEEL);
+    await gotoDemo(page);
+    const chips = page.locator('[data-panel-index="0"] [data-chips]');
+    await chips.scrollIntoViewIfNeeded();
+    const box = await chips.boundingBox();
+    expect(box).not.toBeNull();
+    await page.mouse.move(
+      (box?.x ?? 0) + (box?.width ?? 0) / 2,
+      (box?.y ?? 0) + (box?.height ?? 0) / 2,
+    );
+    await page.mouse.wheel(200, 0);
+    await expect
+      .poll(async () => await chips.evaluate((el) => el.scrollLeft), { timeout: 3000 })
+      .toBeGreaterThan(0);
+    await page.waitForTimeout(300);
+    expect(await getActiveIndex(page)).toBe(0);
   });
 
   test('세로 휠은 패널 자체 스크롤에 맡기고 페이지를 넘기지 않는다', async ({ page }, testInfo) => {
