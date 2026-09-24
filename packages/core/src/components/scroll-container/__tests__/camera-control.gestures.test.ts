@@ -253,6 +253,96 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
     });
   });
 
+  // ─── 그룹 F — 짧은 플릭 (ViewPager 플릭 조건) ────────────────────────────────
+  // 누른 지점에서 25px 초과로 움직이고 놓는 속도가 0.4px/ms 초과면 거리 비율과 상관없이 속도 방향으로 정한다.
+  // dragThreshold 기본 10px — 첫 move 에서 시작점을 10px 당겨 잡으므로 카메라 이동은 손가락보다 10px 작다.
+
+  describe('짧은 플릭 (25px 초과 · 0.4px/ms 초과)', () => {
+    it('F1: 40px 빠른 플릭 → 다음 칸 (거리 비율만으로는 0.075 라 제자리였다)', () => {
+      const { control: c, onPanRelease } = createControl();
+      c.animateToIndex(0, false);
+      down(1, 200, 300); // t=0
+      now = 50;
+      move(1, 180, 300); // 여유 통과 → 카메라 10
+      now = 60;
+      move(1, 160, 300); // 카메라 30, lastDelta 20, interval 10 → 2px/ms
+      now = 61;
+      up(1, 160, 300); // 손가락 40px > 25, 속도 2 > 0.4
+      expect(onPanRelease).toHaveBeenCalledTimes(1);
+      expect(onPanRelease).toHaveBeenCalledWith(1);
+    });
+
+    it('F2: 같은 40px 를 천천히 → 제자리 (속도 0.2px/ms)', () => {
+      const { control: c, onPanRelease } = createControl();
+      c.animateToIndex(0, false);
+      down(1, 200, 300);
+      now = 100;
+      move(1, 180, 300);
+      now = 200;
+      move(1, 160, 300); // lastDelta 20, interval 100
+      now = 300;
+      up(1, 160, 300); // dt 100 → 0.2px/ms
+      expect(onPanRelease).toHaveBeenCalledWith(0);
+    });
+
+    it('F3: 빠르지만 손가락이 25px 이하로 움직였으면 제자리', () => {
+      const { control: c, onPanRelease } = createControl();
+      c.animateToIndex(0, false);
+      down(1, 200, 300);
+      now = 50;
+      move(1, 188, 300);
+      now = 60;
+      move(1, 178, 300); // 손가락 22px, 1px/ms
+      now = 61;
+      up(1, 178, 300);
+      expect(onPanRelease).toHaveBeenCalledWith(0);
+    });
+
+    it('F4: 앞으로 크게 끌다가 뒤로 빠르게 튕기면 제자리 (ViewPager 와 같음, 거리 비율만이면 다음 칸)', () => {
+      const { control: c, onPanRelease } = createControl();
+      c.animateToIndex(0, false);
+      down(1, 350, 300);
+      now = 100;
+      move(1, 250, 300);
+      now = 200;
+      move(1, 50, 300); // 카메라 290
+      now = 210;
+      move(1, 80, 300); // 카메라 260, lastDelta −30, interval 10 → −3px/ms
+      now = 211;
+      up(1, 80, 300); // 거리 비율로는 0.65 − 0.225 = 0.425 > 0.3 이지만, 플릭 방향이 반대라 제자리
+      expect(onPanRelease).toHaveBeenCalledWith(0);
+    });
+
+    it('F5: 뒤로 짧게 튕기면 이전 칸', () => {
+      const { control: c, onPanRelease } = createControl();
+      c.animateToIndex(2, false);
+      down(1, 200, 300);
+      now = 50;
+      move(1, 220, 300);
+      now = 60;
+      move(1, 240, 300);
+      now = 61;
+      up(1, 240, 300);
+      expect(onPanRelease).toHaveBeenCalledWith(1);
+    });
+
+    it('F6: 세로 페이저 — 위로 40px 빠르게 튕기면 다음 칸', () => {
+      const { control: c, onPanRelease } = createControl({
+        direction: 'vertical',
+        positions: VERTICAL_POSITIONS,
+      });
+      c.animateToIndex(0, false);
+      down(1, 200, 300);
+      now = 50;
+      move(1, 200, 280);
+      now = 60;
+      move(1, 200, 260);
+      now = 61;
+      up(1, 200, 260);
+      expect(onPanRelease).toHaveBeenCalledWith(1);
+    });
+  });
+
   // ─── 그룹 C — 핀치 줌 + 앵커 보정 ──────────────────────────────────────────
 
   describe('핀치 줌 (배율 · 앵커 보정 · 클램프 · two-finger pan 저항)', () => {

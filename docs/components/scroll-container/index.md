@@ -211,7 +211,23 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 ## Snap and inertia
 
 - Release always snaps to a panel (zoom ≤ 1) or to the projected stop, edge, or gap target (zoom > 1). The settle duration follows the finger: the ease-out curve starts at the release speed (`duration = 3 × distance / velocity`), clamped between 120 ms and a distance-proportional cap of 400 ms (800 ms for a zoomed free pan). Releasing from a standstill uses the cap; velocity pointing away from the target (rubber-band return) is ignored.
-- One panel per gesture. Like native pagers, a fling never skips panels; `snapThreshold` and the velocity weight decide between staying and moving one step.
+- One panel per gesture, decided the way Android's `ViewPager` decides (`determineTargetPage`):
+  - **Quick flick.** If the finger moved more than 25 px from where it touched down and was moving faster than 0.4 px/ms (400 dp/s) when it lifted, the pager moves one panel in the direction of the flick, however short the drag was. A flick back against the drag cancels it: the pager stays. These are `ViewPager`'s `MIN_DISTANCE_FOR_FLING` (25 dp) and `MIN_FLING_VELOCITY` (400 dp/s); a CSS pixel in a WebView is the same unit as a dp.
+  - **Otherwise** the drag distance decides: more than `snapThreshold` of the step to the next rest position moves one panel (a small velocity weight is added).
+  - A fling never skips panels.
+
+  Measured with real touches (Chrome DevTools Protocol, Pixel 7 emulation, 412 px host) before and after the quick-flick rule. Headless Chromium delivers one touch move every 33 ms, so the speed is the last move's distance over that interval:
+
+  | Flick | Speed at release | Before | After |
+  | --- | --- | --- | --- |
+  | 20 px | one move | stays | stays (not over 25 px) |
+  | 30 px | 0.45 px/ms | stays | next panel |
+  | 40 px | 0.6 px/ms | stays | next panel |
+  | 60 px | 0.9 px/ms | stays | next panel |
+  | 40 px, slow | 0.24 px/ms | stays | stays |
+  | 70 px | 0.42 px/ms | stays | next panel |
+
+  Before this rule a flick had to travel about 130 px (a third of the screen) to page.
 - `scrollTo()` / `zoomTo()` with `animated: true` use a fixed 300 ms ease-out.
 - `zoomTo()` clamps the camera into the active panel's range (both axes) for the new zoom level, so zooming back to 1 lands on the panel center.
 - A tap that interrupts a zoom tween does not leave the zoom at an intermediate value: the release continues to the zoom that was last committed (`zoomTo`, pinch, or double tap).
@@ -231,7 +247,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 | `align`           | `'center' \| 'start'`                      | `'center'`     | Where the active panel rests: centered in the root, or with its start edge on the root's start edge. |
 | `onIndexChange`   | `(index: number) => void`                  | —              | Fired when active panel changes (via `scrollTo` or pan snap).                                        |
 | `overscan`        | `number`                                   | `1`            | Number of extra panels to keep mounted on each side of the panels on screen. `0` mounts only the panels on screen (just the active one with full-width panels). |
-| `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to panel size) required to snap to the next panel.                            |
+| `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to the step between two rest positions) required to snap to the next panel on a slow release. A quick flick (over 25 px, over 0.4 px/ms) pages regardless. |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | Pixels a pointer must move before the pager moves; the drag direction is decided at that point. `0` follows from the first move with no direction lock. |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | Edge rubber-band coefficient. `0` is a hard stop, `1` removes resistance.                            |
 | `enablePinchZoom` | `boolean`                                  | `true`         | Whether two-pointer gestures perform pinch zoom.                                                     |
@@ -288,7 +304,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 19.7 KB | 7.7 KB |
+| `@guksu/wvkit-core/scroll-container` | 20.0 KB | 7.8 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
