@@ -377,6 +377,9 @@ interface DemoOptions {
   enablePinchZoom: boolean;
   doubleTapZoom: number | false;
   dragThreshold: number;
+  panelWidth: number;
+  gap: number;
+  align: 'center' | 'start';
 }
 
 function ScrollContainerInstance(props: DemoOptions) {
@@ -401,6 +404,10 @@ function ScrollContainerInstance(props: DemoOptions) {
     enablePinchZoom: props.enablePinchZoom,
     doubleTapZoom: props.doubleTapZoom,
     dragThreshold: props.dragThreshold,
+    // 1 이면 옵션을 넘기지 않는다 — 패널 폭은 CSS(width: 100%)가 정한다
+    ...(props.panelWidth === 1 ? {} : { panelWidth: props.panelWidth }),
+    gap: props.gap,
+    align: props.align,
   });
 
   // 패널 안 버튼 클릭이 페이저를 거쳐도 정상 도달하는지 보여주는 카운터 (좋아요 토글)
@@ -496,6 +503,9 @@ export function ScrollContainerDemo() {
   // 데모 기본값은 2 — 실제 앱에서는 기본 꺼짐(false). 패널 안 버튼을 두 번 탭해도 줌이 토글되는 것을 그대로 보여준다.
   const [doubleTapZoom, setDoubleTapZoom] = useState<number | false>(2);
   const [dragThreshold, setDragThreshold] = useState(10);
+  const [panelWidth, setPanelWidth] = useState(1);
+  const [gap, setGap] = useState(0);
+  const [align, setAlign] = useState<'center' | 'start'>('center');
 
   const { tr } = useLang();
   const s = tr.scrollContainer;
@@ -511,6 +521,9 @@ export function ScrollContainerDemo() {
     enablePinchZoom,
     doubleTapZoom,
     dragThreshold,
+    panelWidth,
+    gap,
+    align,
   ].join('|');
 
   return (
@@ -619,6 +632,42 @@ export function ScrollContainerDemo() {
             style={inputStyle}
           />
         </ControlItem>
+        <ControlItem label={c.panelWidth}>
+          <select
+            data-testid="ctl-panel-width"
+            value={String(panelWidth)}
+            onChange={(e) => setPanelWidth(Number(e.target.value))}
+            style={selectStyle}
+          >
+            <option value="1">1 (100%)</option>
+            <option value="0.85">0.85</option>
+            <option value="0.7">0.7</option>
+            <option value="280">280px</option>
+          </select>
+        </ControlItem>
+        <ControlItem label={c.gap}>
+          <input
+            data-testid="ctl-gap"
+            type="number"
+            min={0}
+            max={48}
+            step={4}
+            value={gap}
+            onChange={(e) => setGap(Math.max(0, Number(e.target.value)))}
+            style={inputStyle}
+          />
+        </ControlItem>
+        <ControlItem label={c.align}>
+          <select
+            data-testid="ctl-align"
+            value={align}
+            onChange={(e) => setAlign(e.target.value === 'start' ? 'start' : 'center')}
+            style={selectStyle}
+          >
+            <option value="center">center</option>
+            <option value="start">start</option>
+          </select>
+        </ControlItem>
       </ControlGrid>
 
       <ScrollContainerInstance
@@ -632,6 +681,9 @@ export function ScrollContainerDemo() {
         enablePinchZoom={enablePinchZoom}
         doubleTapZoom={doubleTapZoom}
         dragThreshold={dragThreshold}
+        panelWidth={panelWidth}
+        gap={gap}
+        align={align}
       />
     </DemoCard>
   );

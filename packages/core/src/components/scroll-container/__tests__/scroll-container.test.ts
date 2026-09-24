@@ -531,6 +531,142 @@ describe('createScrollContainer — validateOptions', () => {
   });
 });
 
+describe('createScrollContainer — panelWidth · gap · align', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = makeRoot(); // 400 × 600
+  });
+  afterEach(() => {
+    root.remove();
+  });
+
+  /** root > domElement > scene */
+  function sceneTransform(): string {
+    const scene = root.firstElementChild?.firstElementChild as HTMLElement | null | undefined;
+    return scene?.style.transform ?? '';
+  }
+
+  it('panelWidth 0.8 + gap 16 → 폭 320px 인라인 지정, 중심 x = 0 · 336 · 672, destroy 시 원래 폭으로', () => {
+    const panels = makePanels(3);
+    panels[1]?.style.setProperty('width', '100%');
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      panelWidth: 0.8,
+      gap: 16,
+      overscan: 2,
+    });
+    expect(panels.map((p) => p.style.width)).toEqual(['320px', '320px', '320px']);
+    expect(panels[1]?.style.transform).toContain('translate(336px, 0px)');
+    expect(panels[2]?.style.transform).toContain('translate(672px, 0px)');
+    sc.destroy();
+    expect(panels.map((p) => p.style.width)).toEqual(['', '100%', '']);
+  });
+
+  it('panelWidth 를 주지 않으면 패널 폭을 건드리지 않는다 (앱 CSS 에 맡김)', () => {
+    const panels = makePanels(2);
+    const sc = createScrollContainer(root, { direction: 'horizontal', panels });
+    expect(panels.map((p) => p.style.width)).toEqual(['', '']);
+    sc.destroy();
+  });
+
+  it('panelWidth px(300)와 함수 — 1 초과는 px, 함수는 패널마다', () => {
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      panelWidth: (i) => (i === 1 ? 300 : 0.5),
+      overscan: 2,
+    });
+    expect(panels.map((p) => p.style.width)).toEqual(['200px', '300px', '200px']);
+    // 중심: 0, 0 + 100 + 150 = 250, 250 + 150 + 100 = 500
+    expect(panels[1]?.style.transform).toContain('translate(250px, 0px)');
+    expect(panels[2]?.style.transform).toContain('translate(500px, 0px)');
+    sc.destroy();
+  });
+
+  it("align 'start' → 첫 패널 왼쪽이 화면 왼쪽: scene x = 200 − (0 − 160 + 200) = 160", () => {
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(3),
+      panelWidth: 0.8,
+      align: 'start',
+    });
+    expect(sceneTransform()).toContain('translate(160px, 300px)');
+    sc.scrollTo(1, { animated: false }); // gap 0 → 중심 320, 정착 320 + 40 = 360 → scene x = 200 − 360
+    expect(sceneTransform()).toContain('translate(-160px, 300px)');
+    sc.destroy();
+  });
+
+  it('가상화는 화면에 보이는 패널 + overscan — 폭 40%(160px)면 활성 양옆도 보여 overscan 0 이어도 붙어 있다', () => {
+    const panels = makePanels(6);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      panelWidth: 0.4,
+      overscan: 0,
+      initialIndex: 2,
+    });
+    // 활성 2 (중심 320), 화면 [120, 520] → 패널 1 [80, 240] · 2 · 3 [400, 560] 이 겹친다
+    const shown = panels.map((p) => p.parentNode !== null && p.style.display !== 'none');
+    expect(shown).toEqual([false, true, true, true, false, false]);
+    sc.destroy();
+  });
+
+  it('전폭 패널의 가상화는 이전과 같다 — overscan 0 이면 활성 하나만', () => {
+    const panels = makePanels(4);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      overscan: 0,
+      initialIndex: 1,
+    });
+    const shown = panels.map((p) => p.parentNode !== null && p.style.display !== 'none');
+    expect(shown).toEqual([false, true, false, false]);
+    sc.destroy();
+  });
+
+  it('세로 gap — panelHeight 300, gap 20 → 패널 1 중심 y = −(300 + 20 + 150) = −470', () => {
+    const panels = makePanels(2);
+    const sc = createScrollContainer(root, {
+      direction: 'vertical',
+      panels,
+      panelHeight: () => 300,
+      gap: 20,
+      overscan: 1,
+    });
+    expect(panels[1]?.style.transform).toContain('translate(0px, 470px)');
+    sc.destroy();
+  });
+
+  it('잘못된 값은 WebviewHeadlessError — panelWidth 0·음수·NaN, 함수가 0 을 반환, gap 음수', () => {
+    const bad: Array<Partial<Parameters<typeof createScrollContainer>[1]>> = [
+      { panelWidth: 0 },
+      { panelWidth: -1 },
+      { panelWidth: Number.NaN },
+      { panelWidth: () => 0 },
+      { gap: -1 },
+      { gap: Number.POSITIVE_INFINITY },
+    ];
+    for (const extra of bad) {
+      expect(() =>
+        createScrollContainer(root, { direction: 'horizontal', panels: makePanels(2), ...extra }),
+      ).toThrow(WebviewHeadlessError);
+    }
+  });
+
+  it('panelWidth 함수가 잘못된 값을 주면 DOM 을 바꾸기 전에 throw 한다 — root·패널이 그대로 남는다', () => {
+    const holder = document.createElement('div');
+    const panels = makePanels(2);
+    for (const p of panels) holder.appendChild(p);
+    expect(() =>
+      createScrollContainer(root, { direction: 'horizontal', panels, panelWidth: () => -1 }),
+    ).toThrow(WebviewHeadlessError);
+    expect(root.childElementCount).toBe(0);
+    expect(panels.every((p) => p.parentElement === holder)).toBe(true);
+  });
+});
+
 describe('createScrollContainer — dragThreshold', () => {
   let root: HTMLElement;
   beforeEach(() => {

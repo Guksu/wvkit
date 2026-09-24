@@ -144,6 +144,27 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 - Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
+## Panel width, gap and alignment (peeking)
+
+By default every panel is as wide as the host. On a `horizontal` pager three options change that, so the neighbouring panels show at the edges. This is the "peeking" layout of e-commerce banners and card rows.
+
+```js
+createScrollContainer(host, {
+  direction: 'horizontal',
+  panels,
+  panelWidth: 0.85, // 85 % of the host width. A number above 1 is pixels.
+  gap: 12, // pixels between panels
+  align: 'center', // or 'start'
+});
+```
+
+- **`panelWidth`.** A number in `(0, 1]` is a fraction of the host width. A number above 1 is pixels. A function `(index) => number` gives each panel its own width in the same units. The pager writes the width to each panel's inline `style.width` and restores the old value on `destroy()`. Without `panelWidth` the pager does not touch panel widths, as before. Fraction widths follow the host on resize; pixel widths stay fixed.
+- **`gap`.** Pixels between neighbouring panels. It also works on a `vertical` pager.
+- **`align: 'center'`** (default) centers the active panel, so both neighbours peek. **`align: 'start'`** puts the active panel's start edge on the host's start edge, so only the next panel peeks.
+- **Paging is still one panel per gesture.** `snapThreshold` and the fling weight are measured against the distance between two rest positions (panel width + `gap`), not the host width. With `panelWidth: 0.85` and `gap: 12`, one step on a 400 px host is 352 px.
+- **Virtualization counts what is on screen.** The panels that overlap the host when the active panel is at rest stay mounted, plus `overscan` panels on each side. With `panelWidth: 0.85` and `overscan: 0`, a middle panel keeps three panels mounted: the active one and two peeking neighbours.
+- **Zoom.** While zoomed, the camera pans only inside the active panel. A panel narrower than the host has no room to pan until the zoom is larger than host width ÷ panel width (about 1.18 for `panelWidth: 0.85`).
+
 ## Drag start and direction lock
 
 A pointer has to move more than `dragThreshold` (10 px by default) before the pager moves. At that moment the gesture picks a direction once, by the dominant axis (whichever of |dx| and |dy| is larger, a 45° split), and keeps it until the pointer is released. The rule is the one Android's `ViewPager` uses (`xDiff > mTouchSlop && xDiff > yDiff`).
@@ -204,9 +225,12 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 | `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(required)_   | Camera pan axis constraint. `'both'` falls back to `'horizontal'` in this release.                   |
 | `panels`          | `HTMLElement[]`                            | _(required)_   | Pre-built DOM nodes added to the scene as `CSS3DObject`s. Must be non-empty.                         |
 | `initialIndex`    | `number`                                   | `0`            | Active panel index at mount. Clamped to `[0, panels.length-1]`.                                      |
-| `panelHeight`     | `(index: number) => number`                | _(root height)_ | Per-panel pixel height for `vertical`/`both`. Falls back to root client height.                      |
+| `panelHeight`     | `(index: number) => number`                | _(root height)_ | Per-panel pixel height for `vertical`. Falls back to root client height.|
+| `panelWidth`      | `number \| (index: number) => number`     | _(root width)_ | Panel width for `horizontal`. `(0, 1]` is a fraction of the root width, above 1 is pixels. Written to each panel's inline `width`. See [Panel width, gap and alignment](#panel-width-gap-and-alignment-peeking). |
+| `gap`             | `number ≥ 0`                               | `0`            | Pixels between neighbouring panels (both directions).                                               |
+| `align`           | `'center' \| 'start'`                      | `'center'`     | Where the active panel rests: centered in the root, or with its start edge on the root's start edge. |
 | `onIndexChange`   | `(index: number) => void`                  | —              | Fired when active panel changes (via `scrollTo` or pan snap).                                        |
-| `overscan`        | `number`                                   | `1`            | Number of panels to keep visible on each side of active. `0` mounts only the active panel.           |
+| `overscan`        | `number`                                   | `1`            | Number of extra panels to keep mounted on each side of the panels on screen. `0` mounts only the panels on screen (just the active one with full-width panels). |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to panel size) required to snap to the next panel.                            |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | Pixels a pointer must move before the pager moves; the drag direction is decided at that point. `0` follows from the first move with no direction lock. |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | Edge rubber-band coefficient. `0` is a hard stop, `1` removes resistance.                            |
@@ -221,7 +245,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 
 `resistance` also damps the zoom rubber band when a pinch goes past `minZoom` / `maxZoom`.
 
-Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `dragThreshold` negative or not finite, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
+Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `dragThreshold` or `gap` negative or not finite, `panelWidth` (or a value its function returns) not a finite number above 0, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
 
 ### Instance Methods
 
@@ -264,7 +288,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 18.0 KB | 7.1 KB |
+| `@guksu/wvkit-core/scroll-container` | 19.7 KB | 7.7 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
@@ -288,4 +312,7 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
 - **Each visible scrollable panel is its own compositor layer** (browsers composite scroll containers). With `overscan: 1` three such layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
 - **Scroll position of a hidden panel survives in Chromium** (verified across a `display: none` round-trip) **but is unverified in WebKit.** Test on iOS before relying on it.
-- **`scrollTo(index)` while zoomed lands on the panel center**, not on the edge you were looking at.
+- **`scrollTo(index)` while zoomed lands on the panel center** (with `align: 'start'`, on its start edge), not on the edge you were looking at.
+- **Peeking neighbours are not interactive.** With `a11y: true` (default) every panel except the active one gets `inert`, so a tap on a peeking neighbour does nothing. Swipe to it, or set `a11y: false` and handle the tap yourself.
+- **The first and last panels leave empty space with narrow panels.** `align: 'center'` shows a gap before the first panel and after the last one, and `align: 'start'` after the last one. There is no option yet to pin the ends to the host edges.
+- **`panelWidth` only applies to `horizontal`.** A `vertical` pager uses `panelHeight` and ignores `panelWidth`.

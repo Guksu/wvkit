@@ -478,18 +478,21 @@ describe('createCameraControl — 제스처 수식 (Sprint 2 B-05)', () => {
       expect(onPanRelease).toHaveBeenCalledWith(1);
     });
 
-    it('E3: rootSize 0 — panelSize `|| 1` 폴백으로 NaN 없이 스냅이 결정된다', () => {
+    it('E3: rootSize 0 — 크기 `|| 1` 폴백으로 NaN 없이 스냅이 결정된다', () => {
       const { control: c, onPanRelease } = createControl({
         getRootSize: () => ({ width: 0, height: 0 }),
       });
       c.animateToIndex(0, false);
+      expect(camera.position.x).toBe(0);
       down(1, 200, 300);
       now = 100;
-      move(1, 150, 300); // dx=−50 → x=50, panelSize=0→1 → dragRatio 50
+      // dx=−350 → x=350. 드래그 비율 분모 = 이웃 패널까지 정착 위치 간격(400) → 0.875 > 0.3
+      move(1, -150, 300);
       now = 200;
-      up(1, 150, 300);
+      up(1, -150, 300);
       expect(onPanRelease).toHaveBeenCalledTimes(1);
       expect(onPanRelease).toHaveBeenCalledWith(1); // NaN이면 decideSnapTarget 비교가 전부 false → 0
+      expect(Number.isFinite(camera.position.x)).toBe(true);
     });
 
     it('E4: vertical 핀치 — y축 경계는 줌 반폭만큼 넓어지고 그 밖은 엣지 저항, x축은 pinchStart에 고정', () => {

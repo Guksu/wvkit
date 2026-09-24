@@ -624,3 +624,84 @@ test.describe('ScrollContainer · S18 드래그 시작 여유 · 방향 잠금',
     expect(samples.map((c) => c.x)).toEqual([3, 6]);
   });
 });
+
+// 가변 폭 · 피킹 · 간격 · 정렬: 패널의 실제 화면 위치(getBoundingClientRect)를 캔버스와 비교한다.
+test.describe('ScrollContainer · S19 패널 폭 · 간격 · 정렬 (피킹)', () => {
+  /** 캔버스 기준 패널 가로 위치 (left/right/center, 캔버스 왼쪽 = 0) */
+  async function panelBox(page: import('@playwright/test').Page, index: number) {
+    return await page.evaluate((i) => {
+      const canvas = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement;
+      const panel = canvas.querySelector(`[data-panel-index="${i}"]`) as HTMLElement | null;
+      const c = canvas.getBoundingClientRect();
+      if (!panel || getComputedStyle(panel).display === 'none') return null;
+      const r = panel.getBoundingClientRect();
+      return {
+        left: r.left - c.left,
+        right: r.right - c.left,
+        center: r.left + r.width / 2 - c.left,
+        width: r.width,
+        canvasWidth: c.width,
+      };
+    }, index);
+  }
+
+  test('panelWidth 0.85 + gap 12 (center) — 현재 패널은 가운데, 다음 패널이 오른쪽에 살짝 보이고, 넘기면 양옆이 보인다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-panel-width').selectOption('0.85');
+    await page.getByTestId('ctl-gap').fill('12');
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
+    await waitForSceneStable(page);
+
+    const p0 = await panelBox(page, 0);
+    const p1 = await panelBox(page, 1);
+    expect(p0).not.toBeNull();
+    expect(p1).not.toBeNull();
+    const W = p0?.canvasWidth ?? 0;
+    expect(p0?.width ?? 0).toBeCloseTo(W * 0.85, 0);
+    expect(p0?.center ?? 0).toBeCloseTo(W / 2, 0);
+    // 다음 패널 왼쪽 = 현재 패널 오른쪽 + 12, 그리고 캔버스 안(피킹)
+    expect((p1?.left ?? 0) - (p0?.right ?? 0)).toBeCloseTo(12, 0);
+    expect(p1?.left ?? W).toBeLessThan(W);
+
+    await swipeOnCanvas(page, -Math.round(W * 0.6), 0);
+    await waitForScrollSettle(page, 1);
+    await waitForSceneStable(page);
+    const q0 = await panelBox(page, 0);
+    const q1 = await panelBox(page, 1);
+    expect(q1?.center ?? 0).toBeCloseTo(W / 2, 0);
+    expect(q0?.right ?? 0).toBeGreaterThan(0); // 이전 패널이 왼쪽에 살짝 보인다
+  });
+
+  test("align 'start' — 현재 패널 왼쪽이 캔버스 왼쪽에 붙고, scrollTo(2) 뒤에도 그렇다", async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-panel-width').selectOption('0.7');
+    await page.getByTestId('ctl-align').selectOption('start');
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
+    await waitForSceneStable(page);
+    expect((await panelBox(page, 0))?.left ?? 99).toBeCloseTo(0, 0);
+
+    await clickScrollTo(page, 2, false);
+    await waitForScrollSettle(page, 2);
+    await waitForSceneStable(page);
+    const p2 = await panelBox(page, 2);
+    expect(p2?.left ?? 99).toBeCloseTo(0, 0);
+    expect(p2?.width ?? 0).toBeCloseTo((p2?.canvasWidth ?? 0) * 0.7, 0);
+  });
+
+  test('panelWidth 280px — 화면 폭과 상관없이 280px, 보이는 이웃 패널은 DOM 에 붙어 있다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-panel-width').selectOption('280');
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
+    await waitForSceneStable(page);
+    const p0 = await panelBox(page, 0);
+    expect(p0?.width ?? 0).toBeCloseTo(280, 0);
+    const p1 = await panelBox(page, 1);
+    expect(p1).not.toBeNull();
+  });
+});

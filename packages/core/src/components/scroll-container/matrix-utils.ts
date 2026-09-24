@@ -167,6 +167,38 @@ export function zoomedHalfExtent(panelSize: number, zoom: number): number {
   return (panelSize / 2) * (1 - 1 / zoom);
 }
 
+/**
+ * 줌 `zoom` 에서 패널 하나를 볼 때 카메라(축 좌표)의 정착 위치와 움직일 수 있는 범위.
+ *
+ * 뷰포트 반폭은 `viewport / (2·zoom)`. 카메라가 패널 안을 보는 범위는 s 공간(인덱스가 커지는 쪽이 +)에서
+ *   lo = 패널 시작 + 뷰포트 반폭,  hi = 패널 끝 − 뷰포트 반폭
+ * - lo ≤ hi (패널이 보이는 폭보다 넓다): 그 범위 안에서 pan. 정착 위치는 center 정렬이면 패널 중심, start 면 lo.
+ * - lo > hi (패널이 화면 안에 다 들어온다): 범위는 한 점. center 정렬은 패널 중심, start 는 패널 시작이 화면 시작에 붙는 lo.
+ *
+ * 패널 크기 = 뷰포트 크기(기본 레이아웃)면 범위 반폭은 `zoomedHalfExtent` 와 같고 정착 위치는 패널 중심이다.
+ * `forward` 는 인덱스가 커지는 방향의 축 부호 (가로 x: +1, 세로 y: −1 — 패널이 아래(−y)로 쌓인다).
+ */
+export function panelCameraRange(
+  center: number,
+  size: number,
+  viewport: number,
+  zoom: number,
+  align: 'center' | 'start',
+  forward: 1 | -1,
+): { rest: number; min: number; max: number } {
+  const sc = forward * center;
+  const z = zoom > 0 ? zoom : 1;
+  const half = (viewport > 0 ? viewport : size) / (2 * z);
+  const lo = sc - size / 2 + half;
+  const hi = sc + size / 2 - half;
+  const restS = align === 'start' ? lo : sc;
+  const [minS, maxS] = lo <= hi ? [lo, hi] : [restS, restS];
+  // 축 좌표로 되돌린다 (forward −1 이면 부호와 대소가 뒤집힌다)
+  return forward === 1
+    ? { rest: restS, min: minS, max: maxS }
+    : { rest: -restS, min: -maxS, max: -minS };
+}
+
 export interface ZoomedReleaseResult {
   /** 릴리스 후 활성으로 볼 패널 인덱스. */
   index: number;

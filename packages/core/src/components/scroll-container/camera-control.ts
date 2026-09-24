@@ -6,7 +6,7 @@ import {
   clamp,
   decideSnapTarget,
   easeOutCubic,
-  nearestPanelIndex,
+  panelCameraRange,
   projectInertia,
   resolveZoomedRelease,
   screenPointToWorld,
@@ -114,6 +114,11 @@ export interface CameraControlOptions {
   /** 더블탭 줌 목표 레벨. `false`(기본)면 더블탭을 추적하지 않는다. */
   doubleTapZoom?: number | false;
   /**
+   * 패널을 화면의 어디에 맞출지 (페이저 축). 기본 'center'. 'start' 면 패널 시작(가로: 왼쪽, 세로: 위)이
+   * 화면 시작에 붙는다. 패널이 화면보다 좁을 때만 차이가 난다.
+   */
+  align?: 'center' | 'start';
+  /**
    * 드래그 시작 여유(px). 넘기 전까지 카메라를 움직이지 않고, 넘을 때 방향을 정한다.
    * 생략하면 0 — 첫 move 부터 pan, 방향 잠금 없음 (ScrollContainer 는 공개 옵션 기본값 10 을 넘긴다).
    */
@@ -168,6 +173,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     enablePinchZoom,
     doubleTapZoom = false,
     dragThreshold: dragThresholdOption = 0,
+    align = 'center',
     onChange,
     onPanRelease,
     onPinchRelease,
@@ -175,6 +181,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
 
   const axis: 'x' | 'y' = direction === 'horizontal' ? 'x' : 'y';
   const cross: 'x' | 'y' = axis === 'x' ? 'y' : 'x';
+  /** 인덱스가 커지는 방향의 축 부호 — 가로 +x, 세로 −y (패널이 아래로 쌓인다) */
+  const forward: 1 | -1 = axis === 'x' ? 1 : -1;
   const dragThreshold = dragThresholdOption > 0 ? dragThresholdOption : 0;
 
   // --- 포인터 추적 (root 좌상단 기준 좌표) ---
@@ -267,8 +275,30 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     return (axis === 'x' ? size.width : size.height) || 1;
   }
 
-  function halfExtentAt(index: number, zoom: number): number {
-    return zoomedHalfExtent(panelSizeAt(index), zoom);
+  /** 뷰포트(root)의 페이저 축 크기 */
+  function viewportAlongAxis(): number {
+    const size = getRootSize();
+    return (axis === 'x' ? size.width : size.height) || 1;
+  }
+
+  /**
+   * 줌 `zoom` 에서 패널 `index` 를 볼 때 카메라(축 좌표)의 정착 위치와 pan 범위 — `panelCameraRange`.
+   * 패널 폭 = 화면 폭(기본)이면 범위는 중심 ± zoomedHalfExtent, 정착 위치는 중심이라 이전 계산과 같다.
+   */
+  function rangeAt(index: number, zoom: number): { rest: number; min: number; max: number } {
+    const center = positions[index]?.[axis] ?? 0;
+    return panelCameraRange(center, panelSizeAt(index), viewportAlongAxis(), zoom, align, forward);
+  }
+
+  /**
+   * 드래그 비율·스냅 시간의 기준 거리 — `index` 에서 `dir` 쪽 이웃 패널까지 정착 위치 간격.
+   * 그쪽 이웃이 없으면 반대쪽, 패널이 하나면 뷰포트 크기. 전폭 패널이면 화면 폭과 같다.
+   */
+  function restSpacing(index: number, dir: 1 | -1, zoom: number): number {
+    const count = positions.length;
+    const n = index + dir >= 0 && index + dir < count ? index + dir : index - dir;
+    if (n < 0 || n >= count || n === index) return viewportAlongAxis();
+    return Math.abs(rangeAt(n, zoom).rest - rangeAt(index, zoom).rest) || viewportAlongAxis();
   }
 
   /** 교차 축 패널 크기(px) — 패널은 교차 축으로 root를 꽉 채운다 (horizontal: 높이, vertical: 폭). */
@@ -283,17 +313,10 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   function panBoundsAlongAxis(zoom: number): { min: number; max: number } {
     const count = positions.length;
     if (count === 0) return { min: 0, max: 0 };
-    // count === 0 가드로 첫/마지막 요소는 안전히 존재 — 단언 대신 옵셔널 체인 + ?? 0 으로 룰 회피.
-    const first = positions[0]?.[axis] ?? 0;
-    const last = positions[count - 1]?.[axis] ?? 0;
-    const firstExtent = halfExtentAt(0, zoom);
-    const lastExtent = halfExtentAt(count - 1, zoom);
-    // X축은 인덱스가 커질수록 +, Y축은 − (패널이 아래로 쌓임) — 낮은 쪽/높은 쪽 끝에 각자의 반폭을 더한다.
-    const firstIsLow = first <= last;
-    return {
-      min: (firstIsLow ? first : last) - (firstIsLow ? firstExtent : lastExtent),
-      max: (firstIsLow ? last : first) + (firstIsLow ? lastExtent : firstExtent),
-    };
+    // 첫/끝 패널의 범위가 양 끝이다 (세로는 인덱스가 커질수록 −y 라 어느 쪽이 낮은지 min/max 로 정리)
+    const a = rangeAt(0, zoom);
+    const b = rangeAt(count - 1, zoom);
+    return { min: Math.min(a.min, b.min), max: Math.max(a.max, b.max) };
   }
 
   /**
@@ -306,8 +329,20 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     return { min: center - e, max: center + e };
   }
 
+  /** 카메라가 있는(또는 가장 가까운) 패널 — 현재 줌에서 패널 범위까지의 거리가 가장 작은 쪽, 같으면 작은 인덱스. */
   function currentActiveIndex(): number {
-    return nearestPanelIndex(camera.position[axis], positions, axis);
+    const v = camera.position[axis];
+    let best = 0;
+    let bestD = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < positions.length; i++) {
+      const r = rangeAt(i, camera.zoom);
+      const d = v < r.min ? r.min - v : v > r.max ? v - r.max : 0;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    return best;
   }
 
   /**
@@ -317,12 +352,11 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
    */
   function clampIntoPanel(x: number, y: number, zoom: number): { x: number; y: number } {
     const i = currentActiveIndex();
-    const center = positions[i];
-    if (!center) return { x, y };
-    const e = halfExtentAt(i, zoom);
+    if (!positions[i]) return { x, y };
+    const r = rangeAt(i, zoom);
     const cb = crossBounds(zoom);
     const pos = { x, y };
-    const a = clamp(pos[axis], center[axis] - e, center[axis] + e);
+    const a = clamp(pos[axis], r.min, r.max);
     const c = clamp(pos[cross], cb.min, cb.max);
     return axis === 'x' ? { x: a, y: c } : { x: c, y: a };
   }
@@ -458,14 +492,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       return;
     }
 
-    const size = getRootSize();
-    const panelSize = (axis === 'x' ? size.width : size.height) || 1;
-
     const startValue = axis === 'x' ? start.cameraX : start.cameraY;
     const currentValue = camera.position[axis];
-    let dragRatio = (currentValue - startValue) / panelSize;
-    // Y축은 음수 방향이 forward(인덱스 증가)이므로 부호 반전
-    if (axis === 'y') dragRatio = -dragRatio;
+    // 인덱스 증가 방향으로 움직인 거리. 분모는 그쪽 이웃 패널까지 정착 위치 간격 (전폭 패널이면 화면 폭)
+    const moved = forward * (currentValue - startValue);
+    const spacing = restSpacing(start.activeIndex, moved >= 0 ? 1 : -1, settleZoom);
+    const dragRatio = moved / spacing;
 
     // lastDelta는 "직전 move 한 번의 변위"이므로 분모도 move 간 간격이어야 한다.
     // release가 마지막 move 직후(1~5ms)에 오면 (now - lastMoveTime)만 쓰는 계산은
@@ -473,8 +505,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     // move 간격을 하한으로 삼고, release가 지연될수록 기존처럼 자연 감쇠시킨다.
     const sinceLastMove = performance.now() - start.lastMoveTime;
     const dt = Math.max(1, start.lastMoveInterval, sinceLastMove);
-    let velocityRatio = (start.lastDelta / panelSize) * (VELOCITY_SAMPLE_WINDOW_MS / dt);
-    if (axis === 'y') velocityRatio = -velocityRatio;
+    const velocityRatio = forward * (start.lastDelta / spacing) * (VELOCITY_SAMPLE_WINDOW_MS / dt);
 
     const target = decideSnapTarget(
       start.activeIndex,
@@ -487,17 +518,17 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     // 트윈 시간은 손가락 속도에 이어지게 (빠른 플릭 → 짧고 단호하게, 느린 릴리스 → 길게).
     const targetPos = positions[target];
     if (targetPos) {
-      const distance = targetPos[axis] - currentValue;
+      const targetAxis = rangeAt(target, settleZoom).rest;
+      const distance = targetAxis - currentValue;
       const velocityAxisPerMs = start.lastDelta / dt;
       const velocityToward = distance === 0 ? 0 : velocityAxisPerMs * Math.sign(distance);
-      const duration = snapDurationMs(
-        distance,
-        velocityToward,
-        panelSize,
-        SNAP_MIN_MS,
-        SNAP_MAX_MS,
+      const duration = snapDurationMs(distance, velocityToward, spacing, SNAP_MIN_MS, SNAP_MAX_MS);
+      startTween(
+        axis === 'x' ? targetAxis : targetPos.x,
+        axis === 'y' ? targetAxis : targetPos.y,
+        settleZoom,
+        duration,
       );
-      startTween(targetPos.x, targetPos.y, settleZoom, duration);
     }
     onPanRelease(target);
   }
@@ -508,9 +539,11 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
    * `zoom`은 정착 줌(`targetZoom`) — 고무줄·끊긴 트윈으로 camera.zoom 과 다를 수 있고, 그러면 트윈이 함께 되돌린다.
    */
   function releaseZoomed(start: PanState, zoom: number): void {
-    const sign = axis === 'x' ? 1 : -1;
-    const centers = positions.map((p) => sign * p[axis]);
-    const halfExtents = positions.map((_, i) => halfExtentAt(i, zoom));
+    const sign = forward;
+    // 패널별 pan 범위를 s 공간의 (중심, 반폭)으로 — 전폭 패널이면 이전의 (패널 중심, zoomedHalfExtent)와 같다
+    const ranges = positions.map((_, i) => rangeAt(i, zoom));
+    const centers = ranges.map((r) => sign * ((r.min + r.max) / 2));
+    const halfExtents = ranges.map((r) => (r.max - r.min) / 2);
     const s = sign * camera.position[axis];
     const sStart = sign * (axis === 'x' ? start.cameraX : start.cameraY);
 
@@ -923,15 +956,19 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     const i = clamp(index, 0, positions.length - 1);
     const target = positions[i];
     if (!target) return;
+    // 정착 위치 — center 정렬·전폭 패널이면 패널 중심 (이전과 같음), start 면 패널 시작이 화면 시작에
+    const a = rangeAt(i, targetZoom).rest;
+    const tx = axis === 'x' ? a : target.x;
+    const ty = axis === 'y' ? a : target.y;
     if (!animated) {
       cancelAnimationInternal();
-      camera.position.x = target.x;
-      camera.position.y = target.y;
+      camera.position.x = tx;
+      camera.position.y = ty;
       onChange();
       return;
     }
     // 줌 트윈 도중 호출돼도 중간 줌에 머물지 않도록 정착 줌으로
-    startTween(target.x, target.y, targetZoom);
+    startTween(tx, ty, targetZoom);
   }
 
   function animateToZoom(level: number, animated: boolean): void {
