@@ -12,12 +12,19 @@ import {
   liftPinch,
   doubleTapOnCanvas,
   getCameraPosition,
+  dragSampleCamera,
   clickZoomTo,
   clickScrollTo,
   hoverCanvasAwayFromHorizontalScrollers,
   waitForScrollSettle,
   waitForSceneStable,
 } from '../fixtures/scroll-container';
+
+/**
+ * 데모의 dragThreshold 기본값 (px). 드래그는 이만큼 움직인 뒤 시작하고 기준점을 이만큼 당겨 잡으므로,
+ * 카메라 이동량 = (손가락 이동 − DRAG_THRESHOLD) / zoom.
+ */
+const DRAG_THRESHOLD = 10;
 
 test.describe('ScrollContainer · S4 horizontal gesture', () => {
   test('큰 좌측 드래그(>threshold) → 다음 패널로 스냅', async ({ page }) => {
@@ -186,14 +193,14 @@ test.describe('ScrollContainer · S12 줌 상태 pan — 위치 유지 + 가장�
     const x0 = await getSceneXShift(page);
     expect(x0).not.toBeNull();
 
-    // 화면 −60px → 월드 +30 (패널 0 범위 [−폭/4, +폭/4] 안), 멈춘 뒤 놓기 — 스냅·관성 없이 그 자리 유지
+    // 화면 −60px → 여유 10px 을 뺀 50px → 월드 +25 (패널 0 범위 [−폭/4, +폭/4] 안), 멈춘 뒤 놓기 — 그 자리 유지
     await swipeOnCanvas(page, -60, 0, { holdMs: 300 });
     await waitForSceneStable(page);
 
     expect(await getActiveIndex(page)).toBe(0);
     expect(await getActiveZoom(page)).toBe(2);
     const x1 = await getSceneXShift(page);
-    expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(-30, 0);
+    expect((x1 ?? 0) - (x0 ?? 0)).toBeCloseTo(-(60 - DRAG_THRESHOLD) / 2, 0);
   });
 
   test('zoom=2에서 우측으로 크게 끌면 첫 패널 왼쪽 가장자리(cameraX = −폭/4)에서 멈춘다', async ({
@@ -272,8 +279,8 @@ test.describe('ScrollContainer · S13 관성 (릴리스 속도 반영)', () => {
 
     const x1 = await getSceneXShift(page);
     const moved = (x0 ?? 0) - (x1 ?? 0);
-    // 릴리스 지점(화면 40px → zoom 2 에서 월드 20) 그대로
-    expect(moved).toBeCloseTo(20, 0);
+    // 릴리스 지점 그대로 (화면 40px − 여유 10px → zoom 2 에서 월드 15)
+    expect(moved).toBeCloseTo((40 - DRAG_THRESHOLD) / 2, 0);
   });
 });
 
@@ -293,8 +300,8 @@ test.describe('ScrollContainer · S14 줌 상태 교차 축 pan', () => {
     await waitForSceneStable(page);
 
     const c1 = await getCameraPosition(page);
-    // 화면 −60px → 월드 −30 (부호: 스크린 Y↓, 월드 Y↑)
-    expect(c1?.y ?? 0).toBeCloseTo(-30, 0);
+    // 화면 −60px − 여유 10px → 월드 −25 (부호: 스크린 Y↓, 월드 Y↑)
+    expect(c1?.y ?? 0).toBeCloseTo(-(60 - DRAG_THRESHOLD) / 2, 0);
     expect(c1?.x ?? 1).toBeCloseTo(0, 0);
     expect(await getActiveZoom(page)).toBe(2);
   });
@@ -531,5 +538,89 @@ test.describe('ScrollContainer · S17 데스크톱 입력 (휠 · 키보드 · A
     expect(after.find((r) => r[0] === '2')?.[3]).toBeNull();
     expect(after.find((r) => r[0] === '1')?.[3]).toBe('true');
     expect(after.find((r) => r[0] === '3')?.[3]).toBe('true');
+  });
+});
+
+// 드래그 시작 여유 · 방향 잠금: 여유(10px) 안에서는 움직이지 않고, 넘을 때 우세 축(45°)으로 방향을 정한다.
+// 정착 후 값만 보면 "흔들렸다 돌아온" 것을 놓치므로 move 마다 카메라를 기록해 단언한다.
+test.describe('ScrollContainer · S18 드래그 시작 여유 · 방향 잠금', () => {
+  test('8px 가로 떨림(탭 흔들림)은 페이저를 한 번도 움직이지 않는다', async ({ page }) => {
+    await gotoDemo(page);
+    const samples = await dragSampleCamera(page, [
+      [-3, 0],
+      [-6, 1],
+      [-8, 0],
+      [-5, 1],
+    ]);
+    expect(samples.every((c) => c.x === 0 && c.y === 0)).toBe(true);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('가로 드래그는 여유만큼 당겨 잡아 튀지 않는다 — 12px 에서 2, 20px 에서 10', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    const samples = await dragSampleCamera(page, [
+      [-5, 0],
+      [-12, 0],
+      [-20, 0],
+    ]);
+    expect(samples.map((c) => c.x)).toEqual([0, 2, 10]);
+  });
+
+  test('세로 우세 대각(zoom 1)은 페이저가 받지 않는다 — 이후 가로로 크게 움직여도 제자리', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    const samples = await dragSampleCamera(page, [
+      [-4, -12],
+      [-10, -30],
+      [-60, -40],
+      [-120, -40],
+    ]);
+    expect(samples.every((c) => c.x === 0)).toBe(true);
+    await waitForSceneStable(page);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('zoom 2 · pan-y 피드 패널 위 세로 터치는 브라우저 몫이라 카메라가 움직이지 않는다 (마우스는 움직인다)', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await clickZoomTo(page, 2, false);
+    await expect(page.getByTestId('row-activeZoom-value')).toHaveText('2.000');
+    const target = '[data-panel-index="0"] [data-like]';
+    const touch = await dragSampleCamera(
+      page,
+      [
+        [-2, -12],
+        [-4, -30],
+        [-6, -60],
+      ],
+      { targetSelector: target },
+    );
+    expect(touch.every((c) => c.x === 0 && c.y === 0)).toBe(true);
+    await waitForSceneStable(page);
+    const mouse = await dragSampleCamera(
+      page,
+      [
+        [0, -12],
+        [0, -30],
+      ],
+      { targetSelector: target, pointerType: 'mouse' },
+    );
+    // 마우스는 touch-action 과 무관 — 자유 2D pan: (30 − 10)/2 = 10 월드 위로
+    expect(mouse[mouse.length - 1]?.y).toBeCloseTo(-10, 1);
+  });
+
+  test('dragThreshold=0 (데모 컨트롤) → 이전처럼 첫 move 부터 따라간다', async ({ page }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-drag-threshold').fill('0');
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
+    const samples = await dragSampleCamera(page, [
+      [-3, 0],
+      [-6, 1],
+    ]);
+    expect(samples.map((c) => c.x)).toEqual([3, 6]);
   });
 });

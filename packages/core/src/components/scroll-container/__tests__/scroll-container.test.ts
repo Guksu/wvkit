@@ -531,6 +531,64 @@ describe('createScrollContainer — validateOptions', () => {
   });
 });
 
+describe('createScrollContainer — dragThreshold', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = makeRoot();
+  });
+  afterEach(() => {
+    root.remove();
+  });
+
+  function pointer(type: string, x: number, y: number): void {
+    root.dispatchEvent(
+      new PointerEvent(type, { pointerId: 1, clientX: x, clientY: y, bubbles: true }),
+    );
+  }
+
+  /** root > domElement > scene — 카메라 transform 이 기록되는 노드 (integration 테스트와 같은 경로). */
+  function sceneTransform(): string {
+    const scene = root.firstElementChild?.firstElementChild as HTMLElement | null | undefined;
+    return scene?.style.transform ?? '';
+  }
+
+  it('음수·NaN·Infinity 는 WebviewHeadlessError', () => {
+    for (const dragThreshold of [-1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        createScrollContainer(root, {
+          direction: 'horizontal',
+          panels: makePanels(2),
+          dragThreshold,
+        }),
+      ).toThrow(WebviewHeadlessError);
+    }
+  });
+
+  it('기본값 10 — 8px 드래그는 scene 을 움직이지 않고, 30px 드래그는 20px 만 움직인다 (여유만큼 당겨 잡음)', () => {
+    const sc = createScrollContainer(root, { direction: 'horizontal', panels: makePanels(2) });
+    const t0 = sceneTransform();
+    pointer('pointerdown', 300, 300);
+    pointer('pointermove', 292, 300);
+    expect(sceneTransform()).toBe(t0);
+    pointer('pointermove', 270, 300);
+    // root 400 → scene translate x = 200 − cameraX; cameraX 20
+    expect(sceneTransform()).toContain('translate(180px');
+    sc.destroy();
+  });
+
+  it('dragThreshold: 0 → 첫 move 부터 따라간다', () => {
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels: makePanels(2),
+      dragThreshold: 0,
+    });
+    pointer('pointerdown', 300, 300);
+    pointer('pointermove', 292, 300);
+    expect(sceneTransform()).toContain('translate(192px');
+    sc.destroy();
+  });
+});
+
 describe('createScrollContainer — doubleTapZoom', () => {
   let root: HTMLElement;
   let now: number;

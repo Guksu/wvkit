@@ -316,6 +316,7 @@ lock.unlock();
 | `minZoom` | `number` | `1.0` | Minimum zoom level. |
 | `maxZoom` | `number` | `3.0` | Maximum zoom level. |
 | `doubleTapZoom` | `number \| false` | `false` | Double-tap toggles between `minZoom` and this level. |
+| `dragThreshold` | `number` | `10` | Pixels before a drag starts; the direction (45° split) is decided then. `0` = follow from the first move. |
 | `wheel` | `boolean` | `true` | Wheel / trackpad: one panel per gesture, pan while zoomed, `Ctrl` + wheel zoom. |
 | `keyboard` | `boolean` | `true` | Arrow keys, `Home` / `End`, `Escape` while the host has focus. |
 | `a11y` | `boolean` | `true` | Carousel ARIA roles; inactive panels get `aria-hidden` and `inert`. |
@@ -353,7 +354,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 - About 4 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
-- Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus.
+- Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus. The first 10 px of a drag do not move the pager, and a gesture that starts vertical never pages.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
 - Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
 

@@ -33,6 +33,13 @@ export interface ScrollContainerOptions {
   overscan?: number;
   /** 스냅 트리거에 필요한 스와이프 비율 (0 < x ≤ 1). 기본값 `0.3`. */
   snapThreshold?: number;
+  /**
+   * 드래그 시작 여유(px, 0 이상). 기본값 `10`.
+   * 포인터가 이만큼 움직이기 전에는 페이저가 움직이지 않고, 넘는 순간 우세 축(45° 기준)으로 방향을 정한다.
+   * 교차 축이 우세하거나(zoom ≤ 1) 그 방향을 브라우저가 스크롤할 터치(`touch-action`)면 그 제스처는 페이저가 무시한다.
+   * 탭 떨림과, `pan-y` 패널에서 세로 스크롤이 시작되기 전의 가로 흔들림을 막는다. `0` 이면 이전처럼 첫 move 부터 따라간다.
+   */
+  dragThreshold?: number;
   /** 엣지 고무줄 저항값 (0 ≤ x ≤ 1). 기본값 `0.2`. 핀치가 `minZoom`/`maxZoom`을 넘을 때의 줌 고무줄에도 쓰인다. */
   resistance?: number;
   /** 핀치 줌 활성화 여부. 기본값 `true`. */

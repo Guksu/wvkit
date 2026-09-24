@@ -13,6 +13,7 @@ import {
   snapDurationMs,
   zoomedHalfExtent,
 } from './matrix-utils';
+import { browserPansTouch } from './touch-action';
 
 /**
  * 입력(pointer/touch) → 카메라 조작을 담당하는 컨트롤러.
@@ -26,11 +27,23 @@ import {
  *  - 더블탭: `doubleTapZoom` 레벨 ↔ `minZoom` 토글 (doubleTapZoom 이 숫자일 때만)
  *  - 1 pointer 해제 → 스냅 결정 → 릴리스 트윈 시작 → onPanRelease (트윈은 컨트롤이 직접 소유)
  *  - pointercancel(브라우저가 터치를 가져감, 예: `pan-y` 패널의 세로 스크롤) → 이동을 시작 위치로 되돌림
+ *
+ * 드래그 시작 여유와 방향 잠금 (`dragThreshold` > 0):
+ *  - 포인터가 `dragThreshold` 를 넘게 움직이기 전까지 카메라는 움직이지 않는다 (탭 떨림·세로 스크롤 시작 흔들림 방지).
+ *  - 넘는 순간 우세 축(|dx| vs |dy|, 45° 기준)으로 방향을 한 번 정한다 — Android ViewPager 의
+ *    `xDiff > mTouchSlop && xDiff > yDiff` 와 같은 규칙. 측정한 Chromium 의 `pan-y` 판정도 45° 였다.
+ *  - 그 방향을 브라우저가 가져갈 터치면(`browserPansTouch`, touch/pen 만) 움직이지 않고 pointercancel 을 기다린다.
+ *  - zoom ≤ 1: 페이저 축이 우세하면 드래그, 교차 축이 우세하면 이 제스처는 페이저가 무시한다.
+ *    zoom > 1: 자유 2D pan (브라우저 몫이 아니면).
+ *  - 시작점을 여유만큼 당겨 잡아(ViewPager 의 `mInitialMotionX ± mTouchSlop`) 콘텐츠가 튀지 않는다.
+ *  - 핀치가 끝나고 남은 손가락의 pan 은 이미 움직이는 중이므로 여유 없이 바로 이어간다.
+ *  - `dragThreshold` 0 이면 이전 동작 그대로 (첫 move 부터 pan, 방향 잠금 없음).
  *  - 명령형 animateToIndex/animateToZoom: easeOutCubic RAF 트윈(고정 300ms), 진행 중이면 cancel 후 재시작
  *
  * 좌표: 모든 포인터 좌표는 root 좌상단 기준이다 (제스처 시작 시 `getBoundingClientRect`를 한 번 읽어 고정).
  * clientX/Y를 그대로 쓰면 root가 페이지 (0,0)에 있지 않을 때 핀치·더블탭의 앵커가 어긋난다.
- * 포인터 캡처는 `CAPTURE_SLOP_PX` 만큼 움직인 뒤에 잡는다 — 움직이지 않은 마우스 클릭이 패널 안 버튼에 닿게.
+ * 포인터 캡처는 드래그가 시작된 뒤 `CAPTURE_SLOP_PX` 이상 움직였을 때 잡는다 — 움직이지 않았거나 드래그로
+ * 인정되지 않은 마우스 클릭이 패널 안 버튼에 닿게.
  *
  * 관성(릴리스 속도 반영):
  *  - 릴리스 트윈 시간은 `snapDurationMs`로 손가락 속도에 이어지게 정한다 — 빠른 플릭 120ms까지,
@@ -100,6 +113,11 @@ export interface CameraControlOptions {
   enablePinchZoom: boolean;
   /** 더블탭 줌 목표 레벨. `false`(기본)면 더블탭을 추적하지 않는다. */
   doubleTapZoom?: number | false;
+  /**
+   * 드래그 시작 여유(px). 넘기 전까지 카메라를 움직이지 않고, 넘을 때 방향을 정한다.
+   * 생략하면 0 — 첫 move 부터 pan, 방향 잠금 없음 (ScrollContainer 는 공개 옵션 기본값 10 을 넘긴다).
+   */
+  dragThreshold?: number;
   /** 카메라가 변경됨. 호출자는 requestRender 수행. */
   onChange: () => void;
   /**
@@ -149,6 +167,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     maxZoom,
     enablePinchZoom,
     doubleTapZoom = false,
+    dragThreshold: dragThresholdOption = 0,
     onChange,
     onPanRelease,
     onPinchRelease,
@@ -156,6 +175,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
 
   const axis: 'x' | 'y' = direction === 'horizontal' ? 'x' : 'y';
   const cross: 'x' | 'y' = axis === 'x' ? 'y' : 'x';
+  const dragThreshold = dragThresholdOption > 0 ? dragThresholdOption : 0;
 
   // --- 포인터 추적 (root 좌상단 기준 좌표) ---
   const pointers = new Map<number, { x: number; y: number }>();
@@ -169,8 +189,20 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   }
 
   type PanState = {
+    /**
+     * pending: 여유(dragThreshold) 안 — 카메라를 움직이지 않는다.
+     * dragging: 드래그 중. rejected: 이 제스처는 페이저 몫이 아니다 (교차 축 우세 또는 브라우저 몫) — 놓을 때까지 무시.
+     */
+    phase: 'pending' | 'dragging' | 'rejected';
+    /** down 위치 (root 기준) — 여유·방향 판정용 */
+    downX: number;
+    downY: number;
+    /** down 시 hit-test 대상과 포인터 종류 — 브라우저가 이 터치를 pan 할지(touch-action) 판정용 */
+    downTarget: EventTarget | null;
+    pointerType: string;
     cameraX: number;
     cameraY: number;
+    /** pan 기준점 — 드래그 시작 시 여유만큼 당겨 잡는다 (dragging 이 된 뒤에만 의미) */
     pointerX: number;
     pointerY: number;
     pointerId: number;
@@ -296,10 +328,21 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   }
 
   // --- Pan ---
-  function startPan(pointerId: number): void {
+  /**
+   * `down` 이 없으면(핀치 뒤 남은 손가락) 여유 없이 바로 드래그한다 — 손가락이 이미 움직이는 중이다.
+   */
+  function startPan(
+    pointerId: number,
+    down: { target: EventTarget | null; pointerType: string } | null = null,
+  ): void {
     const p = pointers.get(pointerId);
     if (!p) return;
     panStart = {
+      phase: down && dragThreshold > 0 ? 'pending' : 'dragging',
+      downX: p.x,
+      downY: p.y,
+      downTarget: down?.target ?? null,
+      pointerType: down?.pointerType ?? '',
       cameraX: camera.position.x,
       cameraY: camera.position.y,
       pointerX: p.x,
@@ -311,6 +354,45 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
       lastDelta: 0,
       lastDeltaCross: 0,
     };
+  }
+
+  /**
+   * pending → 여유를 넘었으면 방향을 정한다 (dragging 또는 rejected). 넘지 않았으면 그대로 pending.
+   *
+   * 우세 축은 45° 기준 (|페이저 축| > |교차 축|). 그 방향을 브라우저가 pan 할 터치(touch/pen)면 rejected —
+   * 곧 pointercancel 이 오고, 그 전에 카메라를 움직이면 흔들렸다 되돌아간다.
+   */
+  function resolvePending(start: PanState): void {
+    const p = pointers.get(start.pointerId);
+    if (!p) return;
+    const dx = p.x - start.downX;
+    const dy = p.y - start.downY;
+    if (Math.hypot(dx, dy) <= dragThreshold) return;
+    const horizontal = Math.abs(dx) > Math.abs(dy);
+    const touchLike = start.pointerType === 'touch' || start.pointerType === 'pen';
+    if (touchLike && browserPansTouch(start.downTarget, horizontal ? 'x' : 'y')) {
+      start.phase = 'rejected';
+      return;
+    }
+    if (camera.zoom > 1) {
+      // 자유 2D pan — 움직인 방향으로 여유만큼 당겨 잡는다
+      const d = Math.hypot(dx, dy);
+      start.pointerX = start.downX + (dx / d) * dragThreshold;
+      start.pointerY = start.downY + (dy / d) * dragThreshold;
+      start.phase = 'dragging';
+      return;
+    }
+    const a = axis === 'x' ? dx : dy;
+    const c = axis === 'x' ? dy : dx;
+    if (Math.abs(a) <= Math.abs(c)) {
+      start.phase = 'rejected';
+      return;
+    }
+    // 페이저 축으로 잠금 — 그 축만 여유만큼 당겨 잡는다 (ViewPager: mInitialMotionX ± mTouchSlop)
+    const shift = Math.sign(a) * Math.min(dragThreshold, Math.abs(a));
+    if (axis === 'x') start.pointerX = start.downX + shift;
+    else start.pointerY = start.downY + shift;
+    start.phase = 'dragging';
   }
 
   function updatePan(): void {
@@ -695,7 +777,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     pointers.set(ev.pointerId, p);
     pointerOrigins.set(ev.pointerId, p);
     if (pointers.size === 1) {
-      startPan(ev.pointerId);
+      startPan(ev.pointerId, { target: ev.target, pointerType: ev.pointerType });
       pressStart = doubleTapZoom !== false ? { time: performance.now(), x: p.x, y: p.y } : null;
     } else {
       // 두 손가락 이상은 탭이 아니다
@@ -721,17 +803,19 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     if (!pointers.has(ev.pointerId)) return;
     const p = toLocal(ev);
     pointers.set(ev.pointerId, p);
-    // 슬롭을 넘게 움직였으면 캡처 — 이후 root 밖으로 나가도 move/up 을 계속 받는다
-    if (!capturedPointerIds.has(ev.pointerId)) {
+    if (pinchStart) {
+      updatePinch();
+    } else if (panStart) {
+      if (panStart.phase === 'pending') resolvePending(panStart);
+      if (panStart.phase === 'dragging') updatePan();
+    }
+    // 드래그(또는 핀치) 중이고 슬롭을 넘게 움직였으면 캡처 — 이후 root 밖으로 나가도 move/up 을 계속 받는다.
+    // 여유 안이거나 페이저 몫이 아닌 제스처는 캡처하지 않는다 (마우스 click 이 원래 요소에 닿게).
+    if (!capturedPointerIds.has(ev.pointerId) && (!panStart || panStart.phase === 'dragging')) {
       const origin = pointerOrigins.get(ev.pointerId);
       if (origin && Math.hypot(p.x - origin.x, p.y - origin.y) >= CAPTURE_SLOP_PX) {
         capturePointer(ev.pointerId);
       }
-    }
-    if (pinchStart) {
-      updatePinch();
-    } else if (panStart) {
-      updatePan();
     }
   }
 
