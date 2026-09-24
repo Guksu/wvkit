@@ -191,6 +191,41 @@ export async function swipeOnCanvas(
 }
 
 /**
+ * 캔버스 안에서 가로로 스크롤되는 요소(칩 줄 등)가 없는 지점을 찾아 마우스를 올린다 (페이지 좌표 반환).
+ * 휠은 설계상 그 방향으로 더 스크롤할 수 있는 중첩 스크롤러에 먼저 가므로, 페이저 휠 테스트는 그런 요소를 피해야
+ * 레이아웃과 무관하게 결정적이다. 캔버스 가운데 세로선을 위(20%)에서 아래(90%)로 훑는다.
+ */
+export async function hoverCanvasAwayFromHorizontalScrollers(
+  page: Page,
+): Promise<{ x: number; y: number }> {
+  await page.getByTestId(CANVAS).scrollIntoViewIfNeeded();
+  const point = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+    if (!canvas) throw new Error('sc-canvas not found');
+    const r = canvas.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    for (let t = 0.2; t <= 0.9; t += 0.05) {
+      const y = r.top + r.height * t;
+      let el = document.elementFromPoint(x, y);
+      if (!el || !canvas.contains(el)) continue;
+      let horizontal = false;
+      while (el && el !== canvas) {
+        const ox = getComputedStyle(el).overflowX;
+        if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 1) {
+          horizontal = true;
+          break;
+        }
+        el = el.parentElement;
+      }
+      if (!horizontal) return { x, y };
+    }
+    throw new Error('no point without a horizontal scroller inside sc-canvas');
+  });
+  await page.mouse.move(point.x, point.y);
+  return point;
+}
+
+/**
  * 두 손가락 핀치 — 캔버스 중앙을 기준으로 두 포인터를 startGap → endGap 으로 벌리거나 좁힌다.
  * endGap > startGap = 줌인.
  */
