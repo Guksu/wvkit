@@ -279,7 +279,7 @@ lock.unlock();
 
 ## API Reference
 
-> **Reactivity note (React/Vue adapters):** Non-callback options (e.g. `panels`, `direction`, `minZoom`) are captured once at mount — changing them on a later render is silently ignored. Callbacks (`onIndexChange`, `onRefresh`, …) always stay fresh. To apply new non-callback options, force a remount: pass a new `key` to the host component in React, or use `:key` / `v-if` in Vue. This applies to every adapter hook/composable in `@guksu/wvkit-react` and `@guksu/wvkit-vue`.
+> **Reactivity note (React/Vue adapters):** Non-callback options (e.g. `panels`, `direction`, `minZoom`) are captured once at mount — changing them on a later render is silently ignored. Callbacks (`onIndexChange`, `onRefresh`, …) always stay fresh. To apply new non-callback options, force a remount: pass a new `key` to the host component in React, or use `:key` / `v-if` in Vue. The exception is `useScrollContainer`: it applies changed options without remounting (`setOptions` / `setPanels`; in Vue, pass a `reactive` object, a `ref` or a getter).
 
 ### PullToRefresh
 
@@ -355,8 +355,8 @@ Every component is headless and small, but each has sharp edges that are easy to
 
 ### ScrollContainer
 
-- About 8.0 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
-- `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
+- About 8.7 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
+- `panels` are prebuilt `HTMLElement[]`. `setPanels` / `setOptions` change them and other options without remounting and keep the scroll position of panels that stay, but a change stops any gesture in progress.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
 - Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus. The first 10 px of a drag do not move the pager, and a gesture that starts vertical never pages.
 - With panels narrower than the host (`panelWidth`), peeking neighbours cannot be tapped while `a11y` is on (they are `inert`), and the first and last panels leave empty space at the edge.

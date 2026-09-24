@@ -48,6 +48,11 @@ export interface DesktopInputOptions {
 }
 
 export interface DesktopInput {
+  /**
+   * 방향·휠·키보드·minZoom 을 바꾼다 (setOptions). 리스너는 켜고 끌 때만 붙이고 뗀다.
+   * host 의 tabindex 도 키보드를 켜고 끌 때만 건드린다 — 다시 만들면 뗐다 붙이는 순간 포커스를 잃는다.
+   */
+  update(next: Pick<DesktopInputOptions, 'direction' | 'wheel' | 'keyboard' | 'minZoom'>): void;
   destroy(): void;
 }
 
@@ -81,11 +86,7 @@ export function canScrollNatively(
 export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
   const {
     root,
-    direction,
-    wheel,
-    keyboard,
     getZoom,
-    minZoom,
     getPanelSize,
     step,
     goToEdge,
@@ -95,8 +96,8 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
     resetZoom,
     isNoDragTarget,
   } = opts;
-  const axis: 'x' | 'y' = direction === 'horizontal' ? 'x' : 'y';
-  const listeners: Array<() => void> = [];
+  let { direction, wheel, keyboard, minZoom } = opts;
+  let axis: 'x' | 'y' = 'x';
 
   // --- 휠 제스처 상태 ---
   let accum = 0;
@@ -187,25 +188,49 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
     ev.preventDefault();
   }
 
+  let wheelOn = false;
+  let keyboardOn = false;
   let addedTabIndex = false;
-  if (wheel) {
-    root.addEventListener('wheel', onWheel, { passive: false });
-    listeners.push(() => root.removeEventListener('wheel', onWheel));
-  }
-  if (keyboard) {
-    root.addEventListener('keydown', onKeyDown);
-    listeners.push(() => root.removeEventListener('keydown', onKeyDown));
-    if (!root.hasAttribute('tabindex')) {
-      root.setAttribute('tabindex', '0');
-      addedTabIndex = true;
+
+  /** 현재 설정에 맞게 리스너·tabindex 를 붙이거나 뗀다 (바뀐 것만) */
+  function sync(): void {
+    axis = direction === 'horizontal' ? 'x' : 'y';
+    if (wheel !== wheelOn) {
+      wheelOn = wheel;
+      if (wheel) root.addEventListener('wheel', onWheel, { passive: false });
+      else root.removeEventListener('wheel', onWheel);
     }
+    if (keyboard !== keyboardOn) {
+      keyboardOn = keyboard;
+      if (keyboard) {
+        root.addEventListener('keydown', onKeyDown);
+        if (!root.hasAttribute('tabindex')) {
+          root.setAttribute('tabindex', '0');
+          addedTabIndex = true;
+        }
+      } else {
+        root.removeEventListener('keydown', onKeyDown);
+        if (addedTabIndex) root.removeAttribute('tabindex');
+        addedTabIndex = false;
+      }
+    }
+  }
+  sync();
+
+  function update(
+    next: Pick<DesktopInputOptions, 'direction' | 'wheel' | 'keyboard' | 'minZoom'>,
+  ): void {
+    ({ direction, wheel, keyboard, minZoom } = next);
+    accum = 0;
+    pagedThisGesture = false;
+    sync();
   }
 
   function destroy(): void {
-    for (const off of listeners) off();
-    listeners.length = 0;
-    if (addedTabIndex) root.removeAttribute('tabindex');
+    wheel = false;
+    keyboard = false;
+    sync();
   }
 
-  return { destroy };
+  return { update, destroy };
 }

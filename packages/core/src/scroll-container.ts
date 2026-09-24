@@ -9,5 +9,6 @@ export { createScrollContainer } from './components/scroll-container';
 export type {
   ScrollContainerDirection,
   ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
   ScrollContainerInstance,
 } from './components/scroll-container';

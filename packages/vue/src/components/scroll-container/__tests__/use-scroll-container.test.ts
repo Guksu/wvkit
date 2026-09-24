@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
-import { defineComponent } from 'vue';
+import { defineComponent, nextTick, reactive, ref } from 'vue';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useScrollContainer } from '../use-scroll-container';
+import { diffScrollContainerOptions, useScrollContainer } from '../use-scroll-container';
 
 /**
  * Vue 어댑터 smoke 테스트. 정밀 행렬·축 제약 검증은 core 단위 테스트(#5) 영역.
@@ -126,31 +126,71 @@ describe('useScrollContainer (Vue) [B-09] 실질 검증', () => {
 });
 
 /**
- * [B-25] 어댑터 계약 핀 — non-callback 옵션(panels 등)은 setup 시점에 1회 고정되며
- * 이후 변경은 인스턴스를 재생성하지 않는다(문서화된 계약). 이 동작이 조용히 바뀌면
- * 문서와 어긋나므로 테스트로 고정한다.
+ * [B-25] 어댑터 계약 핀 — 보통 객체 옵션은 마운트 때 값으로 고정되고, 반응형(reactive·ref·getter) 옵션은
+ * 바뀌면 인스턴스를 다시 만들지 않고 `setOptions` 로 반영한다.
  */
-describe('useScrollContainer (Vue) [B-25] non-callback 옵션 1회 고정 계약', () => {
+describe('useScrollContainer (Vue) [B-25] 옵션 변경 계약', () => {
   afterEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('[B-25] V1: 마운트 후 options 객체의 panels를 교체해도 인스턴스는 재생성되지 않는다', async () => {
+  it('[B-25] V1: 보통 객체의 panels 를 바꿔도 추적하지 않는다 (마운트 때 값 고정)', async () => {
     const options = { direction: 'horizontal' as const, panels: makePanels(3) };
     const { wrapper, composable } = mountWithComposable(options);
     await wrapper.vm.$nextTick();
 
     const containerEl = wrapper.element as HTMLElement;
-    // 재생성되면 CSS3DRenderer.domElement가 detach 후 새로 append되어 참조가 바뀐다
     const rendererEl = containerEl.firstElementChild;
     expect(rendererEl).not.toBeNull();
     const indexBefore = composable.activeIndex.value;
 
-    // 옵션 객체의 panels 교체 — 어댑터는 이를 감지하지 않는다(재마운트가 유일한 반영 수단)
-    options.panels = makePanels(5);
+    const next = makePanels(5);
+    options.panels = next;
     await wrapper.vm.$nextTick();
 
     expect(containerEl.firstElementChild).toBe(rendererEl);
     expect(composable.activeIndex.value).toBe(indexBefore);
+    expect(next[0]?.parentNode).toBeNull();
+  });
+
+  it('[B-25] V2: reactive 옵션의 panels 를 바꾸면 같은 인스턴스가 새 패널을 쓰고, 보던 패널을 유지한다', async () => {
+    const panels = makePanels(3);
+    const options = reactive({
+      direction: 'horizontal' as const,
+      panels,
+      initialIndex: 1,
+    });
+    const { wrapper, composable } = mountWithComposable(options);
+    await nextTick();
+    const containerEl = wrapper.element as HTMLElement;
+    const rendererEl = containerEl.firstElementChild;
+    expect(composable.activeIndex.value).toBe(1);
+
+    const added = makePanels(1);
+    options.panels = [...added, ...panels];
+    await nextTick();
+
+    expect(containerEl.firstElementChild).toBe(rendererEl);
+    expect(composable.activeIndex.value).toBe(2);
+    expect(added[0]?.style.position).toBe('absolute');
+  });
+
+  it('[B-25] V3: ref 옵션의 minZoom 을 올리면 줌을 새 범위로 올린다', async () => {
+    const options = ref({ direction: 'horizontal' as const, panels: makePanels(2), minZoom: 1 });
+    const { composable } = mountWithComposable(options);
+    await nextTick();
+    options.value = { ...options.value, minZoom: 2 };
+    await nextTick();
+    expect(composable.activeZoom.value).toBe(2);
+  });
+
+  it('[B-25] V4: 바뀐 키만 모은다 — 같은 요소의 새 배열·콜백·initialIndex 는 제외', () => {
+    const panels = makePanels(2);
+    const base = { direction: 'horizontal' as const, panels, minZoom: 1 };
+    expect(diffScrollContainerOptions(base, { ...base, panels: [...panels] })).toBeNull();
+    expect(
+      diffScrollContainerOptions(base, { ...base, onZoomChange: () => {}, initialIndex: 1 }),
+    ).toBeNull();
+    expect(diffScrollContainerOptions(base, { ...base, gap: 4 })).toEqual({ gap: 4 });
   });
 });

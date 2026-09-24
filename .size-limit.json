@@ -8,7 +8,7 @@
     "name": "@guksu/wvkit-core/scroll-container",
     "path": "packages/core/dist/scroll-container.js",
     "import": "{ createScrollContainer }",
-    "limit": "7.5 KB"
+    "limit": "8 KB"
   },
   {
     "name": "@guksu/wvkit-react — barrel (core·react external)",

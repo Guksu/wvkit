@@ -3,9 +3,13 @@ import { type A11y, createA11y } from './a11y';
 import { createCamera } from './camera';
 import { type CameraControl, createCameraControl } from './camera-control';
 import { type DesktopInput, createDesktopInput } from './desktop-input';
-import { panelCameraRange } from './matrix-utils';
+import { clamp, panelCameraRange } from './matrix-utils';
 import { createPanelRenderer } from './panel-renderer';
-import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
+import type {
+  ScrollContainerInstance,
+  ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
+} from './types';
 
 /**
  * 가로/세로 패널 스크롤 컨테이너 (카메라 모델 + CSS transform 렌더러 + CameraControl).
@@ -24,15 +28,39 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from './types';
  */
 export function createScrollContainer(
   root: HTMLElement,
-  options: ScrollContainerOptions,
+  initialOptions: ScrollContainerOptions,
 ): ScrollContainerInstance {
   // --- 옵션 검증 + 정규화 ---
-  validateOptions(options);
+  validateOptions(initialOptions);
 
-  const panelCount = options.panels.length;
-  const initialIndex = clampIndex(options.initialIndex ?? 0, panelCount);
-  const minZoom = options.minZoom ?? 1.0;
-  const maxZoom = options.maxZoom ?? 3.0;
+  // 현재 옵션·패널 — setOptions/setPanels 가 바꾼다 (사용자가 넘긴 객체·배열은 건드리지 않는다)
+  let options = initialOptions;
+  let panels: ReadonlyArray<HTMLElement> = [...initialOptions.panels];
+
+  // 옵션에서 나온 값 — readConfig 가 채운다
+  let minZoom = 1;
+  let maxZoom = 3;
+  let overscan = 1;
+  // 'both'는 1차에서 horizontal로 폴백 (대각 스크롤은 후속 minor)
+  let direction: 'horizontal' | 'vertical' = 'horizontal';
+  let axis: 'x' | 'y' = 'x';
+  /** 인덱스가 커지는 방향의 축 부호 — 가로 +x, 세로 −y */
+  let forward: 1 | -1 = 1;
+  let gap = 0;
+  let align: 'center' | 'start' = 'center';
+  function readConfig(): void {
+    minZoom = options.minZoom ?? 1.0;
+    maxZoom = options.maxZoom ?? 3.0;
+    overscan = Math.max(0, options.overscan ?? 1);
+    direction = options.direction === 'vertical' ? 'vertical' : 'horizontal';
+    axis = direction === 'horizontal' ? 'x' : 'y';
+    forward = direction === 'horizontal' ? 1 : -1;
+    gap = options.gap ?? 0;
+    align = options.align ?? 'center';
+  }
+  readConfig();
+
+  const initialIndex = clampIndex(options.initialIndex ?? 0, panels.length);
   const initialZoom = clampZoom(1, minZoom, maxZoom);
 
   // --- SSR 가드 — 모듈 로드/팩토리 호출 시점에 DOM 접근하지 않음 ---
@@ -42,28 +70,11 @@ export function createScrollContainer(
       getActiveIndex: () => initialIndex,
       zoomTo: () => {},
       getZoom: () => initialZoom,
+      setPanels: () => {},
+      setOptions: () => {},
       destroy: () => {},
     };
   }
-
-  // --- 실 환경 옵션 정규화 ---
-  const overscan = Math.max(0, options.overscan ?? 1);
-  const snapThreshold = options.snapThreshold ?? 0.3;
-  const resistance = options.resistance ?? 0.2;
-  const enablePinchZoom = options.enablePinchZoom ?? true;
-  const doubleTapZoom = options.doubleTapZoom ?? false;
-  const dragThreshold = options.dragThreshold ?? 10;
-  const wheelEnabled = options.wheel ?? true;
-  const keyboardEnabled = options.keyboard ?? true;
-  const a11yEnabled = options.a11y ?? true;
-  // 'both'는 1차에서 horizontal로 폴백 (대각 스크롤은 후속 minor)
-  const direction: 'horizontal' | 'vertical' =
-    options.direction === 'vertical' ? 'vertical' : 'horizontal';
-  const axis: 'x' | 'y' = direction === 'horizontal' ? 'x' : 'y';
-  /** 인덱스가 커지는 방향의 축 부호 — 가로 +x, 세로 −y */
-  const forward: 1 | -1 = direction === 'horizontal' ? 1 : -1;
-  const gap = options.gap ?? 0;
-  const align = options.align ?? 'center';
 
   // --- 컨테이너 크기 측정 ---
   let width = Math.max(1, root.clientWidth || 1);
@@ -71,13 +82,14 @@ export function createScrollContainer(
 
   // --- 패널 위치 계산 ---
   // panelSizes는 축 방향 패널 크기(가로: width, 세로: 패널 높이) — CameraControl의 줌 상태 pan 경계 계산용.
-  // positions와 같은 배열 참조를 유지해 리사이즈 시 함께 갱신된다.
+  // CameraControl 이 같은 배열 참조를 읽으므로 새 배열로 바꾸지 않고 내용만 갈아 끼운다 (commitLayout).
   const positions: Array<{ x: number; y: number }> = [];
   const panelSizes: number[] = [];
+  type Layout = [Array<{ x: number; y: number }>, number[]];
 
   /**
    * 가로 패널 폭(px). `panelWidth` 가 0 초과 1 이하면 root 폭 비율, 1 초과면 px. 생략하면 root 폭.
-   * 생성 시점(strict)에는 잘못된 값이면 throw, 리사이즈 중에는 root 폭으로 폴백한다 (ResizeObserver 안에서 throw 하지 않게).
+   * 생성·옵션 변경 시(strict)에는 잘못된 값이면 throw, 리사이즈 중에는 root 폭으로 폴백한다 (ResizeObserver 안에서 throw 하지 않게).
    */
   function resolvePanelWidth(i: number, strict: boolean): number {
     const pw = options.panelWidth;
@@ -93,52 +105,60 @@ export function createScrollContainer(
     return v <= 1 ? v * width : v;
   }
 
-  function computePositions(strict = false): void {
-    positions.length = 0;
-    panelSizes.length = 0;
+  function computeLayout(strict: boolean): Layout {
+    const pos: Array<{ x: number; y: number }> = [];
+    const sizes: number[] = [];
     if (direction === 'horizontal') {
       // 첫 패널 중심을 0 에 두고 폭과 gap 을 따라 이어 붙인다 (전폭·gap 0 이면 x = i × width, 이전과 같음)
       let prevX = 0;
       let prevW = 0;
-      for (let i = 0; i < panelCount; i++) {
+      for (let i = 0; i < panels.length; i++) {
         const w = resolvePanelWidth(i, strict);
         const x = i === 0 ? 0 : prevX + prevW / 2 + gap + w / 2;
-        positions.push({ x, y: 0 });
-        panelSizes.push(w);
+        pos.push({ x, y: 0 });
+        sizes.push(w);
         prevX = x;
         prevW = w;
       }
     } else {
       let cursor = 0;
-      for (let i = 0; i < panelCount; i++) {
+      for (let i = 0; i < panels.length; i++) {
         const h = options.panelHeight?.(i) ?? height;
-        positions.push({ x: 0, y: -(cursor + h / 2) });
-        panelSizes.push(h);
+        pos.push({ x: 0, y: -(cursor + h / 2) });
+        sizes.push(h);
         cursor += h + gap;
       }
     }
+    return [pos, sizes];
   }
+
+  function commitLayout([pos, sizes]: Layout): void {
+    positions.length = 0;
+    positions.push(...pos);
+    panelSizes.length = 0;
+    panelSizes.push(...sizes);
+  }
+
   // 렌더러가 DOM 을 바꾸기 전에 계산한다 — panelWidth 가 잘못돼 throw 해도 root·패널이 그대로 남게
-  computePositions(true);
+  commitLayout(computeLayout(true));
 
   // --- 카메라 / 렌더러 셋업 ---
   // pointer-events는 건드리지 않음 — 패널 콘텐츠 인터랙션을 보존하고, 입력은 자연 bubbling으로
   // root까지 전달되어 CameraControl이 root 리스너에서 수신.
   const camera = createCamera(initialZoom);
-  const renderer = createPanelRenderer(options.panels);
+  const renderer = createPanelRenderer(panels);
   renderer.setSize(width, height);
   root.appendChild(renderer.domElement);
 
   // --- 패널 좌표를 렌더러에 반영 ---
   function applyPanelPositions(): void {
-    for (let i = 0; i < panelCount; i++) {
+    // panelWidth 를 준 가로 페이저만 폭을 지정한다 — 아니면 앱 CSS(보통 width: 100%)에 맡긴다 (지정했던 폭은 되돌린다)
+    const setWidth = direction === 'horizontal' && options.panelWidth !== undefined;
+    for (let i = 0; i < panels.length; i++) {
       const p = positions[i];
       if (!p) continue;
       renderer.setPanelPosition(i, p.x, p.y);
-      // panelWidth 를 준 가로 페이저만 폭을 지정한다 — 아니면 앱 CSS(보통 width: 100%)에 맡긴다
-      if (direction === 'horizontal' && options.panelWidth !== undefined) {
-        renderer.setPanelWidth(i, panelSizes[i] ?? width);
-      }
+      renderer.setPanelWidth(i, setWidth ? (panelSizes[i] ?? width) : null);
     }
   }
   applyPanelPositions();
@@ -148,7 +168,7 @@ export function createScrollContainer(
   let zoom = initialZoom;
   let destroyed = false;
   // 가상화 창 안/밖 상태 — mount/unmount 차분만 렌더러에 전달. null = 아직 미적용(첫 적용 때 전부 기록).
-  const panelInWindow: Array<boolean | null> = new Array(panelCount).fill(null);
+  let panelInWindow: Array<boolean | null> = panels.map(() => null);
 
   // --- 내부 적용 함수 (초기 적용 + ResizeObserver 보정에서 사용) ---
   /** 뷰포트(root)의 페이저 축 크기 */
@@ -156,28 +176,22 @@ export function createScrollContainer(
     return axis === 'x' ? width : height;
   }
 
-  /** 패널 i 의 정착 위치(축 좌표) — center 정렬·전폭이면 패널 중심, start 면 패널 시작이 화면 시작에 붙는 위치 */
-  function restAxis(i: number): number {
-    const p = positions[i];
-    if (!p) return 0;
+  /** 패널 i 의 카메라 범위(축 좌표) — rest 는 center 정렬·전폭이면 패널 중심, start 면 패널 시작이 화면 시작에 붙는 위치 */
+  function rangeAxis(i: number): { rest: number; min: number; max: number } {
     const v = viewportAlongAxis();
-    return panelCameraRange(p[axis], panelSizes[i] ?? v, v, zoom, align, forward).rest;
+    return panelCameraRange(positions[i]?.[axis] ?? 0, panelSizes[i] ?? v, v, zoom, align, forward);
   }
 
   function applyActiveIndexToCameraDirectly(): void {
     const p = positions[activeIndex];
     if (!p) return;
-    const a = restAxis(activeIndex);
+    const a = rangeAxis(activeIndex).rest;
     camera.position.x = axis === 'x' ? a : p.x;
     camera.position.y = axis === 'y' ? a : p.y;
   }
 
-  function applyZoomToCameraDirectly(): void {
-    camera.zoom = zoom;
-  }
-
   // ARIA: 활성 패널만 노출 (비활성은 aria-hidden + inert). 활성 인덱스가 바뀔 때마다 갱신.
-  const a11y: A11y | null = a11yEnabled ? createA11y(root, options.panels) : null;
+  let a11y: A11y | null = (options.a11y ?? true) ? createA11y(root, panels) : null;
 
   /**
    * 활성 패널에 정착했을 때 화면에 보이는 패널 범위 (인덱스). 전폭 패널이면 활성 하나뿐이고,
@@ -185,11 +199,11 @@ export function createScrollContainer(
    */
   function visibleRange(): { first: number; last: number } {
     const v = viewportAlongAxis();
-    const cam = forward * restAxis(activeIndex);
+    const cam = forward * rangeAxis(activeIndex).rest;
     const half = v / (2 * (zoom > 0 ? zoom : 1));
     let first = activeIndex;
     let last = activeIndex;
-    for (let i = 0; i < panelCount; i++) {
+    for (let i = 0; i < panels.length; i++) {
       const c = forward * (positions[i]?.[axis] ?? 0);
       const hs = (panelSizes[i] ?? v) / 2;
       // 0.5px 넘게 겹쳐야 보인다고 본다 (전폭 패널의 이웃은 경계에 딱 닿기만 한다)
@@ -205,7 +219,7 @@ export function createScrollContainer(
   // (전폭 패널이면 이전과 같이 |i − activeIndex| ≤ overscan)
   function applyVirtualization(): void {
     const { first, last } = visibleRange();
-    for (let i = 0; i < panelCount; i++) {
+    for (let i = 0; i < panels.length; i++) {
       const inWindow = i >= first - overscan && i <= last + overscan;
       if (panelInWindow[i] !== inWindow) {
         panelInWindow[i] = inWindow;
@@ -223,86 +237,88 @@ export function createScrollContainer(
   // --- 초기 적용 + 1회 렌더 ---
   applyVirtualization();
   applyActiveIndexToCameraDirectly();
-  applyZoomToCameraDirectly();
+  camera.zoom = zoom;
   requestRender();
 
   /**
    * `noDragSelector` — 누른 요소에서 가장 가까운 일치 요소가 root 안(자손)에 있으면 페이저가 받지 않는다.
-   * root 자신이나 root 바깥 조상이 일치하는 것은 세지 않는다 (페이저 전체가 꺼지지 않게).
+   * root 자신이나 root 바깥 조상이 일치하는 것은 세지 않는다 (페이저 전체가 꺼지지 않게). 현재 옵션을 매번 읽는다.
    */
-  const noDragSelector = options.noDragSelector;
-  const isNoDragTarget = noDragSelector
-    ? (target: EventTarget | null): boolean => {
-        const hit = target instanceof Element ? target.closest(noDragSelector) : null;
-        return hit !== null && hit !== root && root.contains(hit);
-      }
-    : undefined;
+  function isNoDragTarget(target: EventTarget | null): boolean {
+    const selector = options.noDragSelector;
+    const hit = selector && target instanceof Element ? target.closest(selector) : null;
+    return hit !== null && hit !== root && root.contains(hit);
+  }
 
-  // --- CameraControl (#3) 인스턴스화 ---
-  let control: CameraControl | null = createCameraControl({
-    root,
-    camera,
-    direction,
-    positions,
-    panelSizes,
-    getRootSize: () => ({ width, height }),
-    snapThreshold,
-    resistance,
-    minZoom,
-    maxZoom,
-    enablePinchZoom,
-    doubleTapZoom,
-    dragThreshold,
-    align,
-    isNoDragTarget,
-    onChange: requestRender,
-    onPanRelease: (targetIndex) => {
-      if (destroyed) return;
-      // 카메라 복귀/스냅 트윈은 CameraControl이 콜백 직전에 이미 시작했다 — 여기서는 상태만 갱신.
-      // (zoom ≤ 1: 패널 중심 스냅, zoom > 1: 그 자리 유지 또는 가장자리/gap 스냅)
-      if (targetIndex !== activeIndex) {
-        activeIndex = targetIndex;
-        applyVirtualization();
-        options.onIndexChange?.(activeIndex);
-      }
-    },
-    onPinchRelease: (newZoom) => {
-      if (destroyed) return;
-      // 핀치 릴리스·더블탭 공통 — 컨트롤이 범위 안 값만 준다 (고무줄 복귀 트윈은 컨트롤이 소유).
-      if (newZoom !== zoom) {
-        zoom = newZoom;
-        applyVirtualization(); // 줌에 따라 화면에 보이는 패널 수가 달라진다
-        options.onZoomChange?.(zoom);
-      }
-    },
-  });
+  // --- CameraControl (#3) — 제스처 옵션이 바뀌면 relayout 이 다시 만든다 ---
+  function createControl(): CameraControl {
+    return createCameraControl({
+      root,
+      camera,
+      direction,
+      positions,
+      panelSizes,
+      getRootSize: () => ({ width, height }),
+      snapThreshold: options.snapThreshold ?? 0.3,
+      resistance: options.resistance ?? 0.2,
+      minZoom,
+      maxZoom,
+      enablePinchZoom: options.enablePinchZoom ?? true,
+      doubleTapZoom: options.doubleTapZoom ?? false,
+      dragThreshold: options.dragThreshold ?? 10,
+      align,
+      isNoDragTarget,
+      onChange: requestRender,
+      onPanRelease: (targetIndex) => {
+        if (destroyed) return;
+        // 카메라 복귀/스냅 트윈은 CameraControl이 콜백 직전에 이미 시작했다 — 여기서는 상태만 갱신.
+        // (zoom ≤ 1: 패널 중심 스냅, zoom > 1: 그 자리 유지 또는 가장자리/gap 스냅)
+        if (targetIndex !== activeIndex) {
+          activeIndex = targetIndex;
+          applyVirtualization();
+          options.onIndexChange?.(activeIndex);
+        }
+      },
+      onPinchRelease: (newZoom) => {
+        if (destroyed) return;
+        // 핀치 릴리스·더블탭 공통 — 컨트롤이 범위 안 값만 준다 (고무줄 복귀 트윈은 컨트롤이 소유).
+        if (newZoom !== zoom) {
+          zoom = newZoom;
+          applyVirtualization(); // 줌에 따라 화면에 보이는 패널 수가 달라진다
+          options.onZoomChange?.(zoom);
+        }
+      },
+    });
+  }
+  let control: CameraControl | null = createControl();
 
   // --- 데스크톱 입력 (휠·트랙패드·키보드) — 터치 기기에서는 이벤트가 오지 않는다 ---
-  let desktopInput: DesktopInput | null =
-    wheelEnabled || keyboardEnabled
-      ? createDesktopInput({
-          root,
-          direction,
-          wheel: wheelEnabled,
-          keyboard: keyboardEnabled,
-          getZoom: () => zoom,
-          minZoom,
-          getPanelSize: () =>
-            panelSizes[activeIndex] ?? (direction === 'horizontal' ? width : height),
-          step: (delta) => scrollTo(activeIndex + delta),
-          goToEdge: (edge) => scrollTo(edge === 'first' ? 0 : panelCount - 1),
-          panBy: (dx, dy) => control?.panBy(dx, dy),
-          zoomBy: (factor, sx, sy) => control?.zoomBy(factor, sx, sy) ?? zoom,
-          onZoom: (z) => {
-            if (destroyed || z === zoom) return;
-            zoom = z;
-            applyVirtualization();
-            options.onZoomChange?.(zoom);
-          },
-          resetZoom: () => zoomTo(minZoom),
-          isNoDragTarget,
-        })
-      : null;
+  function desktopConfig() {
+    return {
+      direction,
+      wheel: options.wheel ?? true,
+      keyboard: options.keyboard ?? true,
+      minZoom,
+    };
+  }
+  let desktopInput: DesktopInput | null = createDesktopInput({
+    root,
+    ...desktopConfig(),
+    getZoom: () => zoom,
+    getPanelSize: () => panelSizes[activeIndex] ?? viewportAlongAxis(),
+    step: (delta) => scrollTo(activeIndex + delta),
+    goToEdge: (edge) => scrollTo(edge === 'first' ? 0 : panels.length - 1),
+    panBy: (dx, dy) => control?.panBy(dx, dy),
+    zoomBy: (factor, sx, sy) => control?.zoomBy(factor, sx, sy) ?? zoom,
+    onZoom: (z) => {
+      if (destroyed || z === zoom) return;
+      zoom = z;
+      applyVirtualization();
+      options.onZoomChange?.(zoom);
+    },
+    resetZoom: () => zoomTo(minZoom),
+    isNoDragTarget,
+  });
 
   // --- ResizeObserver: root 사이즈 변경 시 카메라 frustum + 렌더러 사이즈 + 패널 좌표 보정 ---
   let resizeObserver: ResizeObserver | null = null;
@@ -315,7 +331,7 @@ export function createScrollContainer(
       width = newW;
       height = newH;
       renderer.setSize(width, height);
-      computePositions();
+      commitLayout(computeLayout(false));
       applyPanelPositions();
       // 트윈이 진행 중이었어도 새 좌표 기준으로 즉시 보정 (resize는 드물고 명확해야 함)
       control?.cancelAnimation();
@@ -326,12 +342,116 @@ export function createScrollContainer(
     resizeObserver.observe(root);
   }
 
+  // --- 옵션·패널 변경 (다시 마운트하지 않음) ---
+  /** 값이 바뀌어도 새 함수가 같은 결과를 내면 바뀐 것으로 보지 않는 키 (배치 결과로 판단) · 콜백 · 패널(따로 비교) */
+  const SOFT_KEYS: ReadonlyArray<string> = [
+    'panels',
+    'panelWidth',
+    'panelHeight',
+    'onIndexChange',
+    'onZoomChange',
+    'initialIndex',
+  ];
+
+  function relayout(nextOptions: ScrollContainerOptions): void {
+    if (destroyed) return;
+    const prevOptions = options;
+    const prevPanels = panels;
+    const nextPanels = [...nextOptions.panels];
+    validateOptions(nextOptions);
+
+    // 보던 패널 기준 카메라 오프셋 — 보던 패널이 남으면 그만큼 유지해 화면이 움직이지 않게 (바꾸기 전 배치로 잰다)
+    const activeEl = prevPanels[activeIndex];
+    const prevAxis = axis;
+    const offset = camera.position[axis] - rangeAxis(activeIndex).rest;
+    const cross = camera.position[axis === 'x' ? 'y' : 'x'];
+
+    // 새 옵션으로 배치를 먼저 계산한다 — 잘못된 값이면 아무것도 바꾸지 않고 throw
+    options = nextOptions;
+    panels = nextPanels;
+    readConfig();
+    let layout: Layout;
+    try {
+      layout = computeLayout(true);
+    } catch (e) {
+      options = prevOptions;
+      panels = prevPanels;
+      readConfig();
+      throw e;
+    }
+
+    const panelsChanged =
+      nextPanels.length !== prevPanels.length || nextPanels.some((p, i) => p !== prevPanels[i]);
+    const keyChanged = (key: string): boolean =>
+      !Object.is(
+        (prevOptions as unknown as Record<string, unknown>)[key],
+        (nextOptions as unknown as Record<string, unknown>)[key],
+      );
+    const optionChanged =
+      Object.keys({ ...prevOptions, ...nextOptions }).some(
+        (k) => !SOFT_KEYS.includes(k) && keyChanged(k),
+      ) || (prevOptions.panelWidth === undefined) !== (nextOptions.panelWidth === undefined);
+    const layoutChanged =
+      layout[0].length !== positions.length ||
+      layout[0].some((p, i) => p.x !== positions[i]?.x || p.y !== positions[i]?.y) ||
+      layout[1].some((v, i) => v !== panelSizes[i]);
+    // 새 콜백·같은 결과의 새 함수만 바뀌었으면 여기서 끝 — 진행 중인 제스처·애니메이션을 건드리지 않는다
+    if (!panelsChanged && !optionChanged && !layoutChanged) return;
+
+    // --- 적용 ---
+    if (panelsChanged) {
+      const prevState = new Map(prevPanels.map((p, i) => [p, panelInWindow[i] ?? null]));
+      renderer.setPanels(panels);
+      panelInWindow = panels.map((p) => prevState.get(p) ?? null);
+    }
+    commitLayout(layout);
+    applyPanelPositions();
+
+    // 보던 패널이 남았으면 그 패널, 지워졌으면 같은 번호 자리
+    const prevIndex = activeIndex;
+    const kept = activeEl ? panels.indexOf(activeEl) : -1;
+    activeIndex = kept >= 0 ? kept : clampIndex(activeIndex, panels.length);
+
+    const prevZoom = zoom;
+    zoom = clampZoom(zoom, minZoom, maxZoom);
+
+    // 진행 중인 제스처·애니메이션을 멈추고 새 옵션으로 제스처 처리를 다시 만든다
+    control?.destroy();
+    camera.zoom = zoom;
+    applyActiveIndexToCameraDirectly();
+    if (kept >= 0 && axis === prevAxis && zoom === prevZoom) {
+      const r = rangeAxis(activeIndex);
+      camera.position[axis] = clamp(r.rest + offset, r.min, r.max);
+      camera.position[axis === 'x' ? 'y' : 'x'] = cross;
+    }
+    control = createControl();
+    desktopInput?.update(desktopConfig());
+
+    if (panelsChanged || keyChanged('a11y')) {
+      a11y?.destroy();
+      a11y = (options.a11y ?? true) ? createA11y(root, panels) : null;
+    }
+    applyVirtualization();
+    requestRender();
+
+    if (activeIndex !== prevIndex) options.onIndexChange?.(activeIndex);
+    if (zoom !== prevZoom) options.onZoomChange?.(zoom);
+  }
+
+  function setOptions(next: ScrollContainerOptionsUpdate): void {
+    relayout({ ...options, ...next } as ScrollContainerOptions);
+  }
+
+  function setPanels(next: HTMLElement[]): void {
+    relayout({ ...options, panels: next });
+  }
+
   // --- 공개 메서드 ---
   // scrollTo/zoomTo는 논리적 상태(activeIndex/zoom)는 즉시 업데이트하고, 카메라 이동은
   // CameraControl에 위임 (animated=true 기본). animated=false면 동기 점프.
   function scrollTo(index: number, opts?: { animated?: boolean }): void {
     if (destroyed) return;
-    const next = clampIndex(index, panelCount);
+    const next = clampIndex(index, panels.length);
     const animated = opts?.animated ?? true;
     if (next !== activeIndex) {
       activeIndex = next;
@@ -387,6 +507,8 @@ export function createScrollContainer(
     getActiveIndex,
     zoomTo,
     getZoom,
+    setPanels,
+    setOptions,
     destroy,
   };
 }
@@ -412,6 +534,11 @@ function clampZoom(level: number, min: number, max: number): number {
 function validateOptions(options: ScrollContainerOptions): void {
   if (options.panels.length === 0) {
     throw new WebviewHeadlessError('ScrollContainer: panels must not be empty');
+  }
+  if (new Set(options.panels).size !== options.panels.length) {
+    throw new WebviewHeadlessError(
+      'ScrollContainer: panels must not contain the same element twice',
+    );
   }
   if (options.noDragSelector !== undefined && typeof document !== 'undefined') {
     try {

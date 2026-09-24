@@ -1,7 +1,42 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { createScrollContainer } from '@guksu/wvkit-core/scroll-container';
-import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvkit-core/scroll-container';
+import type {
+  ScrollContainerInstance,
+  ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
+} from '@guksu/wvkit-core/scroll-container';
+
+/** setOptions 로 넘기지 않는 키 — 콜백은 ref 로 최신값을 부르고, initialIndex 는 마운트 때만 쓴다 */
+const SKIP_KEYS = new Set(['onIndexChange', 'onZoomChange', 'initialIndex']);
+
+/**
+ * 이전에 적용한 옵션과 비교해 바뀐 키만 모은다. 패널 배열은 요소를 하나씩 비교한다 (매 렌더 새 배열이어도
+ * 같은 요소면 바뀌지 않은 것). 나머지는 `Object.is`. 같은 결과를 내는 새 함수(인라인 panelHeight 등)는
+ * 여기서는 바뀐 것으로 넘어가지만, core 가 배치 결과를 비교해 아무 일도 하지 않는다.
+ */
+export function diffScrollContainerOptions(
+  prev: ScrollContainerOptions,
+  next: ScrollContainerOptions,
+): ScrollContainerOptionsUpdate | null {
+  const update: Record<string, unknown> = {};
+  let changed = false;
+  const a = prev as unknown as Record<string, unknown>;
+  const b = next as unknown as Record<string, unknown>;
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (SKIP_KEYS.has(key)) continue;
+    const same =
+      key === 'panels'
+        ? prev.panels.length === next.panels.length &&
+          prev.panels.every((p, i) => p === next.panels[i])
+        : Object.is(a[key], b[key]);
+    if (!same) {
+      update[key] = b[key];
+      changed = true;
+    }
+  }
+  return changed ? (update as ScrollContainerOptionsUpdate) : null;
+}
 
 /**
  * React 어댑터 — core `createScrollContainer`를 감싸는 훅.
@@ -17,9 +52,9 @@ import type { ScrollContainerInstance, ScrollContainerOptions } from '@guksu/wvk
  *  - SSR 안전: `createScrollContainer`는 `useEffect` 안에서만 호출
  *  - options ref 패턴: 매 렌더 options 객체가 새로 만들어져도 인스턴스 재생성 없음
  *  - 사용자 콜백(onIndexChange/onZoomChange)은 ref로 받아 stale closure 회피
- *  - non-callback 옵션(`panels`/`direction`/`minZoom` 등)은 마운트 시 1회 고정 — 이후
- *    변경은 조용히 무시된다. `panels` 교체가 필요하면 호스트 컴포넌트의 `key`를 바꿔
- *    재마운트할 것 (자동 재초기화는 의도적으로 하지 않음)
+ *  - non-callback 옵션(`panels`/`direction`/`minZoom` 등)이 바뀌면 다시 마운트하지 않고
+ *    `setOptions` 로 넘긴다 (바뀐 키만). 패널 배열은 요소 단위로 비교하므로 매 렌더 새 배열이어도 된다.
+ *    `initialIndex` 는 마운트 때만 쓴다
  *  - 명령형 메서드(scrollTo/zoomTo)는 `useCallback`으로 안정화, instance 마운트 전 호출은 noop
  */
 export function useScrollContainer(options: ScrollContainerOptions): {
@@ -34,6 +69,8 @@ export function useScrollContainer(options: ScrollContainerOptions): {
 
   // 매 렌더의 최신 options를 ref로 보관 — effect 내부 초기화는 1회만 수행
   const optionsRef = useRef(options);
+  /** 인스턴스에 마지막으로 적용한 옵션 — 다음 렌더와 비교해 바뀐 것만 setOptions 로 넘긴다 */
+  const appliedRef = useRef<ScrollContainerOptions | null>(null);
   useEffect(() => {
     optionsRef.current = options;
   });
@@ -62,6 +99,7 @@ export function useScrollContainer(options: ScrollContainerOptions): {
 
     const instance = createScrollContainer(containerRef.current, wrappedOptions);
     instanceRef.current = instance;
+    appliedRef.current = initOpts;
     // 초기 상태 반영 (initialIndex가 useState 기본값과 다를 수 있고, zoom은 core에서 결정)
     setActiveIndex(instance.getActiveIndex());
     setActiveZoom(instance.getZoom());
@@ -71,9 +109,21 @@ export function useScrollContainer(options: ScrollContainerOptions): {
       instance.destroy();
       if (instanceRef.current === instance) {
         instanceRef.current = null;
+        appliedRef.current = null;
       }
     };
   }, []);
+
+  // 옵션 변경 → 바뀐 것만 setOptions (마운트 effect 다음에 돈다 — 첫 렌더는 같은 객체라 변화 없음)
+  useEffect(() => {
+    const instance = instanceRef.current;
+    const prev = appliedRef.current;
+    if (!instance || !prev) return;
+    const next = optionsRef.current;
+    const update = diffScrollContainerOptions(prev, next);
+    appliedRef.current = next;
+    if (update) instance.setOptions(update);
+  });
 
   const scrollTo = useCallback((index: number, opts?: { animated?: boolean }) => {
     instanceRef.current?.scrollTo(index, opts);

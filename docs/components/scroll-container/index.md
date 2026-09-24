@@ -144,6 +144,28 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 - Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
+## Changing panels and options at runtime
+
+`setPanels(panels)` and `setOptions(changes)` update a mounted instance without remounting it. `setOptions` takes only the options you want to change, `panels` included. Passing `undefined` for an option returns it to its default.
+
+```js
+const sc = createScrollContainer(host, { direction: 'horizontal', panels, gap: 0 });
+
+sc.setPanels([newTab, ...panels]); // the panel you were looking at stays on screen
+sc.setOptions({ gap: 12, panelWidth: 0.85 }); // relayout, same instance
+sc.setOptions({ panelWidth: undefined }); // back to full-width panels
+```
+
+- **The panel you were looking at stays.** If the active panel is still in the new list, it stays on screen, even while zoomed and panned. If its index changed, `onIndexChange` fires with the new index. If it was removed, the panel now at the same index becomes active.
+- **Panels that stay are never detached** from the document, so their scroll positions are kept. Removed panels are detached, and their inline styles and ARIA attributes are restored.
+- **Nothing happens when nothing changed.** This covers the same values, new callbacks, and a new function that returns the same layout (an inline `panelHeight: () => 300` on every render). When something did change, a gesture or animation in progress stops, and the zoom is kept inside the new `minZoom`–`maxZoom` range (`onZoomChange` fires if it had to move).
+- **Invalid values change nothing.** `setOptions` and `setPanels` throw `WebviewHeadlessError` before touching the DOM. That covers the same checks as construction, plus an empty panel list or the same element twice.
+- `initialIndex` is only read at mount.
+
+**React.** `useScrollContainer` compares the options on every render and passes only the changed keys to `setOptions`. The panel array is compared element by element, so building a new array of the same elements on each render is fine.
+
+**Vue.** Pass a `reactive` object, a `ref` or a getter to `useScrollContainer` and changes are applied the same way. A plain object is read once at mount.
+
 ## Carousels inside panels (Swiper, Embla, native scrollers)
 
 A panel of a horizontal pager often holds its own horizontal content, such as a hero banner carousel or a chip row. There are two kinds.
@@ -299,6 +321,8 @@ Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTa
 | `getActiveIndex()`                        | `number` | Returns the current active panel index.                                                      |
 | `zoomTo(level, { animated? })`            | `void`   | Sets the zoom level (clamped). `animated` defaults to `true`.                                |
 | `getZoom()`                               | `number` | Returns the current zoom level.                                                              |
+| `setPanels(panels)`                       | `void`   | Replaces the panel list without remounting. See [Changing panels and options at runtime](#changing-panels-and-options-at-runtime). |
+| `setOptions(changes)`                     | `void`   | Changes options without remounting (only the keys you pass; `undefined` restores the default). |
 | `destroy()`                               | `void`   | Removes all pointer listeners, the renderer DOM, and restores `display` on hidden panels. Idempotent. |
 
 ### Framework Adapter Return Values
@@ -311,8 +335,8 @@ Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTa
 | `scrollTo`     | `(i, opts?) => void` (stable callback)  | `(i, opts?) => void`                    |
 | `zoomTo`       | `(z, opts?) => void` (stable callback)  | `(z, opts?) => void`                    |
 
-::: warning Non-callback options are captured once at mount
-The React hook and Vue composable read non-callback options (e.g. `panels`, `direction`, `minZoom`) once when the instance is created — changing them later is silently ignored. Only callbacks (`onIndexChange`, `onZoomChange`) stay fresh across renders. To swap `panels` (or any other non-callback option), force a remount: change the host component's `key` in React, or use `:key` / `v-if` in Vue.
+::: tip Option changes are applied without remounting
+The React hook passes changed options to `setOptions` on every render (the panel array is compared element by element). The Vue composable does the same when you pass a `reactive` object, a `ref` or a getter; a plain object is read once at mount. Callbacks (`onIndexChange`, `onZoomChange`) always stay fresh.
 :::
 
 ## Browser Support
@@ -332,7 +356,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 20.6 KB | 8.0 KB |
+| `@guksu/wvkit-core/scroll-container` | 22.4 KB | 8.7 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
@@ -341,7 +365,7 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **`direction: 'both'`** currently falls back to `horizontal` — panels are laid out along the X axis, and pan is X-only. Diagonal snap policy lands in a follow-up minor release.
 - **`panels` are `HTMLElement[]`, not React/Vue children.** Build the DOM nodes imperatively (e.g. `document.createElement`) and pass the array. A render-prop / `<PanelGroup>` higher-level API is on the roadmap.
 - **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.
-- **Options are fixed at mount.** Reactive option changes (e.g. flipping `direction` at runtime in a framework adapter) require remounting the component. Use a `key` prop on the wrapper.
+- **Changing an option or the panel list stops a gesture in progress.** `setOptions` / `setPanels` (and the adapters that call them) cancel the current drag, pinch or snap animation when something actually changed. Change options between gestures, not on every touch move.
 - **Pinch-zoom and double-tap rely on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip both.
 - **`setPointerCapture` is not available in every WebView build.** The implementation is guarded with `try/catch`; in environments without capture support, pointer-leaving-root during a drag may cause the gesture to be released early.
 - **`position: fixed` inside a panel does not stick to the viewport.** Panels are CSS-transformed, so `fixed` descendants resolve against the panel and scroll with it. Render fixed overlays outside the host container.

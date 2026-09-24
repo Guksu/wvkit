@@ -84,6 +84,10 @@ export const t = {
       noScroll: 'Short tab · no vertical scroll',
       verticalScroll: (n: number) => `Long feed · ${n} sections`,
       end: '— end —',
+      newPanel: (n: number) => `New panel ${n}`,
+      addFirst: '+ Add first',
+      addLast: '+ Add last',
+      removeCurrent: '− Remove current',
     },
     controls: {
       direction: 'direction',
@@ -185,6 +189,10 @@ export const t = {
       noScroll: '짧은 탭 · 세로 스크롤 없음',
       verticalScroll: (n: number) => `긴 피드 · ${n}개 섹션`,
       end: '— end —',
+      newPanel: (n: number) => `새 패널 ${n}`,
+      addFirst: '+ 앞에 추가',
+      addLast: '+ 뒤에 추가',
+      removeCurrent: '− 지금 패널 삭제',
     },
     controls: {
       direction: 'direction',
