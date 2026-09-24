@@ -245,4 +245,42 @@ describe('createScrollContainer — ResizeObserver 보정', () => {
     expect(sc.getActiveIndex()).toBe(1);
     sc.destroy();
   });
+
+  it('resize — R7: panelWidth 비율 폭은 새 root 폭으로 다시 계산하고 px 폭은 그대로 둔다', () => {
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      panelWidth: (i) => (i === 1 ? 300 : 0.8),
+      gap: 10,
+      overscan: 2,
+    });
+    expect(panels.map((p) => p.style.width)).toEqual(['320px', '300px', '320px']);
+    expect(panels[1]?.style.transform).toContain('translate(320px, 0px)'); // 160 + 10 + 150
+
+    setRootSize(root, 500, 600);
+    MockRO.instances[0]!.trigger();
+
+    expect(panels.map((p) => p.style.width)).toEqual(['400px', '300px', '400px']);
+    expect(panels[1]?.style.transform).toContain('translate(360px, 0px)'); // 200 + 10 + 150
+    sc.destroy();
+  });
+
+  it('resize — R8: 리사이즈 중 panelWidth 함수가 잘못된 값을 주면 throw 하지 않고 root 폭을 쓴다', () => {
+    const panels = makePanels(2);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      panelWidth: (i) => (i === 1 && root.clientWidth > 450 ? 0 : 0.5),
+      overscan: 1,
+    });
+    expect(panels.map((p) => p.style.width)).toEqual(['200px', '200px']);
+
+    setRootSize(root, 500, 600);
+    expect(() => MockRO.instances[0]!.trigger()).not.toThrow();
+
+    expect(panels.map((p) => p.style.width)).toEqual(['250px', '500px']);
+    expect(panels[1]?.style.transform).toContain('translate(375px, 0px)'); // 125 + 250
+    sc.destroy();
+  });
 });

@@ -317,10 +317,13 @@ lock.unlock();
 | `maxZoom` | `number` | `3.0` | Maximum zoom level. |
 | `doubleTapZoom` | `number \| false` | `false` | Double-tap toggles between `minZoom` and this level. |
 | `dragThreshold` | `number` | `10` | Pixels before a drag starts; the direction (45° split) is decided then. `0` = follow from the first move. |
+| `panelWidth` | `number \| (index) => number` | root width | Horizontal panel width. `(0, 1]` = fraction of the host, above 1 = px. Use below 1 to show neighbours (peeking). |
+| `gap` | `number` | `0` | Pixels between panels. |
+| `align` | `'center' \| 'start'` | `'center'` | Where the active panel rests: centered, or start edge on the host's start edge. |
 | `wheel` | `boolean` | `true` | Wheel / trackpad: one panel per gesture, pan while zoomed, `Ctrl` + wheel zoom. |
 | `keyboard` | `boolean` | `true` | Arrow keys, `Home` / `End`, `Escape` while the host has focus. |
 | `a11y` | `boolean` | `true` | Carousel ARIA roles; inactive panels get `aria-hidden` and `inert`. |
-| `overscan` | `number` | `1` | Panels to keep mounted outside viewport. |
+| `overscan` | `number` | `1` | Extra panels to keep mounted on each side of the panels on screen. |
 | `snapThreshold` | `number` | `0.3` | Swipe ratio to trigger snap. |
 | `resistance` | `number` | `0.2` | Edge rubber-band resistance. |
 | `onIndexChange` | `(index: number) => void` | — | Active panel change callback. |
@@ -351,10 +354,11 @@ Every component is headless and small, but each has sharp edges that are easy to
 
 ### ScrollContainer
 
-- About 4 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
+- About 7.7 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
 - Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus. The first 10 px of a drag do not move the pager, and a gesture that starts vertical never pages.
+- With panels narrower than the host (`panelWidth`), peeking neighbours cannot be tapped while `a11y` is on (they are `inert`), and the first and last panels leave empty space at the edge.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
 - Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
 

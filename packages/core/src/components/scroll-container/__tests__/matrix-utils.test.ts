@@ -7,6 +7,7 @@ import {
   decideSnapTarget,
   easeOutCubic,
   nearestPanelIndex,
+  panelCameraRange,
   projectInertia,
   resolveZoomedRelease,
   screenPointToWorld,
@@ -363,5 +364,50 @@ describe('applyZoomResistance', () => {
   });
   it('max < min 이면 clamp 로 폴백 (applyResistance 와 같은 규약: min 우선)', () => {
     expect(applyZoomResistance(2, 3, 1, 0.2)).toBe(3);
+  });
+});
+
+describe('panelCameraRange', () => {
+  it('전폭 패널(크기 = 뷰포트) — zoom 1 이면 중심 한 점, zoom 2 면 중심 ± zoomedHalfExtent (이전 계산과 같음)', () => {
+    expect(panelCameraRange(400, 400, 400, 1, 'center', 1)).toEqual({
+      rest: 400,
+      min: 400,
+      max: 400,
+    });
+    const z2 = panelCameraRange(400, 400, 400, 2, 'center', 1);
+    expect(z2).toEqual({ rest: 400, min: 300, max: 500 });
+    expect(z2.max - 400).toBe(zoomedHalfExtent(400, 2));
+  });
+  it('좁은 패널(320 / 뷰포트 400) center → 중심에 정착, 범위는 한 점', () => {
+    expect(panelCameraRange(0, 320, 400, 1, 'center', 1)).toEqual({ rest: 0, min: 0, max: 0 });
+  });
+  it('좁은 패널 start → 패널 왼쪽 끝이 화면 왼쪽에 붙는 위치 (0 − 160 + 200 = 40)', () => {
+    const r = panelCameraRange(0, 320, 400, 1, 'start', 1);
+    expect(r).toEqual({ rest: 40, min: 40, max: 40 });
+    // 화면 x = (월드 − 카메라) × zoom + 뷰포트/2 → 패널 왼쪽(−160)이 화면 0
+    expect((-160 - r.rest) * 1 + 200).toBe(0);
+  });
+  it('zoom 2 의 좁은 패널은 보이는 폭(200)보다 넓으니 pan 범위가 생긴다 — [−60, 60], start 는 −60 에 정착', () => {
+    expect(panelCameraRange(0, 320, 400, 2, 'center', 1)).toEqual({ rest: 0, min: -60, max: 60 });
+    expect(panelCameraRange(0, 320, 400, 2, 'start', 1).rest).toBe(-60);
+  });
+  it('뷰포트보다 넓은 패널(500) — zoom 1 에서도 [−50, 50] pan, start 는 −50', () => {
+    expect(panelCameraRange(0, 500, 400, 1, 'start', 1)).toEqual({ rest: -50, min: -50, max: 50 });
+  });
+  it('세로(forward −1) — 전폭 zoom 2 는 [−450, −150], 좁은 패널 start 는 패널 위가 화면 위에 붙는다', () => {
+    expect(panelCameraRange(-300, 600, 600, 2, 'center', -1)).toEqual({
+      rest: -300,
+      min: -450,
+      max: -150,
+    });
+    const r = panelCameraRange(-200, 400, 600, 1, 'start', -1);
+    expect(r.rest).toBe(-300);
+    // 패널 위 y = −200 + 200 = 0, 화면 y = −(0 − 카메라) + 300 = 0
+    expect(-(0 - r.rest) * 1 + 300).toBe(0);
+  });
+  it('zoom ≤ 0·viewport ≤ 0 이면 1·패널 크기로 폴백 (NaN 없음)', () => {
+    const r = panelCameraRange(10, 100, 0, 0, 'center', 1);
+    expect(Number.isFinite(r.rest)).toBe(true);
+    expect(r.rest).toBe(10);
   });
 });

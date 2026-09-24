@@ -144,6 +144,27 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 - 패널 안 이미지에는 `loading="lazy"`를 주세요. `overscan` 창 밖의 패널은 문서에서 떼어져 있어, lazy 이미지는 패널이 보일 때까지 요청되지 않습니다.
 - 데스크톱: `<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해 제스처를 취소합니다. 패널 안 이미지에 `draggable="false"`를 주세요.
 
+## 패널 폭·간격·정렬 (피킹)
+
+기본값에서는 패널 하나가 호스트 폭과 같습니다. `horizontal` 페이저에서는 옵션 세 개로 이것을 바꿔 양옆 패널이 가장자리에 조금 보이게 할 수 있습니다. 이커머스 배너나 카드 줄에서 흔히 쓰는 "피킹" 배치입니다.
+
+```js
+createScrollContainer(host, {
+  direction: 'horizontal',
+  panels,
+  panelWidth: 0.85, // 호스트 폭의 85 %. 1보다 크면 px.
+  gap: 12, // 패널 사이 간격 (px)
+  align: 'center', // 또는 'start'
+});
+```
+
+- **`panelWidth`.** `(0, 1]` 안의 숫자는 호스트 폭에 대한 비율입니다. 1보다 크면 px 입니다. 함수 `(index) => number` 를 주면 패널마다 폭을 같은 단위로 정합니다. 페이저는 각 패널의 인라인 `style.width` 에 폭을 쓰고, `destroy()` 때 원래 값으로 되돌립니다. `panelWidth` 를 주지 않으면 이전처럼 패널 폭을 건드리지 않습니다. 비율 폭은 호스트 크기가 바뀌면 따라 바뀌고, px 폭은 그대로입니다.
+- **`gap`.** 이웃 패널 사이 간격(px)입니다. `vertical` 페이저에서도 동작합니다.
+- **`align: 'center'`**(기본값)는 활성 패널을 가운데에 둡니다. 그래서 양쪽 이웃이 보입니다. **`align: 'start'`** 는 활성 패널의 시작 가장자리를 호스트의 시작 가장자리에 붙입니다. 그래서 다음 패널만 보입니다.
+- **페이지 넘김은 여전히 제스처 한 번에 한 칸입니다.** `snapThreshold` 와 플릭 가중치는 호스트 폭이 아니라 두 정착 위치 사이 거리(패널 폭 + `gap`)를 기준으로 잽니다. 400px 호스트에서 `panelWidth: 0.85`, `gap: 12` 면 한 칸은 352px 입니다.
+- **가상화는 화면에 보이는 패널을 셉니다.** 활성 패널이 멈춘 위치에서 호스트와 겹치는 패널을 붙여 두고, 그 양쪽으로 `overscan` 장을 더 붙입니다. `panelWidth: 0.85`, `overscan: 0` 이면 가운데 패널에서는 세 장이 붙어 있습니다. 활성 패널과 양쪽 이웃입니다.
+- **줌.** 줌 상태에서 카메라는 활성 패널 안에서만 움직입니다. 호스트보다 좁은 패널은 줌이 호스트 폭 ÷ 패널 폭보다 커져야 움직일 공간이 생깁니다 (`panelWidth: 0.85` 면 약 1.18).
+
 ## 드래그 시작 여유와 방향 잠금
 
 포인터가 `dragThreshold`(기본 10px)보다 많이 움직여야 페이저가 움직입니다. 그 순간 우세 축(|dx|와 |dy| 중 큰 쪽, 45° 기준)으로 방향을 한 번 정하고, 손을 뗄 때까지 유지합니다. Android `ViewPager`와 같은 규칙입니다(`xDiff > mTouchSlop && xDiff > yDiff`).
@@ -204,9 +225,12 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 | `direction`       | `'horizontal' \| 'vertical' \| 'both'`     | _(필수)_       | 카메라 pan 축 제약. `'both'`는 1차 릴리스에서 `'horizontal'`로 폴백.                                |
 | `panels`          | `HTMLElement[]`                            | _(필수)_       | scene에 `CSS3DObject`로 추가될 미리 만들어진 DOM 노드. 빈 배열은 throw.                             |
 | `initialIndex`    | `number`                                   | `0`            | 마운트 시 활성 패널 인덱스. `[0, panels.length-1]`로 클램프.                                        |
-| `panelHeight`     | `(index: number) => number`                | _(root 높이)_  | `vertical`/`both`용 패널별 픽셀 높이. 지정 안 하면 root 클라이언트 높이 사용.                       |
+| `panelHeight`     | `(index: number) => number`                | _(root 높이)_  | `vertical`용 패널별 픽셀 높이. 지정 안 하면 root 클라이언트 높이 사용.|
+| `panelWidth`      | `number \| (index: number) => number`     | _(root 폭)_    | `horizontal` 패널 폭. `(0, 1]` 은 root 폭 비율, 1 초과는 px. 각 패널의 인라인 `width` 에 씁니다. [패널 폭·간격·정렬](#패널-폭·간격·정렬-피킹) 참고. |
+| `gap`             | `number ≥ 0`                               | `0`            | 이웃 패널 사이 간격(px). 두 방향 모두.                                                              |
+| `align`           | `'center' \| 'start'`                      | `'center'`     | 활성 패널이 멈추는 자리. root 가운데, 또는 시작 가장자리를 root 시작 가장자리에 붙임.                |
 | `onIndexChange`   | `(index: number) => void`                  | —              | 활성 패널이 변경될 때 호출 (scrollTo 또는 pan 스냅).                                                |
-| `overscan`        | `number`                                   | `1`            | 활성 패널 양쪽으로 유지할 패널 수. `0`이면 활성 패널만 노출.                                        |
+| `overscan`        | `number`                                   | `1`            | 화면에 보이는 패널 양쪽으로 더 붙여 둘 패널 수. `0`이면 화면에 보이는 패널만 붙입니다(전폭 패널이면 활성 패널 하나). |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | 다음 패널로 스냅하기 위한 드래그 비율 (패널 크기 대비).                                              |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | 페이저가 움직이기 전에 포인터가 움직여야 하는 px. 이 순간 드래그 방향을 정합니다. `0`이면 첫 move부터 따라가고 방향 잠금이 없습니다. |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | 엣지 고무줄 계수. `0`은 hard stop, `1`은 저항 없음.                                                 |
@@ -221,7 +245,7 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 
 `resistance`는 핀치가 `minZoom` / `maxZoom`을 넘을 때의 줌 고무줄에도 쓰입니다.
 
-잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, 음수이거나 유한하지 않은 `dragThreshold`, `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
+잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, 음수이거나 유한하지 않은 `dragThreshold`·`gap`, 0 이하이거나 유한하지 않은 `panelWidth`(함수가 돌려준 값 포함), `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
 
 ### 인스턴스 메서드
 
@@ -264,7 +288,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 | 번들 | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 18.0 KB | 7.1 KB |
+| `@guksu/wvkit-core/scroll-container` | 19.7 KB | 7.7 KB |
 
 0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
@@ -288,4 +312,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 - **패널 DOM은 절대 언마운트되지 않습니다.** 가상화는 `overscan` 창 밖 패널을 떼어내거나 숨길 뿐이고, 모든 패널이 인스턴스가 살아 있는 동안 메모리에 남습니다. 긴 리스트는 패널 안에서 직접 가상화하세요.
 - **스크롤되는 패널은 보이는 것마다 자기 컴포지터 레이어를 가집니다** (브라우저가 스크롤 컨테이너를 별도 레이어로 합성). `overscan: 1`이면 그런 레이어 3개가 동시에 살아 있습니다. 헤드리스 Chromium에서 이미지 150장 피드 패널은 412 × 47,773 px 레이어가 됐습니다. 저사양 기기에서는 `overscan`을 작게 두세요.
 - **숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만**(`display: none` 왕복 확인) **WebKit은 미검증입니다.** iOS에서 확인한 뒤 의존하세요.
-- **줌 상태의 `scrollTo(index)`는 패널 중심으로 갑니다.** 보고 있던 가장자리가 아닙니다.
+- **줌 상태의 `scrollTo(index)`는 패널 중심으로 갑니다** (`align: 'start'` 면 시작 가장자리). 보고 있던 가장자리가 아닙니다.
+- **옆에 보이는 이웃 패널은 누를 수 없습니다.** `a11y: true`(기본값)면 활성 패널을 뺀 모든 패널에 `inert` 가 붙습니다. 그래서 옆에 보이는 패널을 눌러도 아무 일도 없습니다. 스와이프로 넘기거나, `a11y: false` 로 끄고 탭을 직접 처리하세요.
+- **좁은 패널이면 첫 패널과 마지막 패널 옆에 빈 공간이 생깁니다.** `align: 'center'` 는 첫 패널 앞과 마지막 패널 뒤에, `align: 'start'` 는 마지막 패널 뒤에 빈 공간이 보입니다. 양 끝을 호스트 가장자리에 붙이는 옵션은 아직 없습니다.
+- **`panelWidth` 는 `horizontal` 에서만 씁니다.** `vertical` 페이저는 `panelHeight` 를 쓰고 `panelWidth` 는 무시합니다.

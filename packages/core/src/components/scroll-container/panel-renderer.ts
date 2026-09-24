@@ -26,6 +26,11 @@ export interface PanelRenderer {
   setSize(width: number, height: number): void;
   /** 패널 중심의 월드 좌표. */
   setPanelPosition(index: number, x: number, y: number): void;
+  /**
+   * 패널 폭(px)을 인라인으로 지정한다 (`panelWidth` 옵션). `null` 이면 원래 인라인 폭으로 되돌린다.
+   * 지정하지 않은 패널은 건드리지 않는다 — 폭은 앱 CSS(보통 `width: 100%`)가 정한다.
+   */
+  setPanelWidth(index: number, width: number | null): void;
   /** 가상화 창 안/밖 토글. 처음 true가 될 때 scene에 붙는다. */
   setPanelVisible(index: number, visible: boolean): void;
   /** 카메라 상태를 scene transform에 반영. 값이 같으면 DOM을 건드리지 않는다. */
@@ -35,6 +40,7 @@ export interface PanelRenderer {
 }
 
 interface SavedPanelStyle {
+  width: string;
   position: string;
   left: string;
   top: string;
@@ -71,6 +77,7 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
   let lastSceneTransform = '';
 
   const saved: SavedPanelStyle[] = panels.map((panel) => ({
+    width: panel.style.width,
     position: panel.style.position,
     left: panel.style.left,
     top: panel.style.top,
@@ -106,6 +113,12 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
     panel.style.transform = `translate(${round3(x)}px, ${round3(-y)}px) translate(-50%, -50%)`;
   }
 
+  function setPanelWidth(index: number, w: number | null): void {
+    const panel = panels[index];
+    if (!panel) return;
+    panel.style.width = w === null ? (saved[index]?.width ?? '') : `${round3(w)}px`;
+  }
+
   function setPanelVisible(index: number, visible: boolean): void {
     const panel = panels[index];
     if (!panel) return;
@@ -132,6 +145,7 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
       if (panel.parentNode === sceneElement) sceneElement.removeChild(panel);
       const s = saved[i];
       if (!s) return;
+      panel.style.width = s.width;
       panel.style.position = s.position;
       panel.style.left = s.left;
       panel.style.top = s.top;
@@ -144,5 +158,14 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
     domElement.remove();
   }
 
-  return { domElement, sceneElement, setSize, setPanelPosition, setPanelVisible, render, destroy };
+  return {
+    domElement,
+    sceneElement,
+    setSize,
+    setPanelPosition,
+    setPanelWidth,
+    setPanelVisible,
+    render,
+    destroy,
+  };
 }

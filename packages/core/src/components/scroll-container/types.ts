@@ -23,10 +23,30 @@ export interface ScrollContainerOptions {
   /** 마운트 시 활성화할 패널 인덱스. 기본값 `0`. */
   initialIndex?: number;
   /**
-   * 패널별 동적 높이(px) — `direction: 'vertical'` 또는 `'both'`일 때 의미 있음.
+   * 패널별 동적 높이(px) — `direction: 'vertical'` 일 때 의미 있음.
    * 지정하지 않으면 컨테이너 클라이언트 높이를 사용.
    */
   panelHeight?: (index: number) => number;
+  /**
+   * 가로 패널 폭. 기본값 `1` (컨테이너 폭 전체).
+   * - `0 < x ≤ 1`: 컨테이너 폭 비율 (`0.85` → 85%, 옆 패널이 살짝 보인다)
+   * - `x > 1`: px (`320` → 320px)
+   * - 함수: 패널마다 다른 폭 (반환값 규칙은 위와 같다)
+   *
+   * 지정하면 패널 루트의 인라인 `width` 를 이 값으로 덮어쓴다 (destroy 시 원래대로). 세로 페이저에서는 쓰지 않는다
+   * (세로는 `panelHeight`).
+   */
+  panelWidth?: number | ((index: number) => number);
+  /** 패널 사이 간격(px, 0 이상). 기본값 `0`. 가로·세로 모두. */
+  gap?: number;
+  /**
+   * 활성 패널을 화면 어디에 맞출지. 기본값 `'center'`.
+   * - `'center'`: 패널 중심이 화면 중심 — 양옆 패널이 같은 만큼 보인다 (배너)
+   * - `'start'`: 패널 시작(가로 왼쪽, 세로 위)이 화면 시작 — 다음 패널만 보인다
+   *
+   * 패널이 화면보다 좁을 때만 차이가 난다. 첫·끝 패널에서는 빈 공간이 생길 수 있다 (끝 정렬 보정은 하지 않는다).
+   */
+  align?: 'center' | 'start';
   /** 활성 패널 인덱스가 변경될 때 호출. */
   onIndexChange?: (index: number) => void;
   /** 활성 패널 양쪽으로 미리 scene에 유지할 패널 수. 기본값 `1`. */
