@@ -325,7 +325,7 @@ lock.unlock();
 | `keyboard` | `boolean` | `true` | 호스트에 포커스가 있을 때 화살표·`Home`/`End`·`Escape`. |
 | `a11y` | `boolean` | `true` | 캐러셀 ARIA 역할. 비활성 패널에 `aria-hidden`과 `inert`. |
 | `overscan` | `number` | `1` | 화면에 보이는 패널 양쪽으로 더 붙여 둘 패널 수. |
-| `snapThreshold` | `number` | `0.3` | 스냅 트리거 스와이프 비율. |
+| `snapThreshold` | `number` | `0.3` | 천천히 놓을 때 넘기기 위한 드래그 비율. 짧고 빠른 플릭(25px 초과, 0.4px/ms 초과)은 상관없이 넘깁니다. |
 | `resistance` | `number` | `0.2` | 엣지 고무줄 저항값. |
 | `onIndexChange` | `(index: number) => void` | — | 활성 패널 변경 콜백. |
 | `onZoomChange` | `(zoom: number) => void` | — | 줌 레벨 변경 콜백. |
@@ -355,7 +355,7 @@ lock.unlock();
 
 ### ScrollContainer
 
-- 약 7.9 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
+- 약 8.0 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
 - `panels`는 미리 만든 `HTMLElement[]`이고, 다른 non-callback 옵션처럼 마운트 시점에 고정됩니다. 패널 구성을 바꾸려면 재마운트해야 하고 그때 스크롤 위치가 사라집니다.
 - 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
 - 줌 상태의 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다(`pan-y` 패널은 세로 터치를 자기가 가져감). 더블탭 줌은 기본 꺼짐이고, 켜도 손가락 아래 요소의 클릭은 두 번 그대로 일어납니다. 플릭과 휠 제스처는 최대 한 패널만 넘기고, 키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다. 드래그의 처음 10px은 페이저를 움직이지 않고, 세로로 시작한 제스처는 페이지를 넘기지 않습니다.

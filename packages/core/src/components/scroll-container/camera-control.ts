@@ -6,6 +6,7 @@ import {
   clamp,
   decideSnapTarget,
   easeOutCubic,
+  flingTarget,
   panelCameraRange,
   projectInertia,
   resolveZoomedRelease,
@@ -48,7 +49,9 @@ import { browserPansTouch } from './touch-action';
  * 관성(릴리스 속도 반영):
  *  - 릴리스 트윈 시간은 `snapDurationMs`로 손가락 속도에 이어지게 정한다 — 빠른 플릭 120ms까지,
  *    느린 릴리스 최대 400ms(줌 상태 자유 pan은 800ms). 프로그램 호출(scrollTo/zoomTo)은 고정 300ms.
- *  - 페이저(zoom ≤ 1)는 네이티브 페이저처럼 한 제스처에 최대 한 패널만 넘긴다 (`decideSnapTarget`).
+ *  - 페이저(zoom ≤ 1)는 네이티브 페이저처럼 한 제스처에 최대 한 패널만 넘긴다. 누른 지점에서 25px 넘게 움직이고
+ *    0.4px/ms 넘게 빠르게 놓으면 거리와 상관없이 속도 방향으로 정하고(`flingTarget`, ViewPager 의 플릭 조건),
+ *    아니면 거리 비율로 정한다 (`decideSnapTarget`).
  *  - 줌 상태 pan: 놓은 위치가 패널 범위 안이면 `projectInertia`(iOS 감속 0.998/ms)로 멈출 위치를 구해
  *    그 패널의 가장자리 안에서 멈춘다 — 관성만으로는 다음 패널로 넘어가지 않는다 (iOS 사진 뷰어와 같음).
  *    놓은 위치가 이미 가장자리 밖(gap·저항 구간)이면 `resolveZoomedRelease`가 방향·속도로 스냅을 정한다.
@@ -74,6 +77,12 @@ const VELOCITY_SAMPLE_WINDOW_MS = 100;
 /** 릴리스 스냅 트윈 시간 범위 — 페이저 스냅 */
 const SNAP_MIN_MS = 120;
 const SNAP_MAX_MS = 400;
+/**
+ * 짧은 플릭 조건 — Android ViewPager 값 (`MIN_DISTANCE_FOR_FLING = 25` dp, `MIN_FLING_VELOCITY = 400` dp/s).
+ * WebView 의 CSS px 는 dp 와 같은 단위라 그대로 쓴다.
+ */
+const FLING_MIN_DISTANCE_PX = 25;
+const FLING_MIN_VELOCITY_PX_PER_MS = 0.4;
 /** 줌 상태 자유 pan 감속의 상한 (한 패널 안에서 멀리 흘러갈 수 있으므로 더 길게) */
 const ZOOMED_PAN_MAX_MS = 800;
 /**
@@ -484,7 +493,8 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     onChange();
   }
 
-  function endPan(): void {
+  /** @param release 놓은 포인터 위치 (root 기준) — 짧은 플릭의 이동 거리 판정용 */
+  function endPan(release?: { x: number; y: number }): void {
     if (!panStart) return;
     const start = panStart;
     panStart = null;
@@ -518,13 +528,29 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     const dt = Math.max(1, start.lastMoveInterval, sinceLastMove);
     const velocityRatio = forward * (start.lastDelta / spacing) * (VELOCITY_SAMPLE_WINDOW_MS / dt);
 
-    const target = decideSnapTarget(
-      start.activeIndex,
-      dragRatio,
-      velocityRatio,
-      snapThreshold,
-      positions.length,
-    );
+    // 짧은 플릭: 손가락 거리·속도는 화면 px 로 잰다 (카메라 단위 × zoom)
+    const fingerDistance =
+      start.phase === 'dragging' && release
+        ? Math.abs(axis === 'x' ? release.x - start.downX : release.y - start.downY)
+        : 0;
+    const velocityPxPerMs = ((forward * start.lastDelta) / dt) * camera.zoom;
+    const target =
+      flingTarget(
+        start.activeIndex,
+        fingerDistance,
+        moved,
+        velocityPxPerMs,
+        positions.length,
+        FLING_MIN_DISTANCE_PX,
+        FLING_MIN_VELOCITY_PX_PER_MS,
+      ) ??
+      decideSnapTarget(
+        start.activeIndex,
+        dragRatio,
+        velocityRatio,
+        snapThreshold,
+        positions.length,
+      );
     // 트윈을 먼저 시작하고 콜백을 낸다 — 콜백 안에서 호출자가 scrollTo 등으로 덮어쓸 수 있게.
     // 트윈 시간은 손가락 속도에 이어지게 (빠른 플릭 → 짧고 단호하게, 느린 릴리스 → 길게).
     const targetPos = positions[target];
@@ -910,7 +936,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
         } else {
           // pointerleave(마우스가 root 밖으로) 는 탭이 아니지만 릴리스로 본다
           pressStart = null;
-          endPan();
+          endPan(p);
         }
       }
     }

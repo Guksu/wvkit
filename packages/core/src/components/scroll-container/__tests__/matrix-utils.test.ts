@@ -6,6 +6,7 @@ import {
   clamp,
   decideSnapTarget,
   easeOutCubic,
+  flingTarget,
   nearestPanelIndex,
   panelCameraRange,
   projectInertia,
@@ -179,6 +180,34 @@ describe('nearestPanelIndex', () => {
     ];
     expect(nearestPanelIndex(-120, yPositions, 'y')).toBe(1);
     expect(nearestPanelIndex(-180, yPositions, 'y')).toBe(2);
+  });
+});
+
+describe('flingTarget (ViewPager 플릭 조건: 25px 초과 · 0.4px/ms 초과)', () => {
+  it('거리·속도를 넘고 속도가 움직인 방향과 같으면 그쪽으로 한 칸', () => {
+    expect(flingTarget(2, 30, 20, 0.5, 5)).toBe(3);
+    expect(flingTarget(2, 30, -20, -0.5, 5)).toBe(1);
+  });
+  it('속도가 움직인 방향과 반대면 제자리 (앞으로 끌다 뒤로 튕김 = 취소)', () => {
+    expect(flingTarget(2, 200, 150, -0.8, 5)).toBe(2);
+    expect(flingTarget(2, 200, -150, 0.8, 5)).toBe(2);
+  });
+  it('경계값은 조건 미달 — 거리 25 이하, 속도 0.4 이하면 null (거리 비율 판정에 맡김)', () => {
+    expect(flingTarget(2, 25, 20, 1, 5)).toBeNull();
+    expect(flingTarget(2, 100, 20, 0.4, 5)).toBeNull();
+    expect(flingTarget(2, 100, 20, -0.4, 5)).toBeNull();
+  });
+  it('움직이지 않았거나 패널이 없으면 null', () => {
+    expect(flingTarget(2, 100, 0, 1, 5)).toBeNull();
+    expect(flingTarget(0, 100, 20, 1, 0)).toBeNull();
+  });
+  it('양 끝에서는 클램프 — 첫 패널에서 뒤로, 마지막 패널에서 앞으로 튕겨도 제자리', () => {
+    expect(flingTarget(0, 60, -40, -1, 5)).toBe(0);
+    expect(flingTarget(4, 60, 40, 1, 5)).toBe(4);
+  });
+  it('기준값을 바꿀 수 있다', () => {
+    expect(flingTarget(1, 30, 10, 0.5, 5, 40, 0.4)).toBeNull();
+    expect(flingTarget(1, 50, 10, 0.5, 5, 40, 0.4)).toBe(2);
   });
 });
 

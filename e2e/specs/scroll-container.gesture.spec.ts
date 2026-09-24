@@ -49,6 +49,22 @@ test.describe('ScrollContainer · S4 horizontal gesture', () => {
     expect(await getActiveIndex(page)).toBe(0);
   });
 
+  test('짧고 빠른 좌측 플릭(60px, 약 36ms) → 다음 패널, 우측 플릭 → 다시 이전 패널', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+
+    // ViewPager 플릭 조건: 누른 지점에서 25px 초과 + 놓는 속도 0.4px/ms 초과 → 거리 비율과 상관없이 한 칸.
+    // 20px 씩 3번(약 12ms 간격) ≈ 1.7px/ms — 타이머가 50ms 까지 늦어져도 조건을 넘는다.
+    await swipeOnCanvas(page, -60, 0, { steps: 3, duration: 36 });
+    await waitForScrollSettle(page, 1);
+    expect(await getActiveIndex(page)).toBe(1);
+
+    await swipeOnCanvas(page, 60, 0, { steps: 3, duration: 36 });
+    await waitForScrollSettle(page, 0);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
   // G1 골든: horizontal 모드의 존재 이유 — 대각 입력의 Y 성분이 카메라에 누출되지 않는다.
   test('@golden diagonal 드래그 → X만 스냅, scene Y-shift 불변', async ({ page }) => {
     await gotoDemo(page);

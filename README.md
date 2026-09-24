@@ -325,7 +325,7 @@ lock.unlock();
 | `keyboard` | `boolean` | `true` | Arrow keys, `Home` / `End`, `Escape` while the host has focus. |
 | `a11y` | `boolean` | `true` | Carousel ARIA roles; inactive panels get `aria-hidden` and `inert`. |
 | `overscan` | `number` | `1` | Extra panels to keep mounted on each side of the panels on screen. |
-| `snapThreshold` | `number` | `0.3` | Swipe ratio to trigger snap. |
+| `snapThreshold` | `number` | `0.3` | Drag ratio to page on a slow release. A quick flick (over 25 px, over 0.4 px/ms) pages regardless. |
 | `resistance` | `number` | `0.2` | Edge rubber-band resistance. |
 | `onIndexChange` | `(index: number) => void` | — | Active panel change callback. |
 | `onZoomChange` | `(zoom: number) => void` | — | Zoom level change callback. |
@@ -355,7 +355,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 
 ### ScrollContainer
 
-- About 7.9 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
+- About 8.0 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
 - `panels` are prebuilt `HTMLElement[]` and, like every non-callback option, fixed at mount. Changing the panel set means remounting, which drops scroll positions.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
 - Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus. The first 10 px of a drag do not move the pager, and a gesture that starts vertical never pages.
