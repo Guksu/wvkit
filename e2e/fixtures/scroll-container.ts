@@ -137,6 +137,61 @@ interface SwipeOpts {
 }
 
 /**
+ * `selector` 에 맞는 요소(보이는 첫 번째)의 중앙에서 가로로 끈다. 이벤트는 그 지점의 요소(`elementFromPoint`)로
+ * 보낸다 — 터치의 암묵적 캡처처럼 move·up 도 같은 요소로. 캔버스 자체에 보내는 `swipeOnCanvas` 와 달리
+ * 패널 안 요소(예: Swiper 배너)가 이벤트를 받는지, 페이저가 그 요소를 무시하는지 확인할 때 쓴다.
+ * 요소가 화면 안에 있어야 한다 (elementFromPoint).
+ */
+export async function swipeOnElement(
+  page: Page,
+  selector: string,
+  dx: number,
+  opts: { steps?: number; duration?: number } = {},
+): Promise<void> {
+  const { steps = 10, duration = 200 } = opts;
+  await page.evaluate(
+    async ({ selector, dx, steps, duration }) => {
+      const el = Array.from(document.querySelectorAll<HTMLElement>(selector)).find((e) => {
+        const r = e.getBoundingClientRect();
+        return (
+          r.width > 0 &&
+          r.bottom > 0 &&
+          r.top < window.innerHeight &&
+          r.left >= 0 &&
+          r.right <= window.innerWidth + 1
+        );
+      });
+      if (!el) throw new Error(`no visible element for ${selector}`);
+      const r = el.getBoundingClientRect();
+      const startX = r.left + r.width / 2;
+      const startY = r.top + r.height / 2;
+      const target = document.elementFromPoint(startX, startY);
+      if (!target) throw new Error('elementFromPoint returned null');
+      const send = (type: string, x: number, buttons: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: 1,
+            pointerType: 'touch',
+            isPrimary: true,
+            clientX: x,
+            clientY: startY,
+            buttons,
+            bubbles: true,
+            cancelable: true,
+          }),
+        );
+      send('pointerdown', startX, 1);
+      for (let i = 1; i <= steps; i++) {
+        send('pointermove', startX + (dx * i) / steps, 1);
+        await new Promise((res) => setTimeout(res, duration / steps));
+      }
+      send('pointerup', startX + dx, 0);
+    },
+    { selector, dx, steps, duration },
+  );
+}
+
+/**
  * 캔버스 위 단일 포인터 드래그. PointerEvent를 직접 dispatch → desktop/mobile 양쪽에서 동일하게 동작.
  */
 export async function swipeOnCanvas(
@@ -280,6 +335,8 @@ export async function hoverCanvasAwayFromHorizontalScrollers(
       const y = r.top + r.height * t;
       let el = document.elementFromPoint(x, y);
       if (!el || !canvas.contains(el)) continue;
+      // 배너 캐러셀(Swiper)은 noDragSelector 라 그 위의 휠은 페이저가 받지 않는다 (설계) — 피한다
+      if (el.closest('.swiper')) continue;
       let horizontal = false;
       while (el && el !== canvas) {
         const ox = getComputedStyle(el).overflowX;

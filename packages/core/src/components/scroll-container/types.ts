@@ -60,6 +60,13 @@ export interface ScrollContainerOptions {
    * 탭 떨림과, `pan-y` 패널에서 세로 스크롤이 시작되기 전의 가로 흔들림을 막는다. `0` 이면 이전처럼 첫 move 부터 따라간다.
    */
   dragThreshold?: number;
+  /**
+   * 페이저가 받지 않을 영역의 CSS 선택자. 누른 요소가 이 선택자에 맞는 요소(패널 안) 안에 있으면 그 제스처는
+   * 그 요소의 것이다 — 페이저는 끌기·핀치·더블탭을 시작하지 않고, 그 위의 휠(페이지 넘김·줌 상태 pan)도 손대지 않는다.
+   * 패널 안에 Swiper·Embla 같은 JS 캐러셀을 넣을 때 쓴다 (예: `'.swiper'`). 캐러셀의 끝에서 더 밀어도 패널은 넘어가지 않는다.
+   * CSS `overflow-x: auto` 가로 스크롤(`touch-action: pan-x pan-y`)은 브라우저가 가져가므로 이 옵션 없이 동작한다.
+   */
+  noDragSelector?: string;
   /** 엣지 고무줄 저항값 (0 ≤ x ≤ 1). 기본값 `0.2`. 핀치가 `minZoom`/`maxZoom`을 넘을 때의 줌 고무줄에도 쓰인다. */
   resistance?: number;
   /** 핀치 줌 활성화 여부. 기본값 `true`. */

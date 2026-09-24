@@ -144,6 +144,33 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 - 패널 안 이미지에는 `loading="lazy"`를 주세요. `overscan` 창 밖의 패널은 문서에서 떼어져 있어, lazy 이미지는 패널이 보일 때까지 요청되지 않습니다.
 - 데스크톱: `<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해 제스처를 취소합니다. 패널 안 이미지에 `draggable="false"`를 주세요.
 
+## 패널 안 캐러셀 (Swiper·Embla·네이티브 스크롤)
+
+가로 페이저의 패널 안에는 가로로 움직이는 내용이 따로 있는 경우가 많습니다. 히어로 배너 캐러셀이나 칩 줄 같은 것입니다. 두 종류가 있습니다.
+
+- **네이티브 가로 스크롤**(`overflow-x: auto`, 흔히 `scroll-snap` 과 함께)은 그대로 동작합니다. `touch-action: pan-x pan-y` 를 주세요. 그러면 그 위의 가로 터치는 브라우저 몫이 되고 페이저는 움직이지 않습니다. 데모의 칩 줄이 이렇게 만들어져 있습니다.
+- **JS 캐러셀**(Swiper, Embla 등)은 `noDragSelector` 가 필요합니다. 이런 캐러셀도 포인터 이벤트로 슬라이드를 움직입니다. 그래서 이 옵션이 없으면 한 번 밀 때 캐러셀과 페이저가 함께 움직입니다. 예를 들어 Swiper 14 는 가로 캐러셀에 `touch-action: pan-y` 를 줍니다(`swiper.css`). 그래서 브라우저가 가로 터치를 스크립트에 맡깁니다. 또 `pointermove` 를 `document` 에서 받는데, 이것은 호스트의 리스너보다 늦게 실행됩니다.
+
+```js
+createScrollContainer(host, {
+  direction: 'horizontal',
+  panels,
+  noDragSelector: '.swiper', // Swiper 안에서 시작한 제스처는 Swiper 몫
+});
+```
+
+- `noDragSelector` 에 맞는 요소 안에서 시작한 제스처는 그 요소의 것입니다. 페이저는 그 제스처로 끌기·핀치·더블탭 줌을 하지 않고, 그 제스처에 더해지는 손가락도 무시합니다. 다른 곳에서 시작한 제스처는 두 번째 손가락이 캐러셀에 닿아도 그대로 동작합니다.
+- 그 요소 위의 휠은 그 요소에 맡깁니다(페이지 넘김과 줌 상태 pan 모두). `Ctrl` + 휠 줌은 그대로 동작합니다.
+- 캐러셀의 첫 장이나 마지막 장에서 더 밀어도 패널은 넘어가지 않습니다. Android `ViewPager` 는 안쪽 뷰가 더 스크롤할 수 없으면 바깥 페이저에 넘깁니다(`canScroll`). ScrollContainer 는 JS 캐러셀이 어디에 있는지 모르므로 이렇게 하지 않습니다.
+- 호스트 안의 요소만 셉니다. 선택자가 호스트나 그 조상에도 맞아도 페이저가 꺼지지 않습니다.
+
+데모의 Swiper 배너를 왼쪽으로 180px 밀어 실제 터치로 쟀습니다 (Chrome DevTools Protocol, Pixel 7 에뮬레이션).
+
+| | 배너 | 페이저 | 미는 동안 카메라 |
+| --- | --- | --- | --- |
+| `noDragSelector: '.swiper'` | 1 → 2 장 | 그대로 | 한 번도 안 움직임 |
+| 옵션 없음 | 1 → 2 장 | 0 → 1 로 같이 넘어감 | 움직임 |
+
 ## 패널 폭·간격·정렬 (피킹)
 
 기본값에서는 패널 하나가 호스트 폭과 같습니다. `horizontal` 페이저에서는 옵션 세 개로 이것을 바꿔 양옆 패널이 가장자리에 조금 보이게 할 수 있습니다. 이커머스 배너나 카드 줄에서 흔히 쓰는 "피킹" 배치입니다.
@@ -233,6 +260,7 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 | `overscan`        | `number`                                   | `1`            | 화면에 보이는 패널 양쪽으로 더 붙여 둘 패널 수. `0`이면 화면에 보이는 패널만 붙입니다(전폭 패널이면 활성 패널 하나). |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | 다음 패널로 스냅하기 위한 드래그 비율 (패널 크기 대비).                                              |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | 페이저가 움직이기 전에 포인터가 움직여야 하는 px. 이 순간 드래그 방향을 정합니다. `0`이면 첫 move부터 따라가고 방향 잠금이 없습니다. |
+| `noDragSelector`  | `string`                                   | —              | 제스처를 스스로 처리하는 패널 안 요소의 CSS 선택자 (`'.swiper'` 같은 JS 캐러셀). [패널 안 캐러셀](#패널-안-캐러셀-swiper·embla·네이티브-스크롤) 참고. |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | 엣지 고무줄 계수. `0`은 hard stop, `1`은 저항 없음.                                                 |
 | `enablePinchZoom` | `boolean`                                  | `true`         | 두 손가락 제스처로 핀치 줌을 수행할지 여부.                                                         |
 | `minZoom`         | `number > 0`                               | `1.0`          | 최소 줌 레벨.                                                                                       |
@@ -245,7 +273,7 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 
 `resistance`는 핀치가 `minZoom` / `maxZoom`을 넘을 때의 줌 고무줄에도 쓰입니다.
 
-잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, 음수이거나 유한하지 않은 `dragThreshold`·`gap`, 0 이하이거나 유한하지 않은 `panelWidth`(함수가 돌려준 값 포함), `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
+잘못된 옵션 (`panels` 비어있음, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, 음수이거나 유한하지 않은 `dragThreshold`·`gap`, 0 이하이거나 유한하지 않은 `panelWidth`(함수가 돌려준 값 포함), 올바른 CSS 선택자가 아닌 `noDragSelector`, `resistance ∉ [0,1]`) 은 생성 시점에 `WebviewHeadlessError`를 throw합니다.
 
 ### 인스턴스 메서드
 
@@ -288,7 +316,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 | 번들 | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 19.7 KB | 7.7 KB |
+| `@guksu/wvkit-core/scroll-container` | 20.3 KB | 7.9 KB |
 
 0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
@@ -313,6 +341,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 - **스크롤되는 패널은 보이는 것마다 자기 컴포지터 레이어를 가집니다** (브라우저가 스크롤 컨테이너를 별도 레이어로 합성). `overscan: 1`이면 그런 레이어 3개가 동시에 살아 있습니다. 헤드리스 Chromium에서 이미지 150장 피드 패널은 412 × 47,773 px 레이어가 됐습니다. 저사양 기기에서는 `overscan`을 작게 두세요.
 - **숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만**(`display: none` 왕복 확인) **WebKit은 미검증입니다.** iOS에서 확인한 뒤 의존하세요.
 - **줌 상태의 `scrollTo(index)`는 패널 중심으로 갑니다** (`align: 'start'` 면 시작 가장자리). 보고 있던 가장자리가 아닙니다.
+- **패널 안 캐러셀은 끝에서 스와이프를 페이저에 넘기지 않습니다.** `noDragSelector` 를 쓰면 캐러셀 위에서 시작한 스와이프는 첫 장·마지막 장에서도 패널을 넘기지 않습니다. 핀치와 더블탭 줌도 그 위에서는 시작하지 않습니다.
 - **옆에 보이는 이웃 패널은 누를 수 없습니다.** `a11y: true`(기본값)면 활성 패널을 뺀 모든 패널에 `inert` 가 붙습니다. 그래서 옆에 보이는 패널을 눌러도 아무 일도 없습니다. 스와이프로 넘기거나, `a11y: false` 로 끄고 탭을 직접 처리하세요.
 - **좁은 패널이면 첫 패널과 마지막 패널 옆에 빈 공간이 생깁니다.** `align: 'center'` 는 첫 패널 앞과 마지막 패널 뒤에, `align: 'start'` 는 마지막 패널 뒤에 빈 공간이 보입니다. 양 끝을 호스트 가장자리에 붙이는 옵션은 아직 없습니다.
 - **`panelWidth` 는 `horizontal` 에서만 씁니다.** `vertical` 페이저는 `panelHeight` 를 쓰고 `panelWidth` 는 무시합니다.

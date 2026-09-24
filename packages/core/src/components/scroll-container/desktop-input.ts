@@ -43,6 +43,8 @@ export interface DesktopInputOptions {
   onZoom: (zoom: number) => void;
   /** Escape → minZoom 으로 (애니메이션) */
   resetZoom: () => void;
+  /** true 면 이 대상 위의 휠(페이지 넘김·줌 상태 pan)은 손대지 않는다. `Ctrl` + 휠 줌은 그대로 처리 */
+  isNoDragTarget?: ((target: EventTarget | null) => boolean) | undefined;
 }
 
 export interface DesktopInput {
@@ -91,6 +93,7 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
     zoomBy,
     onZoom,
     resetZoom,
+    isNoDragTarget,
   } = opts;
   const axis: 'x' | 'y' = direction === 'horizontal' ? 'x' : 'y';
   const listeners: Array<() => void> = [];
@@ -125,6 +128,9 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
       ev.preventDefault();
       return;
     }
+
+    // 무시 영역(패널 안 캐러셀 등) 위의 휠은 그 요소·페이지에 맡긴다
+    if (isNoDragTarget?.(ev.target)) return;
 
     // 줌 상태: 카메라 pan (그 방향으로 스크롤할 수 있는 조상이 있으면 네이티브 우선)
     if (getZoom() > 1) {

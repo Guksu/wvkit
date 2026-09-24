@@ -12,7 +12,8 @@
     "@guksu/wvkit-core": "workspace:*",
     "@guksu/wvkit-react": "workspace:*",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "swiper": "^14.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.12",

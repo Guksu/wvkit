@@ -18,6 +18,7 @@ import {
   hoverCanvasAwayFromHorizontalScrollers,
   waitForScrollSettle,
   waitForSceneStable,
+  swipeOnElement,
 } from '../fixtures/scroll-container';
 
 /**
@@ -703,5 +704,55 @@ test.describe('ScrollContainer · S19 패널 폭 · 간격 · 정렬 (피킹)', 
     expect(p0?.width ?? 0).toBeCloseTo(280, 0);
     const p1 = await panelBox(page, 1);
     expect(p1).not.toBeNull();
+  });
+});
+
+test.describe('ScrollContainer · S20 패널 안 캐러셀 (noDragSelector)', () => {
+  const banner = '.swiper[data-banner="0"]';
+  const counter = `${banner} [data-banner-counter]`;
+
+  test('배너(Swiper)를 밀면 배너만 넘어가고 페이저는 움직이지 않는다', async ({ page }) => {
+    await gotoDemo(page);
+    await page.getByTestId('sc-canvas').scrollIntoViewIfNeeded();
+    await expect(page.locator(counter)).toHaveText('1 | 5');
+    const x0 = await getSceneXShift(page);
+
+    await swipeOnElement(page, banner, -160);
+    await expect(page.locator(counter)).toHaveText('2 | 5');
+    await waitForSceneStable(page);
+
+    expect(await getActiveIndex(page)).toBe(0);
+    expect(await getSceneXShift(page)).toBe(x0);
+  });
+
+  test('배너 위 가로 휠은 페이지를 넘기지 않는다', async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name === 'mobile-safari',
+      'Playwright: mobile WebKit 은 mouse.wheel 을 지원하지 않는다',
+    );
+    await gotoDemo(page);
+    await page.getByTestId('sc-canvas').scrollIntoViewIfNeeded();
+    const box = await page.locator(banner).boundingBox();
+    expect(box).not.toBeNull();
+    if (!box) return;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(200, 0);
+    await page.waitForTimeout(400);
+    expect(await getActiveIndex(page)).toBe(0);
+  });
+
+  test('noDragSelector 를 끄면 같은 스와이프에 배너와 페이저가 함께 넘어간다 (옵션이 필요한 이유)', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await page.getByTestId('ctl-no-drag').uncheck();
+    await page.getByTestId('sc-canvas').scrollIntoViewIfNeeded();
+    await expect(page.locator(counter)).toHaveText('1 | 5');
+
+    await swipeOnElement(page, banner, -160);
+    await waitForScrollSettle(page, 1);
+
+    expect(await getActiveIndex(page)).toBe(1);
+    await expect(page.locator(counter)).toHaveText('2 | 5');
   });
 });

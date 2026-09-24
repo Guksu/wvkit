@@ -123,6 +123,11 @@ export interface CameraControlOptions {
    * 생략하면 0 — 첫 move 부터 pan, 방향 잠금 없음 (ScrollContainer 는 공개 옵션 기본값 10 을 넘긴다).
    */
   dragThreshold?: number;
+  /**
+   * true 면 이 대상에서 시작한 제스처를 페이저가 받지 않는다 (패널 안 JS 캐러셀 등).
+   * 그 제스처에 더해지는 손가락도 함께 무시한다 — 핀치·더블탭도 시작하지 않는다.
+   */
+  isNoDragTarget?: ((target: EventTarget | null) => boolean) | undefined;
   /** 카메라가 변경됨. 호출자는 requestRender 수행. */
   onChange: () => void;
   /**
@@ -174,6 +179,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     doubleTapZoom = false,
     dragThreshold: dragThresholdOption = 0,
     align = 'center',
+    isNoDragTarget,
     onChange,
     onPanRelease,
     onPinchRelease,
@@ -187,6 +193,11 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
 
   // --- 포인터 추적 (root 좌상단 기준 좌표) ---
   const pointers = new Map<number, { x: number; y: number }>();
+  /**
+   * 무시 영역(`isNoDragTarget`)에서 시작한 제스처의 포인터들 — 페이저는 추적하지 않는다.
+   * 새 primary 포인터(새 제스처)가 오면 비운다: 끝 이벤트를 놓쳐도 다음 제스처가 막히지 않게.
+   */
+  const ignoredPointers = new Set<number>();
   // down 위치 — 캡처 슬롭 판정용
   const pointerOrigins = new Map<number, { x: number; y: number }>();
   // 제스처(첫 손가락 down)마다 한 번 읽는다 — move 마다 rect를 읽으면 레이아웃 강제.
@@ -800,6 +811,15 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   const capturedPointerIds = new Set<number>();
 
   function onPointerDown(ev: PointerEvent): void {
+    if (ev.isPrimary) ignoredPointers.clear();
+    // 무시 영역에서 시작한 제스처 — 이 포인터와, 그 제스처에 더해지는 손가락은 페이저가 받지 않는다
+    if (
+      ignoredPointers.size > 0 ||
+      (pointers.size === 0 && isNoDragTarget !== undefined && isNoDragTarget(ev.target))
+    ) {
+      ignoredPointers.add(ev.pointerId);
+      return;
+    }
     // 사용자 입력 시작 → 진행 중 트윈 취소
     cancelAnimationInternal();
     if (pointers.size === 0) {
@@ -853,6 +873,7 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   }
 
   function onPointerEnd(ev: PointerEvent): void {
+    ignoredPointers.delete(ev.pointerId);
     if (!pointers.has(ev.pointerId)) return;
     const p = toLocal(ev);
     pointers.delete(ev.pointerId);

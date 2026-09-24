@@ -144,6 +144,33 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 - Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
+## Carousels inside panels (Swiper, Embla, native scrollers)
+
+A panel of a horizontal pager often holds its own horizontal content, such as a hero banner carousel or a chip row. There are two kinds.
+
+- **Native horizontal scrollers** (`overflow-x: auto`, often with `scroll-snap`) work as they are. Give them `touch-action: pan-x pan-y`: the browser then owns horizontal touches on them, and the pager does not move. The chip row in the demo is built this way.
+- **JavaScript carousels** (Swiper, Embla and similar) need `noDragSelector`. They move their slides with pointer events too, so without it one swipe moves both the carousel and the pager. For example, Swiper 14 sets `touch-action: pan-y` on a horizontal carousel (`swiper.css`), so the browser leaves horizontal touches to scripts. It also listens for `pointermove` on `document`, which runs after the host's listener.
+
+```js
+createScrollContainer(host, {
+  direction: 'horizontal',
+  panels,
+  noDragSelector: '.swiper', // a gesture that starts inside a Swiper belongs to the Swiper
+});
+```
+
+- A gesture that starts inside an element matching `noDragSelector` belongs to that element. The pager does not drag, pinch or double-tap zoom for it, and it also ignores any finger added to that gesture. A gesture that starts elsewhere keeps working, even if a second finger lands on the carousel.
+- The wheel over such an element is left to it, for both paging and zoomed pan. `Ctrl` + wheel zoom still works.
+- At the carousel's first or last slide, swiping further does not change panels. Android's `ViewPager` hands the swipe to the outer pager when the inner view can no longer scroll (`canScroll`). ScrollContainer does not know where a JavaScript carousel is, so it does not do this.
+- Only elements inside the host count. If the selector also matches the host or one of its ancestors, the pager is not switched off.
+
+Measured with real touches (Chrome DevTools Protocol, Pixel 7 emulation) on the demo's Swiper banner, swiping 180 px to the left:
+
+| | Banner | Pager | Camera while swiping |
+| --- | --- | --- | --- |
+| `noDragSelector: '.swiper'` | slide 1 → 2 | stays | never moved |
+| without the option | slide 1 → 2 | panel 0 → 1 as well | moved |
+
 ## Panel width, gap and alignment (peeking)
 
 By default every panel is as wide as the host. On a `horizontal` pager three options change that, so the neighbouring panels show at the edges. This is the "peeking" layout of e-commerce banners and card rows.
@@ -233,6 +260,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 | `overscan`        | `number`                                   | `1`            | Number of extra panels to keep mounted on each side of the panels on screen. `0` mounts only the panels on screen (just the active one with full-width panels). |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to panel size) required to snap to the next panel.                            |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | Pixels a pointer must move before the pager moves; the drag direction is decided at that point. `0` follows from the first move with no direction lock. |
+| `noDragSelector`  | `string`                                   | —              | CSS selector of elements inside panels that own their gestures (JavaScript carousels such as `'.swiper'`). See [Carousels inside panels](#carousels-inside-panels-swiper-embla-native-scrollers). |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | Edge rubber-band coefficient. `0` is a hard stop, `1` removes resistance.                            |
 | `enablePinchZoom` | `boolean`                                  | `true`         | Whether two-pointer gestures perform pinch zoom.                                                     |
 | `minZoom`         | `number > 0`                               | `1.0`          | Minimum zoom level.                                                                                  |
@@ -245,7 +273,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 
 `resistance` also damps the zoom rubber band when a pinch goes past `minZoom` / `maxZoom`.
 
-Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `dragThreshold` or `gap` negative or not finite, `panelWidth` (or a value its function returns) not a finite number above 0, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
+Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `dragThreshold` or `gap` negative or not finite, `panelWidth` (or a value its function returns) not a finite number above 0, `noDragSelector` not a valid CSS selector, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
 
 ### Instance Methods
 
@@ -288,7 +316,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 19.7 KB | 7.7 KB |
+| `@guksu/wvkit-core/scroll-container` | 20.3 KB | 7.9 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
@@ -313,6 +341,7 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **Each visible scrollable panel is its own compositor layer** (browsers composite scroll containers). With `overscan: 1` three such layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
 - **Scroll position of a hidden panel survives in Chromium** (verified across a `display: none` round-trip) **but is unverified in WebKit.** Test on iOS before relying on it.
 - **`scrollTo(index)` while zoomed lands on the panel center** (with `align: 'start'`, on its start edge), not on the edge you were looking at.
+- **A carousel inside a panel does not hand the swipe back at its ends.** With `noDragSelector`, a swipe that starts on the carousel never changes panels, even at its first or last slide. Pinch and double-tap zoom do not start on it either.
 - **Peeking neighbours are not interactive.** With `a11y: true` (default) every panel except the active one gets `inert`, so a tap on a peeking neighbour does nothing. Swipe to it, or set `a11y: false` and handle the tap yourself.
 - **The first and last panels leave empty space with narrow panels.** `align: 'center'` shows a gap before the first panel and after the last one, and `align: 'start'` after the last one. There is no option yet to pin the ends to the host edges.
 - **`panelWidth` only applies to `horizontal`.** A `vertical` pager uses `panelHeight` and ignores `panelWidth`.

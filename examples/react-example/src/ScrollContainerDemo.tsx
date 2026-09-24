@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import Swiper from 'swiper';
+import 'swiper/css';
 import { useScrollContainer } from '@guksu/wvkit-react/scroll-container';
 import type { ScrollContainerDirection } from '@guksu/wvkit-react';
 import {
@@ -16,17 +18,20 @@ import { formatPrice, makeBannerImages, makeProductImages, makeProducts } from '
 /**
  * ScrollContainer 데모 — 실제 이커머스 홈처럼 구성한 탭 피드.
  *
- * 패널(탭)마다: sticky 헤더 → 히어로 배너 → 카테고리 칩(가로 네이티브 스크롤) → 상품 그리드(사진·가격·좋아요) → 끝.
+ * 패널(탭)마다: sticky 헤더 → 히어로 배너(Swiper 캐러셀) → 카테고리 칩(가로 네이티브 스크롤) → 상품 그리드(사진·가격·좋아요) → 끝.
  * 탭별 길이가 달라서 세로 스크롤이 없는 탭(짧음)과 긴 피드 탭이 섞여 있다.
  *
  * touch-action 규칙 (docs/components/scroll-container "Scrollable panels" 절):
  *  - 캔버스(root):            touch-action: none
  *  - 세로 스크롤 패널:         touch-action: pan-y      → 세로는 네이티브, 가로는 페이저
  *  - 패널 안 가로 스크롤(칩):  touch-action: pan-x pan-y → 칩 위에서는 가로·세로 모두 네이티브 (페이저 미개입)
+ *  - 패널 안 JS 캐러셀(배너):  noDragSelector: '.swiper' → 배너에서 시작한 제스처는 Swiper 몫 (페이저 미개입)
  *  - direction=vertical:      스크롤되지 않는 카드 패널 (세로 페이저는 스크롤 패널과 공존 불가)
  */
 
 const PANEL_COUNT = 6;
+/** 탭마다 히어로 배너(Swiper) 슬라이드 수 */
+const BANNER_SLIDES = 5;
 /** 탭별 상품 수. 0이면 배너·그리드 없이 짧은 탭(세로 스크롤 없음). */
 const PANEL_PRODUCTS = [12, 4, 24, 0, 48, 9];
 
@@ -114,7 +119,8 @@ function buildFeedPanel(i: number, s: PanelStrings, assets: Assets): HTMLElement
   panel.appendChild(header);
 
   if (productCount > 0) {
-    // 히어로 배너 (전폭 16:9) + 캡션 + "n | N" 카운터
+    // 히어로 배너 — Swiper 캐러셀 (전폭 16:9, 슬라이드 BANNER_SLIDES 장) + 캡션 + "n | N" 카운터.
+    // Swiper 인스턴스는 페이저가 패널을 붙인 뒤 ScrollContainerInstance 의 effect 에서 만든다.
     const banner = el('div', {
       position: 'relative',
       margin: '12px 14px 0',
@@ -122,23 +128,33 @@ function buildFeedPanel(i: number, s: PanelStrings, assets: Assets): HTMLElement
       overflow: 'hidden',
       background: '#eee',
     });
-    const img = el('img', { width: '100%', height: 'auto', display: 'block' });
-    img.src = assets.banners[i % assets.banners.length] ?? '';
-    img.width = 800;
-    img.height = 450;
-    img.alt = s.bannerTitle;
-    img.draggable = false;
-    const caption = el('div', {
-      position: 'absolute',
-      left: '16px',
-      bottom: '16px',
-      color: '#fff',
-      textShadow: '0 1px 8px rgba(0,0,0,0.45)',
-    });
-    caption.append(
-      el('div', { fontSize: '22px', fontWeight: '800', lineHeight: '1.15' }, s.bannerTitle),
-      el('div', { fontSize: '13px', opacity: '0.9', marginTop: '4px' }, s.bannerSub),
-    );
+    banner.className = 'swiper';
+    banner.dataset.banner = String(i);
+    const wrapper = el('div', {});
+    wrapper.className = 'swiper-wrapper';
+    for (let k = 0; k < BANNER_SLIDES; k++) {
+      const slide = el('div', { position: 'relative' });
+      slide.className = 'swiper-slide';
+      const img = el('img', { width: '100%', height: 'auto', display: 'block' });
+      img.src = assets.banners[(i + k) % assets.banners.length] ?? '';
+      img.width = 800;
+      img.height = 450;
+      img.alt = `${s.bannerTitle} ${k + 1}`;
+      img.draggable = false;
+      const caption = el('div', {
+        position: 'absolute',
+        left: '16px',
+        bottom: '16px',
+        color: '#fff',
+        textShadow: '0 1px 8px rgba(0,0,0,0.45)',
+      });
+      caption.append(
+        el('div', { fontSize: '22px', fontWeight: '800', lineHeight: '1.15' }, s.bannerTitle),
+        el('div', { fontSize: '13px', opacity: '0.9', marginTop: '4px' }, s.bannerSub),
+      );
+      slide.append(img, caption);
+      wrapper.appendChild(slide);
+    }
     const counter = el(
       'div',
       {
@@ -150,10 +166,12 @@ function buildFeedPanel(i: number, s: PanelStrings, assets: Assets): HTMLElement
         background: 'rgba(0,0,0,0.45)',
         color: '#fff',
         fontSize: '11px',
+        zIndex: '2',
       },
-      `${(i % 6) + 1} | 6`,
+      `1 | ${BANNER_SLIDES}`,
     );
-    banner.append(img, caption, counter);
+    counter.dataset.bannerCounter = '';
+    banner.append(wrapper, counter);
     panel.appendChild(banner);
   }
 
@@ -361,7 +379,10 @@ function buildCardPanel(i: number, s: PanelStrings, assets: Assets): HTMLElement
 }
 
 function buildPanels(kind: PanelKind, s: PanelStrings): HTMLElement[] {
-  const assets: Assets = { products: makeProductImages(), banners: makeBannerImages() };
+  const assets: Assets = {
+    products: makeProductImages(),
+    banners: makeBannerImages(BANNER_SLIDES),
+  };
   return Array.from({ length: PANEL_COUNT }, (_, i) =>
     kind === 'card' ? buildCardPanel(i, s, assets) : buildFeedPanel(i, s, assets),
   );
@@ -380,6 +401,8 @@ interface DemoOptions {
   panelWidth: number;
   gap: number;
   align: 'center' | 'start';
+  /** 배너(Swiper)를 페이저 무시 영역으로 둘지 — 끄면 배너를 밀 때 배너와 패널이 함께 움직인다 */
+  noDrag: boolean;
 }
 
 function ScrollContainerInstance(props: DemoOptions) {
@@ -408,7 +431,28 @@ function ScrollContainerInstance(props: DemoOptions) {
     ...(props.panelWidth === 1 ? {} : { panelWidth: props.panelWidth }),
     gap: props.gap,
     align: props.align,
+    ...(props.noDrag ? { noDragSelector: '.swiper' } : {}),
   });
+
+  // 배너 캐러셀 — 페이저가 패널을 root 에 붙인 뒤 만든다 (이 effect 는 useScrollContainer 의 effect 다음에 돈다).
+  // 가려진 패널의 배너는 폭 0 으로 시작하지만 Swiper 의 resizeObserver(기본 켜짐)가 보일 때 다시 잰다.
+  useEffect(() => {
+    const swipers = panels.flatMap((panel) =>
+      Array.from(panel.querySelectorAll<HTMLElement>('.swiper')).map((bannerEl) => {
+        const counter = bannerEl.querySelector<HTMLElement>('[data-banner-counter]');
+        return new Swiper(bannerEl, {
+          on: {
+            slideChange: (sw) => {
+              if (counter) counter.textContent = `${sw.activeIndex + 1} | ${BANNER_SLIDES}`;
+            },
+          },
+        });
+      }),
+    );
+    return () => {
+      for (const sw of swipers) sw.destroy(true, true);
+    };
+  }, [panels]);
 
   // 패널 안 버튼 클릭이 페이저를 거쳐도 정상 도달하는지 보여주는 카운터 (좋아요 토글)
   useEffect(() => {
@@ -506,6 +550,7 @@ export function ScrollContainerDemo() {
   const [panelWidth, setPanelWidth] = useState(1);
   const [gap, setGap] = useState(0);
   const [align, setAlign] = useState<'center' | 'start'>('center');
+  const [noDrag, setNoDrag] = useState(true);
 
   const { tr } = useLang();
   const s = tr.scrollContainer;
@@ -524,6 +569,7 @@ export function ScrollContainerDemo() {
     panelWidth,
     gap,
     align,
+    noDrag,
   ].join('|');
 
   return (
@@ -668,6 +714,17 @@ export function ScrollContainerDemo() {
             <option value="start">start</option>
           </select>
         </ControlItem>
+        <ControlItem label={c.noDragSelector}>
+          <label style={checkboxRowStyle}>
+            <input
+              data-testid="ctl-no-drag"
+              type="checkbox"
+              checked={noDrag}
+              onChange={(e) => setNoDrag(e.target.checked)}
+            />
+            <span style={{ fontSize: 13 }}>{noDrag ? "'.swiper'" : 'off'}</span>
+          </label>
+        </ControlItem>
       </ControlGrid>
 
       <ScrollContainerInstance
@@ -684,6 +741,7 @@ export function ScrollContainerDemo() {
         panelWidth={panelWidth}
         gap={gap}
         align={align}
+        noDrag={noDrag}
       />
     </DemoCard>
   );
