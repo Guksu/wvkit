@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { LangProvider } from './LangContext';
 import { t, type Lang } from './i18n';
 import { ScrollContainerDemo } from './ScrollContainerDemo';
+import { ScrollContainerComponentDemo } from './ScrollContainerComponentDemo';
 import { PullToRefreshDemo } from './PullToRefreshDemo';
 import { StableInputDemo } from './StableInputDemo';
 import { VirtualKeyboardDemo } from './VirtualKeyboardDemo';
@@ -80,7 +81,12 @@ function App() {
         </header>
 
         <main style={mainStyle}>
-          {activeTab === 'scroll-container' && <ScrollContainerDemo />}
+          {activeTab === 'scroll-container' && (
+            <>
+              <ScrollContainerDemo />
+              <ScrollContainerComponentDemo />
+            </>
+          )}
           {activeTab === 'pull-to-refresh' && <PullToRefreshDemo />}
           {activeTab === 'stable-input' && <StableInputDemo />}
           {activeTab === 'virtual-keyboard' && <VirtualKeyboardDemo />}

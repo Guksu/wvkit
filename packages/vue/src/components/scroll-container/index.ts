@@ -1,1 +1,3 @@
 export { useScrollContainer } from './use-scroll-container';
+export { ScrollContainer, ScrollPanel } from './scroll-container-component';
+export type { ScrollContainerHandle, ScrollContainerProps } from './scroll-container-component';

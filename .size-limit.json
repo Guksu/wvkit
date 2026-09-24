@@ -17,11 +17,18 @@
     "limit": "2 KB"
   },
   {
-    "name": "@guksu/wvkit-react/scroll-container (core·react external)",
+    "name": "@guksu/wvkit-react/scroll-container — hook (core·react·react-dom external)",
     "path": "packages/react/dist/scroll-container.js",
     "import": "{ useScrollContainer }",
-    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "react"],
+    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "react", "react-dom"],
     "limit": "1 KB"
+  },
+  {
+    "name": "@guksu/wvkit-react/scroll-container — components (core·react·react-dom external)",
+    "path": "packages/react/dist/scroll-container.js",
+    "import": "{ ScrollContainer, ScrollPanel }",
+    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "react", "react-dom"],
+    "limit": "2 KB"
   },
   {
     "name": "@guksu/wvkit-vue — barrel (core·vue external)",
@@ -30,10 +37,17 @@
     "limit": "2 KB"
   },
   {
-    "name": "@guksu/wvkit-vue/scroll-container (core·vue external)",
+    "name": "@guksu/wvkit-vue/scroll-container — hook (core·vue external)",
     "path": "packages/vue/dist/scroll-container.js",
     "import": "{ useScrollContainer }",
     "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "vue"],
     "limit": "1 KB"
+  },
+  {
+    "name": "@guksu/wvkit-vue/scroll-container — components (core·vue external)",
+    "path": "packages/vue/dist/scroll-container.js",
+    "import": "{ ScrollContainer, ScrollPanel }",
+    "ignore": ["@guksu/wvkit-core", "@guksu/wvkit-core/scroll-container", "vue"],
+    "limit": "2 KB"
   }
 ]
