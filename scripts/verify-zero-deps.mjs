@@ -11,7 +11,7 @@
  *      createStableInput / createScrollContainer 가 함수인지 확인. (0.4까지는 subpath 가 three 를
  *      요구해 실패하는 것이 정상이었다 — 0.5부터는 성공해야 한다.)
  *   2. core dist 런타임 산출물의 모듈 지정자가 전부 상대 경로(./)뿐인지 — 외부 패키지 참조 0.
- *   3. 어댑터(react/vue) dist 의 비상대 지정자가 peer(@guksu/wvkit-core*, react·react/*, vue·vue/*)뿐인지,
+ *   3. 어댑터(react/vue) dist 의 비상대 지정자가 peer(@guksu/wvkit-core*, react·react/*·react-dom·react-dom/*, vue·vue/*)뿐인지,
  *      scroll-container.{js,cjs} 가 '@guksu/wvkit-core/scroll-container' 를 참조하는지(코어 인라인 아님).
  *
  * 문자열 grep 만으로는 tsup ESM 청크 분할의 전이 참조를 놓칠 수 있으므로 격리 런타임 스모크(1)가 정본 판정이다.
@@ -141,7 +141,7 @@ for (const f of runtimeFiles(coreDist)) {
 }
 
 // --- 검사 3: 어댑터는 peer 만 참조 + 코어 인라인 아님 ---
-const PEERS = { react: ['react'], vue: ['vue'] };
+const PEERS = { react: ['react', 'react-dom'], vue: ['vue'] };
 for (const pkg of ['react', 'vue']) {
   const dist = join(repoRoot, 'packages', pkg, 'dist');
   if (!existsSync(dist)) {

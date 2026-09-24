@@ -25,7 +25,7 @@ The `direction` option no longer means "swipe direction" — it constrains which
 
 ## Installation
 
-No peer dependencies. The React/Vue adapters depend on `@guksu/wvkit-core`.
+The core has no dependencies. The React/Vue adapters depend on `@guksu/wvkit-core`. The React package also needs `react` and `react-dom` 18 or later as peer dependencies (the components render panels with `createPortal`).
 
 ::: code-group
 ```sh [npm]
@@ -127,6 +127,98 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 ::: tip
 Give the host container `touch-action: none` so the browser's own scroll/zoom does not race the pointer pipeline. If you want pinch-zoom handled exclusively by `ScrollContainer`, also set the page viewport meta to `user-scalable=no, maximum-scale=1.0`. Panels that scroll on their own need one more rule — see the next section.
 :::
+
+## Components (`ScrollContainer` · `ScrollPanel`)
+
+The React and Vue packages also export two components. You write panels as children, so you do not build `HTMLElement` arrays yourself. This is the same pattern as Swiper's `<Swiper>` + `<SwiperSlide>`.
+
+::: code-group
+
+```tsx [React]
+import { useRef, useState } from 'react';
+import {
+  ScrollContainer,
+  ScrollPanel,
+  type ScrollContainerHandle,
+} from '@guksu/wvkit-react/scroll-container';
+
+function Tabs({ tabs }) {
+  const sc = useRef<ScrollContainerHandle>(null);
+  const [index, setIndex] = useState(0);
+
+  return (
+    <>
+      <ScrollContainer
+        ref={sc}
+        direction="horizontal"
+        gap={12}
+        onIndexChange={setIndex}
+        style={{ height: 560 }}
+      >
+        {tabs.map((tab) => (
+          <ScrollPanel
+            key={tab.id}
+            label={tab.title}
+            style={{ overflowY: 'auto', touchAction: 'pan-y' }}
+          >
+            <Feed tab={tab} />
+          </ScrollPanel>
+        ))}
+      </ScrollContainer>
+      <button onClick={() => sc.current?.scrollTo(index + 1)}>Next</button>
+    </>
+  );
+}
+```
+
+```vue [Vue]
+<script setup lang="ts">
+import { ref } from 'vue';
+import {
+  ScrollContainer,
+  ScrollPanel,
+  type ScrollContainerHandle,
+} from '@guksu/wvkit-vue/scroll-container';
+
+defineProps<{ tabs: { id: string; title: string }[] }>();
+const sc = ref<ScrollContainerHandle | null>(null);
+const index = ref(0);
+</script>
+<template>
+  <ScrollContainer
+    ref="sc"
+    direction="horizontal"
+    :gap="12"
+    style="height: 560px"
+    @index-change="index = $event"
+  >
+    <ScrollPanel
+      v-for="tab in tabs"
+      :key="tab.id"
+      :label="tab.title"
+      style="overflow-y: auto; touch-action: pan-y"
+    >
+      <Feed :tab="tab" />
+    </ScrollPanel>
+  </ScrollContainer>
+  <button @click="sc?.scrollTo(index + 1)">Next</button>
+</template>
+```
+
+:::
+
+- **Panel order is the order you write the panels.** Conditional panels (`{show && <ScrollPanel>}`, `v-if`) and panels wrapped in your own components keep that order. Give each panel a stable `key`. Adding or removing panels works like [`setPanels`](#changing-panels-and-options-at-runtime): the panel you were looking at stays, and the scroll position of every remaining panel is kept.
+- **Every option except `panels` is a prop.** Changed props are passed to `setOptions`, so the instance is not remounted. `initialIndex` is read once, when the first panel appears.
+- **Attributes on `ScrollContainer` go to the host element.** It already has `position: relative`, `overflow: hidden` and `touch-action: none`, and your `style` overrides them. Give it a height.
+- **Attributes on `ScrollPanel` go to a content element inside the panel,** not to the panel element itself. The library owns the panel element (it writes `transform`, `display` and ARIA attributes on it). The content element has `height: 100%`, so put `overflow-y: auto` and `touch-action: pan-y` on `ScrollPanel` for a scrolling panel.
+- **`label`** becomes the panel element's `aria-label`. Without it, `a11y` gives each panel `"n / N"`.
+- **Imperative control goes through the `ref`**: `scrollTo`, `zoomTo`, `getActiveIndex`, `getZoom` (see [Component props and handle](#component-props-and-handle)). There is no controlled `activeIndex` prop. Keep your own state with `onIndexChange` (React) or `@index-change` (Vue), and call `scrollTo` to move.
+- **With no panels, there is no instance.** The first panel creates it, and removing the last panel destroys it. Until then `scrollTo` and `zoomTo` do nothing.
+- **Server-side rendering**: the server renders the host and one hidden marker per panel. Panel content is rendered in the browser after mount, because it is drawn into panel elements that only exist there. Content inside panels is not part of the server HTML.
+- **React needs `react-dom`** (panel content is rendered with `createPortal`). It is a peer dependency of `@guksu/wvkit-react`. Context and events still work through the portal, as with any React portal. Vue uses `Teleport`, so `provide` / `inject` also works.
+- **Vertical pager**: with `direction="vertical"` and `panelHeight`, the panel element gets that height. Without `panelHeight`, each panel is as tall as the host.
+
+Use the hooks (`useScrollContainer`) when you already have DOM elements, for example panels built by another library. Use the components when panels are React or Vue content.
 
 ## Scrollable panels (feeds, lists, long content)
 
@@ -339,6 +431,26 @@ Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTa
 The React hook passes changed options to `setOptions` on every render (the panel array is compared element by element). The Vue composable does the same when you pass a `reactive` object, a `ref` or a getter; a plain object is read once at mount. Callbacks (`onIndexChange`, `onZoomChange`) always stay fresh.
 :::
 
+### Component props and handle
+
+**`ScrollContainer`** takes every [option](#options) except `panels` as a prop, plus any `div` attribute (`className` / `class`, `style`, `data-*`, `aria-*`), which goes to the host element. In Vue, listen with `@index-change` and `@zoom-change` instead of the callback options. Changed props are applied without remounting, the same as the hooks.
+
+**`ScrollPanel`**
+
+| Prop             | Type     | Description                                                                                   |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------- |
+| `label`          | `string` | `aria-label` of the panel element. Without it, `a11y` sets `"n / N"`.                          |
+| other attributes | —        | Go to the content element inside the panel (`height: 100%`), not to the panel element itself. |
+
+**Handle** — `ref` on `ScrollContainer` (`ScrollContainerHandle`)
+
+| Method                           | Returns  | Description                                                                 |
+| -------------------------------- | -------- | --------------------------------------------------------------------------- |
+| `scrollTo(index, { animated? })` | `void`   | Same as the instance method. Does nothing while there are no panels.        |
+| `zoomTo(level, { animated? })`   | `void`   | Same as the instance method. Does nothing while there are no panels.        |
+| `getActiveIndex()`               | `number` | Active panel index. `initialIndex` (or `0`) while there are no panels.      |
+| `getZoom()`                      | `number` | Current zoom level. `1` while there are no panels.                          |
+
 ## Browser Support
 
 | Environment            | Support |
@@ -360,10 +472,13 @@ The React hook passes changed options to `setOptions` on every render (the panel
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
+The React and Vue layers are measured by `size-limit` in CI (minified, brotli, with `@guksu/wvkit-core`, React, React DOM and Vue left out): the hook is about 0.5 KB, and the components (`ScrollContainer` + `ScrollPanel`) are about 1.2–1.3 KB. Importing only the hook does not bundle the components.
+
 ## Limitations
 
 - **`direction: 'both'`** currently falls back to `horizontal` — panels are laid out along the X axis, and pan is X-only. Diagonal snap policy lands in a follow-up minor release.
-- **`panels` are `HTMLElement[]`, not React/Vue children.** Build the DOM nodes imperatively (e.g. `document.createElement`) and pass the array. A render-prop / `<PanelGroup>` higher-level API is on the roadmap.
+- **The core and the hooks take `panels` as `HTMLElement[]`.** Build the DOM nodes yourself and pass the array, or use the [components](#components-scrollcontainer-·-scrollpanel) to write panels as React/Vue children.
+- **Components do not render panel content on the server.** Panel content appears after mount in the browser. There is no controlled `activeIndex` prop; use `onIndexChange` and the `ref` handle.
 - **Virtualization toggles `panel.style.display`** on the panel root (and sets `position`, `transform`, `user-select` and `draggable` on it). If your panel content also sets those on the root, they will collide — keep your own styles on a child element instead of the panel root.
 - **Changing an option or the panel list stops a gesture in progress.** `setOptions` / `setPanels` (and the adapters that call them) cancel the current drag, pinch or snap animation when something actually changed. Change options between gestures, not on every touch move.
 - **Pinch-zoom and double-tap rely on `PointerEvent` and the `touch-action: none` CSS hint.** Browsers without `PointerEvent` (very old WebView versions) will silently skip both.

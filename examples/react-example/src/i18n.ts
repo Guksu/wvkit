@@ -89,6 +89,14 @@ export const t = {
       addLast: '+ Add last',
       removeCurrent: '− Remove current',
     },
+    scrollContainerComponent: {
+      title: 'ScrollContainer · ScrollPanel (components)',
+      description:
+        'The same pager written as JSX children instead of a panels array. Each ScrollPanel renders its content through a portal into the panel element the pager positions. Add a panel in front and the one you are looking at stays on screen, scroll position included.',
+      panel: 'Panel',
+      addFirst: '+ Add first',
+      removeLast: '− Remove last',
+    },
     controls: {
       direction: 'direction',
       overscan: (n: number) => `overscan: ${n}`,
@@ -193,6 +201,14 @@ export const t = {
       addFirst: '+ 앞에 추가',
       addLast: '+ 뒤에 추가',
       removeCurrent: '− 지금 패널 삭제',
+    },
+    scrollContainerComponent: {
+      title: 'ScrollContainer · ScrollPanel (컴포넌트)',
+      description:
+        '같은 페이저를 panels 배열 대신 JSX 자식으로 씁니다. 각 ScrollPanel 은 페이저가 배치하는 패널 요소 안에 포털로 내용을 그립니다. 앞에 패널을 추가해도 보던 패널이 화면에 그대로 남고 스크롤 위치도 유지됩니다.',
+      panel: '패널',
+      addFirst: '+ 앞에 추가',
+      removeLast: '− 마지막 삭제',
     },
     controls: {
       direction: 'direction',

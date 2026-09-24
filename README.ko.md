@@ -101,6 +101,8 @@ npm install @guksu/wvkit-core
 npm install @guksu/wvkit-react @guksu/wvkit-core
 ```
 
+peer dependency: `react`, `react-dom` 18 이상.
+
 ### Vue 3
 
 ```bash
@@ -246,6 +248,24 @@ sc.destroy();
 
 > 호스트 컨테이너: `touch-action: none`. 자체 세로 스크롤을 가진 패널: `overflow-y: auto; touch-action: pan-y` — `pan-y`가 없으면 브라우저가 가로 스와이프를 가져가 페이저가 넘어가지 않습니다. 자세한 내용은 [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md#scrollable-panels-feeds-lists-long-content)를 보세요.
 
+**React / Vue 컴포넌트** — `HTMLElement[]` 를 만드는 대신 패널을 자식으로 씁니다:
+
+```tsx
+import { ScrollContainer, ScrollPanel } from '@guksu/wvkit-react/scroll-container';
+
+<ScrollContainer ref={sc} direction="horizontal" onIndexChange={setTab} style={{ height: 560 }}>
+  {tabs.map((tab) => (
+    <ScrollPanel key={tab.id} style={{ overflowY: 'auto', touchAction: 'pan-y' }}>
+      <Feed tab={tab} />
+    </ScrollPanel>
+  ))}
+</ScrollContainer>;
+
+sc.current?.scrollTo(2); // ref 핸들: scrollTo · zoomTo · getActiveIndex · getZoom
+```
+
+Vue 는 `@guksu/wvkit-vue/scroll-container` 에서 같은 컴포넌트를 내보냅니다(`@index-change` 로 듣기). 패널 내용은 서버 HTML 이 아니라 브라우저에서 마운트된 뒤 그립니다. 자세한 내용은 [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md) 의 "Components" 절을 보세요.
+
 ---
 
 ### 유틸리티 훅
@@ -279,7 +299,7 @@ lock.unlock();
 
 ## API 레퍼런스
 
-> **반응성 주의 (React/Vue 어댑터):** 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)은 마운트 시점에 1회 고정되며, 이후 렌더에서 변경해도 조용히 무시됩니다. 콜백(`onIndexChange`, `onRefresh` 등)은 항상 최신으로 유지됩니다. 새 non-callback 옵션을 적용하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트에 새 `key`를 전달, Vue는 `:key` / `v-if`를 사용합니다. 예외는 `useScrollContainer` 입니다. 바뀐 옵션을 다시 마운트하지 않고 반영합니다(`setOptions`·`setPanels`. Vue 는 `reactive` 객체·`ref`·getter 를 넘깁니다).
+> **반응성 주의 (React/Vue 어댑터):** 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)은 마운트 시점에 1회 고정되며, 이후 렌더에서 변경해도 조용히 무시됩니다. 콜백(`onIndexChange`, `onRefresh` 등)은 항상 최신으로 유지됩니다. 새 non-callback 옵션을 적용하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트에 새 `key`를 전달, Vue는 `:key` / `v-if`를 사용합니다. 예외는 `useScrollContainer` 와 `ScrollContainer` 컴포넌트입니다. 바뀐 옵션을 다시 마운트하지 않고 반영합니다(`setOptions`·`setPanels`. Vue 컴포저블은 `reactive` 객체·`ref`·getter 를 넘깁니다).
 
 ### PullToRefresh
 
@@ -356,7 +376,7 @@ lock.unlock();
 ### ScrollContainer
 
 - 약 8.7 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
-- `panels`는 미리 만든 `HTMLElement[]`입니다. `setPanels`·`setOptions` 로 패널과 다른 옵션을 다시 마운트하지 않고 바꿀 수 있고, 남는 패널의 스크롤 위치도 유지됩니다. 다만 바꾸는 순간 진행 중인 제스처는 멈춥니다.
+- core 와 훅은 미리 만든 `HTMLElement[]` 를 `panels` 로 받습니다. React/Vue 컴포넌트는 대신 자식을 받고, 패널 내용은 서버 HTML 이 아니라 브라우저에서만 그립니다. `setPanels`·`setOptions` 로 패널과 다른 옵션을 다시 마운트하지 않고 바꿀 수 있고, 남는 패널의 스크롤 위치도 유지됩니다. 다만 바꾸는 순간 진행 중인 제스처는 멈춥니다.
 - 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
 - 줌 상태의 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다(`pan-y` 패널은 세로 터치를 자기가 가져감). 더블탭 줌은 기본 꺼짐이고, 켜도 손가락 아래 요소의 클릭은 두 번 그대로 일어납니다. 플릭과 휠 제스처는 최대 한 패널만 넘기고, 키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다. 드래그의 처음 10px은 페이저를 움직이지 않고, 세로로 시작한 제스처는 페이지를 넘기지 않습니다.
 - 패널을 호스트보다 좁게 주면(`panelWidth`), `a11y` 가 켜진 동안 옆에 보이는 패널은 누를 수 없고(`inert`) 첫 패널과 마지막 패널 옆에 빈 공간이 생깁니다.

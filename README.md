@@ -101,6 +101,8 @@ npm install @guksu/wvkit-core
 npm install @guksu/wvkit-react @guksu/wvkit-core
 ```
 
+Peer dependencies: `react` and `react-dom` 18 or later.
+
 ### Vue 3
 
 ```bash
@@ -246,6 +248,24 @@ sc.destroy();
 
 > Host container: `touch-action: none`. Panels that scroll vertically on their own: `overflow-y: auto; touch-action: pan-y` — without `pan-y` the browser claims horizontal swipes and the pager never switches. Details in [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md#scrollable-panels-feeds-lists-long-content).
 
+**React / Vue components** — write panels as children instead of building an `HTMLElement[]`:
+
+```tsx
+import { ScrollContainer, ScrollPanel } from '@guksu/wvkit-react/scroll-container';
+
+<ScrollContainer ref={sc} direction="horizontal" onIndexChange={setTab} style={{ height: 560 }}>
+  {tabs.map((tab) => (
+    <ScrollPanel key={tab.id} style={{ overflowY: 'auto', touchAction: 'pan-y' }}>
+      <Feed tab={tab} />
+    </ScrollPanel>
+  ))}
+</ScrollContainer>;
+
+sc.current?.scrollTo(2); // ref handle: scrollTo · zoomTo · getActiveIndex · getZoom
+```
+
+Vue exports the same components from `@guksu/wvkit-vue/scroll-container` (listen with `@index-change`). Panel content is rendered in the browser after mount, not in server HTML. Details in the "Components" section of [docs/components/scroll-container/index.md](docs/components/scroll-container/index.md).
+
 ---
 
 ### Utility Hooks
@@ -279,7 +299,7 @@ lock.unlock();
 
 ## API Reference
 
-> **Reactivity note (React/Vue adapters):** Non-callback options (e.g. `panels`, `direction`, `minZoom`) are captured once at mount — changing them on a later render is silently ignored. Callbacks (`onIndexChange`, `onRefresh`, …) always stay fresh. To apply new non-callback options, force a remount: pass a new `key` to the host component in React, or use `:key` / `v-if` in Vue. The exception is `useScrollContainer`: it applies changed options without remounting (`setOptions` / `setPanels`; in Vue, pass a `reactive` object, a `ref` or a getter).
+> **Reactivity note (React/Vue adapters):** Non-callback options (e.g. `panels`, `direction`, `minZoom`) are captured once at mount — changing them on a later render is silently ignored. Callbacks (`onIndexChange`, `onRefresh`, …) always stay fresh. To apply new non-callback options, force a remount: pass a new `key` to the host component in React, or use `:key` / `v-if` in Vue. The exceptions are `useScrollContainer` and the `ScrollContainer` component: they apply changed options without remounting (`setOptions` / `setPanels`; for the Vue composable, pass a `reactive` object, a `ref` or a getter).
 
 ### PullToRefresh
 
@@ -356,7 +376,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 ### ScrollContainer
 
 - About 8.7 KB gzip and no dependencies, but still more machinery than CSS `scroll-snap`, which is enough when you only need horizontal paging without snap tuning or zoom.
-- `panels` are prebuilt `HTMLElement[]`. `setPanels` / `setOptions` change them and other options without remounting and keep the scroll position of panels that stay, but a change stops any gesture in progress.
+- The core and the hooks take prebuilt `HTMLElement[]` panels; the React/Vue components take children instead and render panel content only in the browser (not in server HTML). `setPanels` / `setOptions` change them and other options without remounting and keep the scroll position of panels that stay, but a change stops any gesture in progress.
 - Scrollable panels must set `touch-action: pan-y`. `direction: 'vertical'` cannot host vertically scrolling panels. `direction: 'both'` falls back to horizontal.
 - Zoomed pan on the cross axis only reaches panels that do not scroll on that axis (`pan-y` panels keep vertical touches). Double-tap zoom is off by default and, when on, still double-clicks whatever is under the finger. A fling or a wheel gesture moves at most one panel, and keyboard shortcuts only work while the host has focus. The first 10 px of a drag do not move the pager, and a gesture that starts vertical never pages.
 - With panels narrower than the host (`panelWidth`), peeking neighbours cannot be tapped while `a11y` is on (they are `inert`), and the first and last panels leave empty space at the edge.

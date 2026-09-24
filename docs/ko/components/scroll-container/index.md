@@ -25,7 +25,7 @@
 
 ## 설치
 
-peer dependency가 없습니다. React/Vue 어댑터는 `@guksu/wvkit-core`에 의존합니다.
+core 에는 의존성이 없습니다. React/Vue 어댑터는 `@guksu/wvkit-core`에 의존합니다. React 패키지는 peer dependency 로 `react` 와 `react-dom` 18 이상도 필요합니다(컴포넌트가 `createPortal` 로 패널을 그림).
 
 ::: code-group
 ```sh [npm]
@@ -127,6 +127,98 @@ const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollCon
 ::: tip
 호스트 컨테이너에 `touch-action: none`을 주어 브라우저 기본 스크롤/줌이 pointer 파이프라인과 경쟁하지 않게 하세요. ScrollContainer가 핀치 줌을 단독으로 처리하길 원하면 페이지 viewport meta에 `user-scalable=no, maximum-scale=1.0`도 함께 설정하세요. 패널이 자체 스크롤을 가지면 규칙이 하나 더 필요합니다 — 다음 절을 보세요.
 :::
+
+## 컴포넌트 (`ScrollContainer` · `ScrollPanel`)
+
+React·Vue 패키지는 컴포넌트 두 개도 내보냅니다. 패널을 자식으로 쓰므로 `HTMLElement` 배열을 직접 만들지 않아도 됩니다. Swiper 의 `<Swiper>` + `<SwiperSlide>` 와 같은 방식입니다.
+
+::: code-group
+
+```tsx [React]
+import { useRef, useState } from 'react';
+import {
+  ScrollContainer,
+  ScrollPanel,
+  type ScrollContainerHandle,
+} from '@guksu/wvkit-react/scroll-container';
+
+function Tabs({ tabs }) {
+  const sc = useRef<ScrollContainerHandle>(null);
+  const [index, setIndex] = useState(0);
+
+  return (
+    <>
+      <ScrollContainer
+        ref={sc}
+        direction="horizontal"
+        gap={12}
+        onIndexChange={setIndex}
+        style={{ height: 560 }}
+      >
+        {tabs.map((tab) => (
+          <ScrollPanel
+            key={tab.id}
+            label={tab.title}
+            style={{ overflowY: 'auto', touchAction: 'pan-y' }}
+          >
+            <Feed tab={tab} />
+          </ScrollPanel>
+        ))}
+      </ScrollContainer>
+      <button onClick={() => sc.current?.scrollTo(index + 1)}>다음</button>
+    </>
+  );
+}
+```
+
+```vue [Vue]
+<script setup lang="ts">
+import { ref } from 'vue';
+import {
+  ScrollContainer,
+  ScrollPanel,
+  type ScrollContainerHandle,
+} from '@guksu/wvkit-vue/scroll-container';
+
+defineProps<{ tabs: { id: string; title: string }[] }>();
+const sc = ref<ScrollContainerHandle | null>(null);
+const index = ref(0);
+</script>
+<template>
+  <ScrollContainer
+    ref="sc"
+    direction="horizontal"
+    :gap="12"
+    style="height: 560px"
+    @index-change="index = $event"
+  >
+    <ScrollPanel
+      v-for="tab in tabs"
+      :key="tab.id"
+      :label="tab.title"
+      style="overflow-y: auto; touch-action: pan-y"
+    >
+      <Feed :tab="tab" />
+    </ScrollPanel>
+  </ScrollContainer>
+  <button @click="sc?.scrollTo(index + 1)">다음</button>
+</template>
+```
+
+:::
+
+- **패널 순서는 코드에 쓴 순서입니다.** 조건부 패널(`{show && <ScrollPanel>}`, `v-if`)이나 직접 만든 컴포넌트로 감싼 패널도 그 순서를 따릅니다. 패널마다 바뀌지 않는 `key` 를 주세요. 패널을 넣고 빼면 [`setPanels`](#실행-중에-패널·옵션-바꾸기) 와 같게 동작합니다. 보던 패널은 그대로 남고, 남는 패널의 스크롤 위치도 유지됩니다.
+- **`panels` 를 뺀 모든 옵션이 prop 입니다.** 바뀐 prop 은 `setOptions` 로 넘기므로 다시 마운트하지 않습니다. `initialIndex` 는 첫 패널이 생길 때 한 번 읽습니다.
+- **`ScrollContainer` 의 속성은 호스트 요소에 붙습니다.** 호스트에는 이미 `position: relative`, `overflow: hidden`, `touch-action: none` 이 있고, 직접 준 `style` 이 이를 덮어씁니다. 높이를 꼭 주세요.
+- **`ScrollPanel` 의 속성은 패널 안의 내용 요소에 붙습니다.** 패널 요소 자체에는 붙지 않습니다. 패널 요소는 라이브러리가 관리합니다(`transform`, `display`, ARIA 속성을 씀). 내용 요소는 `height: 100%` 이므로, 스크롤되는 패널이면 `overflow-y: auto` 와 `touch-action: pan-y` 를 `ScrollPanel` 에 주세요.
+- **`label`** 은 패널 요소의 `aria-label` 이 됩니다. 없으면 `a11y` 가 패널마다 `"n / N"` 을 붙입니다.
+- **명령형 제어는 `ref` 로 합니다.** `scrollTo`, `zoomTo`, `getActiveIndex`, `getZoom` 을 씁니다([컴포넌트 prop 과 핸들](#컴포넌트-prop-과-핸들) 참고). 제어형 `activeIndex` prop 은 없습니다. `onIndexChange`(React)나 `@index-change`(Vue)로 상태를 직접 들고, 옮길 때는 `scrollTo` 를 부르세요.
+- **패널이 없으면 인스턴스도 없습니다.** 첫 패널이 생길 때 만들고, 마지막 패널이 빠지면 정리합니다. 그 전에는 `scrollTo`·`zoomTo` 가 아무 일도 하지 않습니다.
+- **서버 렌더링(SSR)**: 서버는 호스트와 패널마다 숨은 표시 요소 하나만 그립니다. 패널 내용은 브라우저에서 마운트된 뒤 그립니다. 내용이 들어갈 패널 요소가 브라우저에서만 생기기 때문입니다. 그래서 패널 안 내용은 서버 HTML 에 없습니다.
+- **React 는 `react-dom` 이 필요합니다** (패널 내용을 `createPortal` 로 그림). `@guksu/wvkit-react` 의 peer dependency 입니다. 다른 React 포털과 같이 context 와 이벤트는 그대로 동작합니다. Vue 는 `Teleport` 를 쓰므로 `provide` / `inject` 도 동작합니다.
+- **세로 페이저**: `direction="vertical"` 에 `panelHeight` 를 주면 패널 요소가 그 높이가 됩니다. `panelHeight` 가 없으면 패널마다 호스트 높이입니다.
+
+이미 DOM 요소가 있으면(예: 다른 라이브러리가 만든 패널) 훅(`useScrollContainer`)을 쓰세요. 패널이 React·Vue 내용이면 컴포넌트를 쓰세요.
 
 ## 스크롤되는 패널 (피드·리스트·긴 콘텐츠)
 
@@ -339,6 +431,26 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 React 훅은 렌더마다 바뀐 옵션을 `setOptions` 로 넘깁니다(패널 배열은 요소 단위로 비교). Vue 컴포저블은 `reactive` 객체·`ref`·getter 를 넘기면 같게 동작하고, 보통 객체는 마운트 때 한 번 읽습니다. 콜백(`onIndexChange`, `onZoomChange`)은 항상 최신으로 유지됩니다.
 :::
 
+### 컴포넌트 prop 과 핸들
+
+**`ScrollContainer`** 는 `panels` 를 뺀 모든 [옵션](#옵션)을 prop 으로 받습니다. 그 밖의 `div` 속성(`className` / `class`, `style`, `data-*`, `aria-*`)은 호스트 요소에 붙습니다. Vue 에서는 콜백 옵션 대신 `@index-change`, `@zoom-change` 로 듣습니다. 바뀐 prop 은 훅과 같게 다시 마운트하지 않고 반영합니다.
+
+**`ScrollPanel`**
+
+| Prop        | 타입     | 설명                                                                         |
+| ----------- | -------- | ---------------------------------------------------------------------------- |
+| `label`     | `string` | 패널 요소의 `aria-label`. 없으면 `a11y` 가 `"n / N"` 을 붙입니다.             |
+| 그 밖의 속성 | —        | 패널 안 내용 요소(`height: 100%`)에 붙습니다. 패널 요소 자체에는 붙지 않습니다. |
+
+**핸들** — `ScrollContainer` 의 `ref` (`ScrollContainerHandle`)
+
+| 메서드                           | 반환     | 설명                                                                 |
+| -------------------------------- | -------- | -------------------------------------------------------------------- |
+| `scrollTo(index, { animated? })` | `void`   | 인스턴스 메서드와 같습니다. 패널이 없으면 아무 일도 하지 않습니다.    |
+| `zoomTo(level, { animated? })`   | `void`   | 인스턴스 메서드와 같습니다. 패널이 없으면 아무 일도 하지 않습니다.    |
+| `getActiveIndex()`               | `number` | 활성 패널 번호. 패널이 없으면 `initialIndex`(없으면 `0`).              |
+| `getZoom()`                      | `number` | 현재 줌 레벨. 패널이 없으면 `1`.                                      |
+
 ## 브라우저 지원
 
 | 환경                   | 지원   |
@@ -360,10 +472,13 @@ React 훅은 렌더마다 바뀐 옵션을 `setOptions` 로 넘깁니다(패널 
 
 0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
+React·Vue 층은 CI 에서 `size-limit` 로 잽니다(minified, brotli, `@guksu/wvkit-core`·React·React DOM·Vue 제외). 훅은 약 0.5 KB, 컴포넌트(`ScrollContainer` + `ScrollPanel`)는 약 1.2~1.3 KB 입니다. 훅만 가져오면 컴포넌트 코드는 번들에 들어가지 않습니다.
+
 ## 알려진 제한사항
 
 - **`direction: 'both'`**는 현재 `horizontal`로 폴백 — 패널은 X축 일렬 배치되고 pan도 X 축만 동작합니다. 대각 스냅 정책은 후속 minor 릴리스에서 정식 지원됩니다.
-- **`panels`는 `HTMLElement[]`** 이며 React/Vue 자식 컴포넌트가 아닙니다. DOM 노드를 명령형(예: `document.createElement`)으로 만들어 배열로 전달하세요. 상위 레벨 render-prop / `<PanelGroup>` API는 로드맵에 있습니다.
+- **core 와 훅은 `panels` 를 `HTMLElement[]` 로 받습니다.** DOM 노드를 직접 만들어 배열로 넘기거나, [컴포넌트](#컴포넌트-scrollcontainer-·-scrollpanel)로 패널을 React/Vue 자식으로 쓰세요.
+- **컴포넌트는 서버에서 패널 내용을 그리지 않습니다.** 패널 내용은 브라우저에서 마운트된 뒤 나타납니다. 제어형 `activeIndex` prop 은 없습니다. `onIndexChange` 와 `ref` 핸들을 쓰세요.
 - **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.
 - **옵션이나 패널 목록을 바꾸면 진행 중인 제스처가 멈춥니다.** `setOptions`·`setPanels`(와 이를 부르는 어댑터)는 실제로 바뀐 것이 있으면 진행 중인 끌기·핀치·스냅 애니메이션을 취소합니다. 터치가 움직일 때마다가 아니라 제스처 사이에 바꾸세요.
 - **핀치 줌과 더블탭은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 둘 다 조용히 무시됩니다.
