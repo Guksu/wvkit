@@ -317,6 +317,7 @@ lock.unlock();
 | `maxZoom` | `number` | `3.0` | 최대 줌 레벨. |
 | `doubleTapZoom` | `number \| false` | `false` | 더블탭으로 `minZoom`과 이 레벨을 오갑니다. |
 | `dragThreshold` | `number` | `10` | 드래그가 시작되기 전 여유(px). 이때 방향(45° 기준)을 정합니다. `0`이면 첫 move부터 따라갑니다. |
+| `noDragSelector` | `string` | — | 제스처를 스스로 처리하는 패널 안 요소의 CSS 선택자. JS 캐러셀(`'.swiper'`) 등. |
 | `panelWidth` | `number \| (index) => number` | root 폭 | 가로 패널 폭. `(0, 1]` 은 호스트 폭 비율, 1 초과는 px. 1보다 작게 주면 양옆 패널이 보입니다(피킹). |
 | `gap` | `number` | `0` | 패널 사이 간격(px). |
 | `align` | `'center' \| 'start'` | `'center'` | 활성 패널이 멈추는 자리. 가운데, 또는 시작 가장자리를 호스트 시작 가장자리에 붙임. |
@@ -354,11 +355,12 @@ lock.unlock();
 
 ### ScrollContainer
 
-- 약 7.8 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
+- 약 8.0 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
 - `panels`는 미리 만든 `HTMLElement[]`이고, 다른 non-callback 옵션처럼 마운트 시점에 고정됩니다. 패널 구성을 바꾸려면 재마운트해야 하고 그때 스크롤 위치가 사라집니다.
 - 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
 - 줌 상태의 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다(`pan-y` 패널은 세로 터치를 자기가 가져감). 더블탭 줌은 기본 꺼짐이고, 켜도 손가락 아래 요소의 클릭은 두 번 그대로 일어납니다. 플릭과 휠 제스처는 최대 한 패널만 넘기고, 키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다. 드래그의 처음 10px은 페이저를 움직이지 않고, 세로로 시작한 제스처는 페이지를 넘기지 않습니다.
 - 패널을 호스트보다 좁게 주면(`panelWidth`), `a11y` 가 켜진 동안 옆에 보이는 패널은 누를 수 없고(`inert`) 첫 패널과 마지막 패널 옆에 빈 공간이 생깁니다.
+- 패널 안 JS 캐러셀(Swiper, Embla)은 `noDragSelector` 가 필요합니다. 없으면 한 번 밀 때 캐러셀과 페이저가 함께 움직입니다. 캐러셀 위에서 시작한 스와이프는 마지막 장에서도 패널을 넘기지 않습니다.
 - 패널 안의 `position: fixed`는 패널과 함께 스크롤됩니다. 패널 안 텍스트는 선택할 수 없습니다. 데스크톱에서는 `<img>`에 `draggable="false"`가 필요합니다.
 - 스크롤되는 패널은 보이는 것마다 자기 컴포지터 레이어를 가지고, 패널 DOM은 절대 언마운트되지 않습니다. `overscan`을 작게 두고 긴 리스트는 패널 안에서 직접 가상화하세요. 숨겨진 패널의 스크롤 위치는 Chromium에서는 유지되지만 WebKit은 미검증입니다.
 

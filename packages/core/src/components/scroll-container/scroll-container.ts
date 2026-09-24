@@ -226,6 +226,18 @@ export function createScrollContainer(
   applyZoomToCameraDirectly();
   requestRender();
 
+  /**
+   * `noDragSelector` — 누른 요소에서 가장 가까운 일치 요소가 root 안(자손)에 있으면 페이저가 받지 않는다.
+   * root 자신이나 root 바깥 조상이 일치하는 것은 세지 않는다 (페이저 전체가 꺼지지 않게).
+   */
+  const noDragSelector = options.noDragSelector;
+  const isNoDragTarget = noDragSelector
+    ? (target: EventTarget | null): boolean => {
+        const hit = target instanceof Element ? target.closest(noDragSelector) : null;
+        return hit !== null && hit !== root && root.contains(hit);
+      }
+    : undefined;
+
   // --- CameraControl (#3) 인스턴스화 ---
   let control: CameraControl | null = createCameraControl({
     root,
@@ -242,6 +254,7 @@ export function createScrollContainer(
     doubleTapZoom,
     dragThreshold,
     align,
+    isNoDragTarget,
     onChange: requestRender,
     onPanRelease: (targetIndex) => {
       if (destroyed) return;
@@ -287,6 +300,7 @@ export function createScrollContainer(
             options.onZoomChange?.(zoom);
           },
           resetZoom: () => zoomTo(minZoom),
+          isNoDragTarget,
         })
       : null;
 
@@ -398,6 +412,15 @@ function clampZoom(level: number, min: number, max: number): number {
 function validateOptions(options: ScrollContainerOptions): void {
   if (options.panels.length === 0) {
     throw new WebviewHeadlessError('ScrollContainer: panels must not be empty');
+  }
+  if (options.noDragSelector !== undefined && typeof document !== 'undefined') {
+    try {
+      document.createDocumentFragment().querySelector(options.noDragSelector);
+    } catch {
+      throw new WebviewHeadlessError(
+        `ScrollContainer: noDragSelector is not a valid CSS selector (got ${options.noDragSelector})`,
+      );
+    }
   }
   if (options.minZoom !== undefined && options.minZoom <= 0) {
     throw new WebviewHeadlessError(`ScrollContainer: minZoom must be > 0 (got ${options.minZoom})`);
