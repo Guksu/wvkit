@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Swiper from 'swiper';
 import 'swiper/css';
 import { useScrollContainer } from '@guksu/wvkit-react/scroll-container';
@@ -47,6 +47,7 @@ interface PanelStrings {
   noScroll: string;
   verticalScroll: (n: number) => string;
   end: string;
+  newPanel: (n: number) => string;
 }
 
 interface Assets {
@@ -378,11 +379,56 @@ function buildCardPanel(i: number, s: PanelStrings, assets: Assets): HTMLElement
   return panel;
 }
 
-function buildPanels(kind: PanelKind, s: PanelStrings): HTMLElement[] {
-  const assets: Assets = {
-    products: makeProductImages(),
-    banners: makeBannerImages(BANNER_SLIDES),
-  };
+/**
+ * setPanels 데모용 새 패널 — 긴 목록이라 세로로 스크롤해 두고 다른 패널을 추가·삭제해 보면
+ * 스크롤 위치가 그대로인 것을 볼 수 있다. 세로 페이저(card)에서는 스크롤하지 않는 카드로 만든다.
+ */
+function buildExtraPanel(n: number, kind: PanelKind, s: PanelStrings): HTMLElement {
+  const panel = el('div', {
+    width: '100%',
+    height: '100%',
+    background: '#fff7ed',
+    color: '#111',
+    fontFamily: 'system-ui, sans-serif',
+    ...(kind === 'feed'
+      ? {
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          touchAction: 'pan-y',
+          overscrollBehaviorY: 'contain',
+        }
+      : { overflow: 'hidden', touchAction: 'none' }),
+  });
+  panel.dataset.panelIndex = `new-${n}`;
+  panel.dataset.extraPanel = String(n);
+  panel.appendChild(
+    el(
+      'div',
+      {
+        position: 'sticky',
+        top: '0',
+        padding: '14px',
+        background: '#fb923c',
+        color: '#fff',
+        fontSize: '18px',
+        fontWeight: '800',
+      },
+      s.newPanel(n),
+    ),
+  );
+  for (let k = 1; k <= (kind === 'feed' ? 40 : 6); k++) {
+    panel.appendChild(
+      el('div', { padding: '14px', borderBottom: '1px solid #fde4cf', fontSize: '14px' }, `${k}`),
+    );
+  }
+  return panel;
+}
+
+function makeAssets(): Assets {
+  return { products: makeProductImages(), banners: makeBannerImages(BANNER_SLIDES) };
+}
+
+function buildPanels(kind: PanelKind, s: PanelStrings, assets: Assets): HTMLElement[] {
   return Array.from({ length: PANEL_COUNT }, (_, i) =>
     kind === 'card' ? buildCardPanel(i, s, assets) : buildFeedPanel(i, s, assets),
   );
@@ -408,11 +454,14 @@ interface DemoOptions {
 function ScrollContainerInstance(props: DemoOptions) {
   const { tr } = useLang();
   const sc = tr.scrollContainer;
-  // biome-ignore lint/correctness/useExhaustiveDependencies: 패널은 최초 마운트 시점의 언어·direction으로 1회만 빌드한다 (옵션 변경은 key 재마운트).
-  const panels = useMemo(
-    () => buildPanels(props.direction === 'vertical' ? 'card' : 'feed', sc),
-    [],
-  );
+  const kind: PanelKind = props.direction === 'vertical' ? 'card' : 'feed';
+  const assets = useMemo(makeAssets, []);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 패널은 direction(패널 종류)이 바뀔 때만 다시 만든다 — 언어를 바꿔도 패널 DOM 은 그대로 둔다.
+  const basePanels = useMemo(() => buildPanels(kind, sc, assets), [kind]);
+  // setPanels 데모: 추가·삭제한 목록. 패널 종류가 바뀌면(base 가 새로 만들어지면) 버린다.
+  const [edited, setEdited] = useState<{ base: HTMLElement[]; list: HTMLElement[] } | null>(null);
+  const panels = edited && edited.base === basePanels ? edited.list : basePanels;
+  const extraCount = useRef(0);
   const [likes, setLikes] = useState(0);
 
   const { containerRef, activeIndex, activeZoom, scrollTo, zoomTo } = useScrollContainer({
@@ -436,8 +485,9 @@ function ScrollContainerInstance(props: DemoOptions) {
 
   // 배너 캐러셀 — 페이저가 패널을 root 에 붙인 뒤 만든다 (이 effect 는 useScrollContainer 의 effect 다음에 돈다).
   // 가려진 패널의 배너는 폭 0 으로 시작하지만 Swiper 의 resizeObserver(기본 켜짐)가 보일 때 다시 잰다.
+  // 배너는 기본 패널에만 있으므로 기본 패널이 바뀔 때만 다시 만든다 (패널 추가·삭제로 배너 위치가 초기화되지 않게).
   useEffect(() => {
-    const swipers = panels.flatMap((panel) =>
+    const swipers = basePanels.flatMap((panel) =>
       Array.from(panel.querySelectorAll<HTMLElement>('.swiper')).map((bannerEl) => {
         const counter = bannerEl.querySelector<HTMLElement>('[data-banner-counter]');
         return new Swiper(bannerEl, {
@@ -452,7 +502,15 @@ function ScrollContainerInstance(props: DemoOptions) {
     return () => {
       for (const sw of swipers) sw.destroy(true, true);
     };
-  }, [panels]);
+  }, [basePanels]);
+
+  function editPanels(fn: (list: HTMLElement[]) => HTMLElement[]): void {
+    setEdited({ base: basePanels, list: fn(panels) });
+  }
+  function newPanel(): HTMLElement {
+    extraCount.current += 1;
+    return buildExtraPanel(extraCount.current, kind, sc);
+  }
 
   // 패널 안 버튼 클릭이 페이저를 거쳐도 정상 도달하는지 보여주는 카운터 (좋아요 토글)
   useEffect(() => {
@@ -483,6 +541,36 @@ function ScrollContainerInstance(props: DemoOptions) {
         <DataRow label="activeZoom" value={activeZoom.toFixed(3)} />
         <DataRow label="direction" value={props.direction} />
         <DataRow label="likes" value={String(likes)} />
+        <DataRow label="panels" value={String(panels.length)} />
+      </div>
+
+      <p style={sectionLabel}>setPanels</p>
+      <div style={btnGrid}>
+        <button
+          type="button"
+          data-testid="btn-add-first"
+          onClick={() => editPanels((list) => [newPanel(), ...list])}
+          style={actionBtn}
+        >
+          {sc.addFirst}
+        </button>
+        <button
+          type="button"
+          data-testid="btn-add-last"
+          onClick={() => editPanels((list) => [...list, newPanel()])}
+          style={actionBtn}
+        >
+          {sc.addLast}
+        </button>
+        <button
+          type="button"
+          data-testid="btn-remove-current"
+          disabled={panels.length <= 1}
+          onClick={() => editPanels((list) => list.filter((_, i) => i !== activeIndex))}
+          style={{ ...actionBtn, ...actionBtnOutline }}
+        >
+          {sc.removeCurrent}
+        </button>
       </div>
 
       <p style={sectionLabel}>{tr.scrollTo}</p>
@@ -555,22 +643,6 @@ export function ScrollContainerDemo() {
   const { tr } = useLang();
   const s = tr.scrollContainer;
   const c = tr.controls;
-
-  const remountKey = [
-    direction,
-    overscan,
-    snapThreshold,
-    resistance,
-    minZoom,
-    maxZoom,
-    enablePinchZoom,
-    doubleTapZoom,
-    dragThreshold,
-    panelWidth,
-    gap,
-    align,
-    noDrag,
-  ].join('|');
 
   return (
     <DemoCard title={s.title} description={s.description} note={s.note}>
@@ -727,8 +799,8 @@ export function ScrollContainerDemo() {
         </ControlItem>
       </ControlGrid>
 
+      {/* 옵션이 바뀌어도 다시 마운트하지 않는다 — 어댑터가 setOptions 로 넘긴다 (패널 스크롤 위치 유지) */}
       <ScrollContainerInstance
-        key={remountKey}
         direction={direction}
         overscan={overscan}
         snapThreshold={snapThreshold}

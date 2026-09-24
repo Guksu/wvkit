@@ -279,7 +279,7 @@ lock.unlock();
 
 ## API 레퍼런스
 
-> **반응성 주의 (React/Vue 어댑터):** 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)은 마운트 시점에 1회 고정되며, 이후 렌더에서 변경해도 조용히 무시됩니다. 콜백(`onIndexChange`, `onRefresh` 등)은 항상 최신으로 유지됩니다. 새 non-callback 옵션을 적용하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트에 새 `key`를 전달, Vue는 `:key` / `v-if`를 사용합니다. 이 규칙은 `@guksu/wvkit-react` / `@guksu/wvkit-vue`의 모든 어댑터 훅·컴포저블에 공통 적용됩니다.
+> **반응성 주의 (React/Vue 어댑터):** 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)은 마운트 시점에 1회 고정되며, 이후 렌더에서 변경해도 조용히 무시됩니다. 콜백(`onIndexChange`, `onRefresh` 등)은 항상 최신으로 유지됩니다. 새 non-callback 옵션을 적용하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트에 새 `key`를 전달, Vue는 `:key` / `v-if`를 사용합니다. 예외는 `useScrollContainer` 입니다. 바뀐 옵션을 다시 마운트하지 않고 반영합니다(`setOptions`·`setPanels`. Vue 는 `reactive` 객체·`ref`·getter 를 넘깁니다).
 
 ### PullToRefresh
 
@@ -355,8 +355,8 @@ lock.unlock();
 
 ### ScrollContainer
 
-- 약 8.0 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
-- `panels`는 미리 만든 `HTMLElement[]`이고, 다른 non-callback 옵션처럼 마운트 시점에 고정됩니다. 패널 구성을 바꾸려면 재마운트해야 하고 그때 스크롤 위치가 사라집니다.
+- 약 8.7 KB gzip에 의존성은 없지만, CSS `scroll-snap`보다는 여전히 무겁습니다. 스냅 조절이나 줌 없이 가로 페이징만 필요하면 `scroll-snap`으로 충분합니다.
+- `panels`는 미리 만든 `HTMLElement[]`입니다. `setPanels`·`setOptions` 로 패널과 다른 옵션을 다시 마운트하지 않고 바꿀 수 있고, 남는 패널의 스크롤 위치도 유지됩니다. 다만 바꾸는 순간 진행 중인 제스처는 멈춥니다.
 - 스크롤되는 패널에는 `touch-action: pan-y`가 필수입니다. `direction: 'vertical'`은 세로 스크롤되는 패널과 함께 쓸 수 없습니다. `direction: 'both'`는 horizontal로 폴백합니다.
 - 줌 상태의 교차 축 pan은 그 축으로 스크롤하지 않는 패널에서만 됩니다(`pan-y` 패널은 세로 터치를 자기가 가져감). 더블탭 줌은 기본 꺼짐이고, 켜도 손가락 아래 요소의 클릭은 두 번 그대로 일어납니다. 플릭과 휠 제스처는 최대 한 패널만 넘기고, 키보드 단축키는 호스트에 포커스가 있을 때만 동작합니다. 드래그의 처음 10px은 페이저를 움직이지 않고, 세로로 시작한 제스처는 페이지를 넘기지 않습니다.
 - 패널을 호스트보다 좁게 주면(`panelWidth`), `a11y` 가 켜진 동안 옆에 보이는 패널은 누를 수 없고(`inert`) 첫 패널과 마지막 패널 옆에 빈 공간이 생깁니다.

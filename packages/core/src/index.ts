@@ -17,6 +17,7 @@ export type { StableInputOptions, StableInputInstance } from './components/stabl
 export type {
   ScrollContainerDirection,
   ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
   ScrollContainerInstance,
 } from './components/scroll-container';
 export { createPullToRefresh } from './components/pull-to-refresh';

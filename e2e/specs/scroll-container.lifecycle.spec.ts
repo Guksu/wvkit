@@ -21,16 +21,37 @@ async function setRangeSlider(page: import('@playwright/test').Page, idx: number
     }, value);
 }
 
-test.describe('ScrollContainer · S7 options remount', () => {
-  test('direction 변경 시 컴포넌트 리마운트 + activeIndex 0 리셋', async ({ page }) => {
+/** 캔버스의 렌더러 DOM(첫 자식)을 window 에 기억해 두고, 나중에 같은 요소인지 비교한다 (다시 마운트 여부) */
+async function rememberRenderer(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => {
+    (window as unknown as { __renderer?: Element | null }).__renderer = document.querySelector(
+      '[data-testid="sc-canvas"]',
+    )?.firstElementChild;
+  });
+}
+async function sameRenderer(page: import('@playwright/test').Page): Promise<boolean> {
+  return page.evaluate(
+    () =>
+      document.querySelector('[data-testid="sc-canvas"]')?.firstElementChild ===
+      (window as unknown as { __renderer?: Element | null }).__renderer,
+  );
+}
+
+test.describe('ScrollContainer · S7 options change (no remount)', () => {
+  test('direction 을 바꿔도 다시 마운트하지 않는다 — 렌더러 DOM 유지, 패널 교체, 같은 번호 자리', async ({
+    page,
+  }) => {
     await gotoDemo(page);
     await clickScrollTo(page, 2, false);
     await expect(page.getByTestId('row-activeIndex-value')).toHaveText('2');
+    await rememberRenderer(page);
 
     await page.getByTestId('ctl-direction').selectOption('vertical');
 
-    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
     await expect(page.getByTestId('row-direction-value')).toHaveText('vertical');
+    // 가로 피드 패널이 세로 카드 패널로 바뀌었다 — 보던 패널이 없어져 같은 번호(2) 자리의 카드로
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('2');
+    expect(await sameRenderer(page)).toBe(true);
   });
 
   test('overscan 변경 시 가시 패널 윈도 폭 변동', async ({ page }) => {
@@ -122,5 +143,74 @@ test.describe('ScrollContainer · S10 cleanup', () => {
     await page.reload();
     await page.getByTestId('row-activeIndex-value').waitFor();
     expect(await getActiveIndex(page)).toBe(0);
+  });
+});
+
+test.describe('ScrollContainer · S21 패널 추가·삭제 (setPanels)', () => {
+  const box = (page: import('@playwright/test').Page, sel: string) =>
+    page.locator(sel).boundingBox();
+
+  test('앞에 추가하면 보던 패널이 제자리에 그대로 있고 activeIndex 만 하나 는다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    await page.getByTestId('sc-canvas').scrollIntoViewIfNeeded();
+    const before = await box(page, '[data-panel-index="0"]');
+    expect(before).not.toBeNull();
+    await rememberRenderer(page);
+
+    await page.getByTestId('btn-add-first').click();
+
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('1');
+    await expect(page.getByTestId('row-panels-value')).toHaveText('7');
+    const after = await box(page, '[data-panel-index="0"]');
+    expect(after?.x ?? 0).toBeCloseTo(before?.x ?? -1, 0);
+    expect(await sameRenderer(page)).toBe(true);
+  });
+
+  test('패널을 추가·삭제하고 옵션을 바꿔도 남은 패널의 스크롤 위치가 그대로다', async ({
+    page,
+  }) => {
+    await gotoDemo(page);
+    const scrollTop = () =>
+      page.evaluate(
+        () =>
+          (document.querySelector('[data-panel-index="0"]') as HTMLElement | null)?.scrollTop ?? -1,
+      );
+    await page.evaluate(() => {
+      const p = document.querySelector('[data-panel-index="0"]') as HTMLElement | null;
+      if (p) p.scrollTop = 400;
+    });
+    expect(await scrollTop()).toBe(400);
+
+    await page.getByTestId('btn-add-last').click();
+    await expect(page.getByTestId('row-panels-value')).toHaveText('7');
+    expect(await scrollTop()).toBe(400);
+
+    await page.getByTestId('ctl-gap').fill('8'); // setOptions({ gap: 8 })
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (document.querySelector('[data-panel-index="1"]') as HTMLElement | null)?.style
+              .transform ?? '',
+        ),
+      )
+      .toContain('px, 0px)');
+    expect(await scrollTop()).toBe(400);
+  });
+
+  test('지금 패널을 지우면 같은 번호 자리의 패널이 보인다', async ({ page }) => {
+    await gotoDemo(page);
+    await clickScrollTo(page, 2, false);
+    await page.getByTestId('btn-remove-current').click();
+    await expect(page.getByTestId('row-panels-value')).toHaveText('5');
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('2');
+    // 원래 3번 패널이 2번 자리 — 화면 가운데(캔버스 안)에 있다
+    const canvas = await box(page, '[data-testid="sc-canvas"]');
+    const p3 = await box(page, '[data-panel-index="3"]');
+    expect(p3).not.toBeNull();
+    expect(Math.abs((p3?.x ?? 0) - (canvas?.x ?? 0))).toBeLessThan(2);
+    expect(await page.locator('[data-panel-index="2"]').count()).toBe(0);
   });
 });

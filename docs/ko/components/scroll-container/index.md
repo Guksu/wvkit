@@ -144,6 +144,28 @@ panel.style.touchAction = 'pan-y'; // 세로 터치는 네이티브 스크롤, �
 - 패널 안 이미지에는 `loading="lazy"`를 주세요. `overscan` 창 밖의 패널은 문서에서 떼어져 있어, lazy 이미지는 패널이 보일 때까지 요청되지 않습니다.
 - 데스크톱: `<img>` 위에서 시작한 마우스 드래그는 네이티브 drag-and-drop을 시작해 제스처를 취소합니다. 패널 안 이미지에 `draggable="false"`를 주세요.
 
+## 실행 중에 패널·옵션 바꾸기
+
+`setPanels(panels)` 와 `setOptions(바꿀 옵션)` 은 마운트된 인스턴스를 다시 마운트하지 않고 바꿉니다. `setOptions` 에는 바꿀 옵션만 넘기며, `panels` 도 넘길 수 있습니다. 옵션에 `undefined` 를 주면 기본값으로 돌아갑니다.
+
+```js
+const sc = createScrollContainer(host, { direction: 'horizontal', panels, gap: 0 });
+
+sc.setPanels([newTab, ...panels]); // 보던 패널이 화면에 그대로 남는다
+sc.setOptions({ gap: 12, panelWidth: 0.85 }); // 같은 인스턴스에서 다시 배치
+sc.setOptions({ panelWidth: undefined }); // 전폭 패널로 되돌리기
+```
+
+- **보던 패널은 그대로 남습니다.** 활성 패널이 새 목록에도 있으면 화면에 그대로 둡니다(줌·pan 상태도 유지). 번호가 바뀌면 새 번호로 `onIndexChange` 가 불립니다. 활성 패널이 지워졌으면 같은 번호 자리의 패널이 활성이 됩니다.
+- **남는 패널은 문서에서 떼지 않습니다.** 그래서 스크롤 위치가 유지됩니다. 빠진 패널은 떼어지고 인라인 스타일과 ARIA 속성이 원래대로 돌아옵니다.
+- **바뀐 것이 없으면 아무 일도 하지 않습니다.** 같은 값, 새 콜백, 같은 배치를 내는 새 함수(렌더마다 새로 만드는 `panelHeight: () => 300`)가 여기에 해당합니다. 바뀐 것이 있으면 진행 중인 제스처·애니메이션은 멈춥니다. 줌은 새 `minZoom`~`maxZoom` 범위 안으로 유지하고, 줌이 바뀌면 `onZoomChange` 가 불립니다.
+- **잘못된 값이면 아무것도 바꾸지 않습니다.** DOM 을 건드리기 전에 `WebviewHeadlessError` 를 던집니다. 생성할 때와 같은 검사에, 빈 목록과 같은 요소 두 번이 더해집니다.
+- `initialIndex` 는 마운트 때만 씁니다.
+
+**React.** `useScrollContainer` 는 렌더마다 옵션을 비교해서 바뀐 키만 `setOptions` 로 넘깁니다. 패널 배열은 요소를 하나씩 비교하므로, 렌더마다 같은 요소로 새 배열을 만들어도 됩니다.
+
+**Vue.** `useScrollContainer` 에 `reactive` 객체·`ref`·getter 를 넘기면 같은 방식으로 반영합니다. 보통 객체는 마운트 때 한 번 읽습니다.
+
 ## 패널 안 캐러셀 (Swiper·Embla·네이티브 스크롤)
 
 가로 페이저의 패널 안에는 가로로 움직이는 내용이 따로 있는 경우가 많습니다. 히어로 배너 캐러셀이나 칩 줄 같은 것입니다. 두 종류가 있습니다.
@@ -299,6 +321,8 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 | `getActiveIndex()`                        | `number` | 현재 활성 패널 인덱스 반환.                                                                         |
 | `zoomTo(level, { animated? })`            | `void`   | 줌 레벨 설정 (클램프). `animated` 기본값 `true`.                                                    |
 | `getZoom()`                               | `number` | 현재 줌 레벨 반환.                                                                                  |
+| `setPanels(panels)`                       | `void`   | 다시 마운트하지 않고 패널 목록을 바꿉니다. [실행 중에 패널·옵션 바꾸기](#실행-중에-패널·옵션-바꾸기) 참고. |
+| `setOptions(changes)`                     | `void`   | 다시 마운트하지 않고 옵션을 바꿉니다 (넘긴 키만. `undefined` 는 기본값으로). |
 | `destroy()`                               | `void`   | 모든 pointer 리스너, renderer DOM 제거 + 숨겨진 패널 `display` 복원. 멱등성 보장.                   |
 
 ### 프레임워크 어댑터 반환값
@@ -311,8 +335,8 @@ WebView 팀도 데스크톱 브라우저에서 개발하고 QA하므로, 터치 
 | `scrollTo`     | `(i, opts?) => void` (stable callback)  | `(i, opts?) => void`                    |
 | `zoomTo`       | `(z, opts?) => void` (stable callback)  | `(z, opts?) => void`                    |
 
-::: warning 콜백이 아닌 옵션은 마운트 시점에 1회 고정
-React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, `minZoom` 등)을 인스턴스 생성 시점에 1회만 읽습니다 — 이후 변경은 조용히 무시됩니다. 콜백(`onIndexChange`, `onZoomChange`)만 렌더를 거쳐도 최신으로 유지됩니다. `panels` 등 non-callback 옵션을 교체하려면 재마운트를 강제하세요 — React는 호스트 컴포넌트의 `key` 변경, Vue는 `:key` / `v-if`를 사용합니다.
+::: tip 옵션 변경은 다시 마운트하지 않고 반영됩니다
+React 훅은 렌더마다 바뀐 옵션을 `setOptions` 로 넘깁니다(패널 배열은 요소 단위로 비교). Vue 컴포저블은 `reactive` 객체·`ref`·getter 를 넘기면 같게 동작하고, 보통 객체는 마운트 때 한 번 읽습니다. 콜백(`onIndexChange`, `onZoomChange`)은 항상 최신으로 유지됩니다.
 :::
 
 ## 브라우저 지원
@@ -332,7 +356,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 
 | 번들 | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 20.6 KB | 8.0 KB |
+| `@guksu/wvkit-core/scroll-container` | 22.4 KB | 8.7 KB |
 
 0.5 이전에는 같은 컴포넌트가 트리셰이킹된 Three.js 일부(minified 259 KB, gzip 60 KB)를 함께 가져왔습니다.
 
@@ -341,7 +365,7 @@ React 훅과 Vue 컴포저블은 콜백이 아닌 옵션(`panels`, `direction`, 
 - **`direction: 'both'`**는 현재 `horizontal`로 폴백 — 패널은 X축 일렬 배치되고 pan도 X 축만 동작합니다. 대각 스냅 정책은 후속 minor 릴리스에서 정식 지원됩니다.
 - **`panels`는 `HTMLElement[]`** 이며 React/Vue 자식 컴포넌트가 아닙니다. DOM 노드를 명령형(예: `document.createElement`)으로 만들어 배열로 전달하세요. 상위 레벨 render-prop / `<PanelGroup>` API는 로드맵에 있습니다.
 - **가상화가 패널 루트의 `panel.style.display`를 토글합니다** (`position`, `transform`, `user-select`, `draggable`도 루트에 설정). 패널 콘텐츠가 루트에 같은 속성을 설정하면 충돌하니, 자체 스타일은 패널 루트가 아닌 자식 요소에 두세요.
-- **옵션은 마운트 시점에 고정됩니다.** 런타임에 옵션(예: `direction`)을 바꾸려면 프레임워크 어댑터에서 컴포넌트를 재마운트해야 합니다 — wrapper에 `key` prop을 사용하세요.
+- **옵션이나 패널 목록을 바꾸면 진행 중인 제스처가 멈춥니다.** `setOptions`·`setPanels`(와 이를 부르는 어댑터)는 실제로 바뀐 것이 있으면 진행 중인 끌기·핀치·스냅 애니메이션을 취소합니다. 터치가 움직일 때마다가 아니라 제스처 사이에 바꾸세요.
 - **핀치 줌과 더블탭은 `PointerEvent`와 `touch-action: none` CSS 힌트에 의존**합니다. `PointerEvent`를 지원하지 않는 매우 오래된 WebView 빌드에서는 둘 다 조용히 무시됩니다.
 - **`setPointerCapture`가 모든 WebView 빌드에서 사용 가능하진 않습니다.** 구현은 `try/catch`로 가드되어 있고, 캡처를 지원하지 않는 환경에서는 드래그 중 포인터가 root를 벗어나면 제스처가 일찍 종료될 수 있습니다.
 - **패널 안의 `position: fixed`는 뷰포트에 고정되지 않습니다.** 패널이 CSS transform 되어 있어 `fixed` 자손이 패널 기준으로 잡히고 패널과 함께 스크롤됩니다. 고정 오버레이는 호스트 컨테이너 밖에 그리세요.

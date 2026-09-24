@@ -3,4 +3,5 @@ export type {
   ScrollContainerDirection,
   ScrollContainerInstance,
   ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
 } from './types';

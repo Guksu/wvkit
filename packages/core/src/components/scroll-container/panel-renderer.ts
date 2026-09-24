@@ -17,6 +17,9 @@ import type { PanCamera } from './camera';
  *
  * 패널은 처음 보이는 순간에만 scene에 붙인다(그 전까지는 문서 밖). 숨길 때는 `display:none`.
  * — 붙지 않은 패널의 `loading="lazy"` 이미지는 요청되지 않으므로 가상화 효과가 유지된다.
+ *
+ * `setPanels` 로 목록을 바꿀 때 남는 패널은 떼지 않는다 — 문서에서 뗐다 붙이면 스크롤 위치가 사라지기 때문.
+ * 빠진 패널만 scene 에서 떼고 인라인 스타일을 되돌린다.
  */
 export interface PanelRenderer {
   /** root에 붙는 렌더 표면. */
@@ -33,6 +36,8 @@ export interface PanelRenderer {
   setPanelWidth(index: number, width: number | null): void;
   /** 가상화 창 안/밖 토글. 처음 true가 될 때 scene에 붙는다. */
   setPanelVisible(index: number, visible: boolean): void;
+  /** 패널 목록 교체. 남는 패널은 그대로(붙어 있으면 붙은 채), 빠진 패널은 떼고 스타일 복원, 새 패널은 기본 스타일만. */
+  setPanels(panels: ReadonlyArray<HTMLElement>): void;
   /** 카메라 상태를 scene transform에 반영. 값이 같으면 DOM을 건드리지 않는다. */
   render(camera: PanCamera): void;
   /** 패널을 scene에서 떼고 인라인 스타일을 원래대로, domElement를 제거. */
@@ -56,7 +61,7 @@ function round3(value: number): number {
   return r === 0 ? 0 : r; // −0 → 0
 }
 
-export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRenderer {
+export function createPanelRenderer(initialPanels: ReadonlyArray<HTMLElement>): PanelRenderer {
   const domElement = document.createElement('div');
   // 레이아웃 필수 인라인 스타일 (CLAUDE.md 예외): 렌더 표면을 root 좌상단에 오버레이.
   domElement.style.position = 'absolute';
@@ -76,18 +81,22 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
   let height = 1;
   let lastSceneTransform = '';
 
-  const saved: SavedPanelStyle[] = panels.map((panel) => ({
-    width: panel.style.width,
-    position: panel.style.position,
-    left: panel.style.left,
-    top: panel.style.top,
-    transform: panel.style.transform,
-    display: panel.style.display,
-    userSelect: panel.style.userSelect,
-    draggable: panel.getAttribute('draggable'),
-  }));
+  let panels: ReadonlyArray<HTMLElement> = [];
+  const saved = new Map<HTMLElement, SavedPanelStyle>();
+  /** `setPanelWidth` 로 폭을 지정한 패널 — null 복원은 이 패널만 (앱이 준 폭은 건드리지 않는다) */
+  const widthSet = new Set<HTMLElement>();
 
-  for (const panel of panels) {
+  function adopt(panel: HTMLElement): void {
+    saved.set(panel, {
+      width: panel.style.width,
+      position: panel.style.position,
+      left: panel.style.left,
+      top: panel.style.top,
+      transform: panel.style.transform,
+      display: panel.style.display,
+      userSelect: panel.style.userSelect,
+      draggable: panel.getAttribute('draggable'),
+    });
     panel.style.position = 'absolute';
     panel.style.left = '0';
     panel.style.top = '0';
@@ -95,6 +104,31 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
     panel.style.userSelect = 'none';
     panel.setAttribute('draggable', 'false');
   }
+
+  function release(panel: HTMLElement): void {
+    if (panel.parentNode === sceneElement) sceneElement.removeChild(panel);
+    const s = saved.get(panel);
+    if (!s) return;
+    saved.delete(panel);
+    widthSet.delete(panel);
+    panel.style.width = s.width;
+    panel.style.position = s.position;
+    panel.style.left = s.left;
+    panel.style.top = s.top;
+    panel.style.transform = s.transform;
+    panel.style.display = s.display;
+    panel.style.userSelect = s.userSelect;
+    if (s.draggable === null) panel.removeAttribute('draggable');
+    else panel.setAttribute('draggable', s.draggable);
+  }
+
+  function setPanels(next: ReadonlyArray<HTMLElement>): void {
+    const keep = new Set(next);
+    for (const panel of panels) if (!keep.has(panel)) release(panel);
+    for (const panel of next) if (!saved.has(panel)) adopt(panel);
+    panels = next;
+  }
+  setPanels(initialPanels);
 
   function setSize(w: number, h: number): void {
     width = w;
@@ -116,7 +150,12 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
   function setPanelWidth(index: number, w: number | null): void {
     const panel = panels[index];
     if (!panel) return;
-    panel.style.width = w === null ? (saved[index]?.width ?? '') : `${round3(w)}px`;
+    if (w !== null) {
+      widthSet.add(panel);
+      panel.style.width = `${round3(w)}px`;
+    } else if (widthSet.delete(panel)) {
+      panel.style.width = saved.get(panel)?.width ?? '';
+    }
   }
 
   function setPanelVisible(index: number, visible: boolean): void {
@@ -141,20 +180,7 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
   }
 
   function destroy(): void {
-    panels.forEach((panel, i) => {
-      if (panel.parentNode === sceneElement) sceneElement.removeChild(panel);
-      const s = saved[i];
-      if (!s) return;
-      panel.style.width = s.width;
-      panel.style.position = s.position;
-      panel.style.left = s.left;
-      panel.style.top = s.top;
-      panel.style.transform = s.transform;
-      panel.style.display = s.display;
-      panel.style.userSelect = s.userSelect;
-      if (s.draggable === null) panel.removeAttribute('draggable');
-      else panel.setAttribute('draggable', s.draggable);
-    });
+    for (const panel of panels) release(panel);
     domElement.remove();
   }
 
@@ -165,6 +191,7 @@ export function createPanelRenderer(panels: ReadonlyArray<HTMLElement>): PanelRe
     setPanelPosition,
     setPanelWidth,
     setPanelVisible,
+    setPanels,
     render,
     destroy,
   };

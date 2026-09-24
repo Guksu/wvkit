@@ -11,6 +11,7 @@ export type {
   ScrollContainerDirection,
   ScrollContainerInstance,
   ScrollContainerOptions,
+  ScrollContainerOptionsUpdate,
   PullToRefreshInstance,
   PullToRefreshOptions,
   PullToRefreshState,

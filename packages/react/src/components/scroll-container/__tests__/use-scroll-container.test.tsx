@@ -1,7 +1,7 @@
 import { act, render } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { useScrollContainer } from '../use-scroll-container';
+import { diffScrollContainerOptions, useScrollContainer } from '../use-scroll-container';
 
 /**
  * React 어댑터 smoke 테스트.
@@ -144,23 +144,23 @@ describe('useScrollContainer [B-09] 실질 검증', () => {
 });
 
 /**
- * [B-25] 어댑터 계약 핀 — non-callback 옵션(panels/minZoom 등)은 마운트 시 1회 고정되며
- * 이후 변경은 인스턴스를 재생성하지 않는다(문서화된 계약). 이 동작이 조용히 바뀌면
- * (예: options 변경 시 자동 재초기화 도입) 문서와 어긋나므로 테스트로 고정한다.
+ * [B-25] 어댑터 계약 핀 — non-callback 옵션이 바뀌면 인스턴스를 다시 만들지 않고 `setOptions` 로 반영한다.
+ * 패널 배열은 요소 단위로 비교하므로 같은 요소의 새 배열은 바뀐 것이 아니다.
  */
-describe('useScrollContainer [B-25] non-callback 옵션 1회 고정 계약', () => {
+describe('useScrollContainer [B-25] 옵션 변경은 다시 마운트하지 않고 반영', () => {
   afterEach(() => {
     document.body.innerHTML = '';
   });
 
-  let capturedActiveIndex = -1;
-  function PinHost(props: { panels: HTMLElement[]; minZoom: number }) {
-    const { containerRef, activeIndex } = useScrollContainer({
+  let captured: { activeIndex: number; activeZoom: number } = { activeIndex: -1, activeZoom: -1 };
+  function PinHost(props: { panels: HTMLElement[]; minZoom: number; initialIndex?: number }) {
+    const { containerRef, activeIndex, activeZoom } = useScrollContainer({
       direction: 'horizontal',
       panels: props.panels,
       minZoom: props.minZoom,
+      ...(props.initialIndex !== undefined && { initialIndex: props.initialIndex }),
     });
-    capturedActiveIndex = activeIndex;
+    captured = { activeIndex, activeZoom };
     return React.createElement('div', {
       ref: containerRef,
       'data-testid': 'sc-pin-root',
@@ -168,21 +168,51 @@ describe('useScrollContainer [B-25] non-callback 옵션 1회 고정 계약', () 
     });
   }
 
-  it('[B-25] R1: rerender로 panels/minZoom을 교체해도 인스턴스는 재생성되지 않는다', () => {
+  it('[B-25] R1: rerender로 panels/minZoom을 교체하면 같은 인스턴스가 새 패널·새 줌 범위를 쓴다', () => {
     const { container, rerender } = render(
       React.createElement(PinHost, { panels: makePanels(3), minZoom: 1 }),
     );
     const containerDiv = container.querySelector('[data-testid="sc-pin-root"]') as HTMLElement;
-    // 재생성되면 CSS3DRenderer.domElement가 detach 후 새로 append되어 참조가 바뀐다
+    // 다시 만들면 렌더러 domElement 가 떼어지고 새로 붙어 참조가 바뀐다
     const rendererEl = containerDiv.firstElementChild;
     expect(rendererEl).not.toBeNull();
-    const indexBefore = capturedActiveIndex;
 
-    expect(() =>
-      rerender(React.createElement(PinHost, { panels: makePanels(5), minZoom: 2 })),
-    ).not.toThrow();
+    const next = makePanels(5);
+    act(() => {
+      rerender(React.createElement(PinHost, { panels: next, minZoom: 2 }));
+    });
 
     expect(containerDiv.firstElementChild).toBe(rendererEl);
-    expect(capturedActiveIndex).toBe(indexBefore);
+    expect(next[0]?.parentNode).not.toBeNull(); // 새 패널이 scene 에 붙었다
+    expect(captured.activeZoom).toBe(2); // 새 minZoom 으로 줌을 올렸다 (onZoomChange → state)
+  });
+
+  it('[B-25] R2: 보던 패널 앞에 끼워 넣으면 activeIndex state 가 따라온다 (보던 패널 유지)', () => {
+    const panels = makePanels(3);
+    const { rerender } = render(
+      React.createElement(PinHost, { panels, minZoom: 1, initialIndex: 1 }),
+    );
+    expect(captured.activeIndex).toBe(1);
+    act(() => {
+      rerender(React.createElement(PinHost, { panels: [...makePanels(2), ...panels], minZoom: 1 }));
+    });
+    expect(captured.activeIndex).toBe(3);
+  });
+
+  it('[B-25] R3: 같은 요소의 새 배열·새 콜백·initialIndex 만 바뀌면 setOptions 로 넘길 것이 없다', () => {
+    const panels = makePanels(2);
+    const base = { direction: 'horizontal' as const, panels, minZoom: 1 };
+    expect(diffScrollContainerOptions(base, { ...base, panels: [...panels] })).toBeNull();
+    expect(
+      diffScrollContainerOptions(base, { ...base, onIndexChange: () => {}, initialIndex: 1 }),
+    ).toBeNull();
+    expect(diffScrollContainerOptions(base, { ...base, minZoom: 2 })).toEqual({ minZoom: 2 });
+    expect(
+      diffScrollContainerOptions(base, { ...base, panels: [panels[1] as HTMLElement] }),
+    ).toEqual({
+      panels: [panels[1]],
+    });
+    // 키가 사라지면 undefined 로 넘겨 기본값으로 되돌린다
+    expect(diffScrollContainerOptions({ ...base, gap: 8 }, base)).toEqual({ gap: undefined });
   });
 });

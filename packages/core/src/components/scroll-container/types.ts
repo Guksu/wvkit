@@ -108,6 +108,16 @@ export interface ScrollContainerOptions {
   a11y?: boolean;
 }
 
+/**
+ * `setOptions` 에 넘기는 값 — 바꿀 옵션만. `undefined` 를 주면 그 옵션을 기본값으로 되돌린다.
+ * `initialIndex` 는 마운트 때만 쓰므로 없다.
+ */
+export type ScrollContainerOptionsUpdate = {
+  [K in Exclude<keyof ScrollContainerOptions, 'initialIndex'>]?:
+    | ScrollContainerOptions[K]
+    | undefined;
+};
+
 export interface ScrollContainerInstance {
   /** 지정한 인덱스로 스크롤. `animated: true`(기본)면 트랜지션, false면 즉시. */
   scrollTo(index: number, opts?: { animated?: boolean }): void;
@@ -117,6 +127,18 @@ export interface ScrollContainerInstance {
   zoomTo(level: number, opts?: { animated?: boolean }): void;
   /** 현재 줌 레벨. */
   getZoom(): number;
+  /**
+   * 패널 목록을 바꾼다 (다시 마운트하지 않음). 보던 패널이 남아 있으면 그 패널을 계속 보여 주고(번호가 바뀌면
+   * `onIndexChange`), 지워졌으면 같은 번호 자리의 패널로 간다. 남는 패널은 DOM 에서 떼지 않아 스크롤 위치가 유지된다.
+   * 빠진 패널은 떼어지고 인라인 스타일·속성이 원래대로 돌아온다. 진행 중인 제스처·애니메이션은 멈춘다.
+   */
+  setPanels(panels: HTMLElement[]): void;
+  /**
+   * 옵션을 바꾼다 (다시 마운트하지 않음). 바꿀 옵션만 넘긴다 (`panels` 포함 가능). 잘못된 값이면 아무것도
+   * 바꾸지 않고 `WebviewHeadlessError`. 실제로 바뀐 것이 없으면(같은 값, 같은 결과를 내는 새 함수) 아무 일도 하지 않는다.
+   * 바뀐 것이 있으면 진행 중인 제스처·애니메이션은 멈추고, 줌은 새 범위 안으로 유지된다.
+   */
+  setOptions(options: ScrollContainerOptionsUpdate): void;
   /** 리스너 해제 및 DOM 참조 정리. */
   destroy(): void;
 }
