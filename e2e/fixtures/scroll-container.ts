@@ -132,6 +132,8 @@ interface SwipeOpts {
   startRatioY?: number;
   /** 마지막 move 뒤 이 시간(ms)만큼 멈춘 채 같은 좌표로 move 를 한 번 더 보내고 up — 속도 0 릴리스 재현 */
   holdMs?: number;
+  /** PointerEvent.pointerType (기본 'touch') */
+  pointerType?: 'touch' | 'mouse' | 'pen';
 }
 
 /**
@@ -143,9 +145,16 @@ export async function swipeOnCanvas(
   dy: number,
   opts: SwipeOpts = {},
 ): Promise<void> {
-  const { steps = 14, duration = 280, startRatioX = 0.5, startRatioY = 0.5, holdMs = 0 } = opts;
+  const {
+    steps = 14,
+    duration = 280,
+    startRatioX = 0.5,
+    startRatioY = 0.5,
+    holdMs = 0,
+    pointerType = 'touch',
+  } = opts;
   await page.evaluate(
-    async ({ dx, dy, steps, duration, startRatioX, startRatioY, holdMs }) => {
+    async ({ dx, dy, steps, duration, startRatioX, startRatioY, holdMs, pointerType }) => {
       const el = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
       if (!el) throw new Error('sc-canvas not found');
       const rect = el.getBoundingClientRect();
@@ -157,7 +166,7 @@ export async function swipeOnCanvas(
         el.dispatchEvent(
           new PointerEvent(type, {
             pointerId: pid,
-            pointerType: 'touch',
+            pointerType,
             isPrimary: true,
             clientX: x,
             clientY: y,
@@ -186,7 +195,70 @@ export async function swipeOnCanvas(
       }
       dispatch('pointerup', startX + dx, startY + dy, 0, 0);
     },
-    { dx, dy, steps, duration, startRatioX, startRatioY, holdMs },
+    { dx, dy, steps, duration, startRatioX, startRatioY, holdMs, pointerType },
+  );
+}
+
+/**
+ * 한 손가락 드래그를 move 단위로 보내고, move 마다 카메라 위치(월드, 시작 대비 변화)를 기록한다.
+ * 렌더는 pointermove 안에서 동기로 일어나므로 dispatch 직후 scene transform 이 그 move 의 결과다.
+ * "제스처 도중 한 번도 움직이지 않았다"를 단언할 때 쓴다 (정착 후 값만 보면 흔들렸다 돌아온 것을 놓친다).
+ *
+ * - `moves`: 시작점(캔버스 정중앙) 기준 누적 [dx, dy] 목록
+ * - `targetSelector`: 이벤트를 보낼 요소 (기본 캔버스). 브라우저가 touch-action 을 누른 요소 기준으로 정하므로
+ *   특정 패널 콘텐츠 위의 터치를 흉내 낼 때 쓴다. 좌표는 여전히 캔버스 정중앙 기준.
+ */
+export async function dragSampleCamera(
+  page: Page,
+  moves: Array<[number, number]>,
+  opts: { pointerType?: 'touch' | 'mouse' | 'pen'; targetSelector?: string } = {},
+): Promise<Array<{ x: number; y: number }>> {
+  const { pointerType = 'touch', targetSelector } = opts;
+  return await page.evaluate(
+    ({ moves, pointerType, targetSelector }) => {
+      const canvas = document.querySelector('[data-testid="sc-canvas"]') as HTMLElement | null;
+      if (!canvas) throw new Error('sc-canvas not found');
+      const target = (targetSelector && document.querySelector(targetSelector)) || canvas;
+      const scene = canvas.querySelector(':scope > div > div') as HTMLElement | null;
+      const camera = () => {
+        const tf = scene?.style.transform ?? '';
+        const t = tf.match(/translate\(([-\d.e]+)px,\s*([-\d.e]+)px\)/);
+        const m = tf.match(/scale\(([-\d.e]+)\)/);
+        const z = m ? Number.parseFloat(m[1] ?? '1') : 1;
+        const tx = t ? Number.parseFloat(t[1] ?? '0') : 0;
+        const ty = t ? Number.parseFloat(t[2] ?? '0') : 0;
+        return { x: (canvas.clientWidth / 2 - tx) / z, y: (ty - canvas.clientHeight / 2) / z };
+      };
+      const r = canvas.getBoundingClientRect();
+      const x0 = r.left + r.width / 2;
+      const y0 = r.top + r.height / 2;
+      const fire = (type: string, x: number, y: number, buttons: number) =>
+        target.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: 7,
+            pointerType,
+            isPrimary: true,
+            clientX: x,
+            clientY: y,
+            bubbles: true,
+            cancelable: true,
+            buttons,
+            button: type === 'pointermove' ? -1 : 0,
+          }),
+        );
+      const start = camera();
+      fire('pointerdown', x0, y0, 1);
+      const out: Array<{ x: number; y: number }> = [];
+      for (const [dx, dy] of moves) {
+        fire('pointermove', x0 + dx, y0 + dy, 1);
+        const c = camera();
+        out.push({ x: +(c.x - start.x).toFixed(3), y: +(c.y - start.y).toFixed(3) });
+      }
+      const last = moves[moves.length - 1] ?? [0, 0];
+      fire('pointerup', x0 + last[0], y0 + last[1], 0);
+      return out;
+    },
+    { moves, pointerType, targetSelector },
   );
 }
 

@@ -51,6 +51,7 @@ export function createScrollContainer(
   const resistance = options.resistance ?? 0.2;
   const enablePinchZoom = options.enablePinchZoom ?? true;
   const doubleTapZoom = options.doubleTapZoom ?? false;
+  const dragThreshold = options.dragThreshold ?? 10;
   const wheelEnabled = options.wheel ?? true;
   const keyboardEnabled = options.keyboard ?? true;
   const a11yEnabled = options.a11y ?? true;
@@ -164,6 +165,7 @@ export function createScrollContainer(
     maxZoom,
     enablePinchZoom,
     doubleTapZoom,
+    dragThreshold,
     onChange: requestRender,
     onPanRelease: (targetIndex) => {
       if (destroyed) return;
@@ -345,6 +347,14 @@ function validateOptions(options: ScrollContainerOptions): void {
   ) {
     throw new WebviewHeadlessError(
       `ScrollContainer: snapThreshold must be in (0, 1] (got ${options.snapThreshold})`,
+    );
+  }
+  if (
+    options.dragThreshold !== undefined &&
+    !(Number.isFinite(options.dragThreshold) && options.dragThreshold >= 0)
+  ) {
+    throw new WebviewHeadlessError(
+      `ScrollContainer: dragThreshold must be a finite number >= 0 (got ${options.dragThreshold})`,
     );
   }
   if (options.resistance !== undefined && (options.resistance < 0 || options.resistance > 1)) {

@@ -376,6 +376,7 @@ interface DemoOptions {
   maxZoom: number;
   enablePinchZoom: boolean;
   doubleTapZoom: number | false;
+  dragThreshold: number;
 }
 
 function ScrollContainerInstance(props: DemoOptions) {
@@ -399,6 +400,7 @@ function ScrollContainerInstance(props: DemoOptions) {
     maxZoom: props.maxZoom,
     enablePinchZoom: props.enablePinchZoom,
     doubleTapZoom: props.doubleTapZoom,
+    dragThreshold: props.dragThreshold,
   });
 
   // 패널 안 버튼 클릭이 페이저를 거쳐도 정상 도달하는지 보여주는 카운터 (좋아요 토글)
@@ -493,6 +495,7 @@ export function ScrollContainerDemo() {
   const [enablePinchZoom, setEnablePinchZoom] = useState(true);
   // 데모 기본값은 2 — 실제 앱에서는 기본 꺼짐(false). 패널 안 버튼을 두 번 탭해도 줌이 토글되는 것을 그대로 보여준다.
   const [doubleTapZoom, setDoubleTapZoom] = useState<number | false>(2);
+  const [dragThreshold, setDragThreshold] = useState(10);
 
   const { tr } = useLang();
   const s = tr.scrollContainer;
@@ -507,6 +510,7 @@ export function ScrollContainerDemo() {
     maxZoom,
     enablePinchZoom,
     doubleTapZoom,
+    dragThreshold,
   ].join('|');
 
   return (
@@ -603,6 +607,18 @@ export function ScrollContainerDemo() {
             <option value="3">3</option>
           </select>
         </ControlItem>
+        <ControlItem label={c.dragThreshold}>
+          <input
+            data-testid="ctl-drag-threshold"
+            type="number"
+            min={0}
+            max={40}
+            step={1}
+            value={dragThreshold}
+            onChange={(e) => setDragThreshold(Math.max(0, Number(e.target.value)))}
+            style={inputStyle}
+          />
+        </ControlItem>
       </ControlGrid>
 
       <ScrollContainerInstance
@@ -615,6 +631,7 @@ export function ScrollContainerDemo() {
         maxZoom={maxZoom}
         enablePinchZoom={enablePinchZoom}
         doubleTapZoom={doubleTapZoom}
+        dragThreshold={dragThreshold}
       />
     </DemoCard>
   );

@@ -144,6 +144,31 @@ Why: the browser decides what a touch does by reading `touch-action` from the to
 - Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
+## Drag start and direction lock
+
+A pointer has to move more than `dragThreshold` (10 px by default) before the pager moves. At that moment the gesture picks a direction once, by the dominant axis (whichever of |dx| and |dy| is larger, a 45° split), and keeps it until the pointer is released. The rule is the one Android's `ViewPager` uses (`xDiff > mTouchSlop && xDiff > yDiff`).
+
+- **Pager axis dominant** → the pager drags. The start point is pulled in by the threshold, so the content does not jump: a 30 px drag moves the pager 20 px, as in `ViewPager` (`mInitialMotionX ± mTouchSlop`).
+- **Cross axis dominant, zoom ≤ 1** → the pager ignores the whole gesture, even if it later turns sideways. At zoom > 1 the pan is free in both axes instead.
+- **The browser will pan it** → for touch and pen, the pager computes the element's effective `touch-action` the way the browser does: from the touched element up to its nearest scroll container. If that allows panning in the chosen direction, the pager does not move and waits for the browser's `pointercancel`. Examples are a vertical touch on a `pan-y` panel, or a horizontal touch on a chip row with `pan-x pan-y`. Mouse input is not affected by `touch-action`.
+- A tap that jitters less than the threshold is still a tap: it never moves the pager, and double-tap zoom still recognizes it.
+- After a pinch, the remaining finger keeps panning without a new threshold, since it is already moving.
+- The pointer is captured only once a drag has started, so a mouse click that wobbles a few pixels still reaches the button under it.
+- `dragThreshold: 0` restores the previous behavior: the pager follows from the first move and has no direction lock.
+
+Measured with real touches (Chrome DevTools Protocol, Pixel 7 emulation, `pan-y` feed panels) before and after this change:
+
+| Gesture | Sideways camera wobble before | After |
+| --- | --- | --- |
+| Swipe at 46° from horizontal (browser scrolls the panel) | 13.9 px | 0 px |
+| Swipe at 55° | 11.5 px | 0 px |
+| Swipe at 70° | 6.8 px | 0 px |
+| Tap with 4 px jitter | 4 px | 0 px |
+| Vertical scroll that starts 6 px sideways | 6 px | 0 px |
+| Straight vertical swipe at zoom 2 (browser scrolls the panel) | 20 px vertical, on screen | 0 px |
+
+Chromium made the same 45° split on its own: at 44° it left the touch to the page, at 46° it scrolled the panel and sent `pointercancel` after about 20 px.
+
 ## Pinch zoom and panning while zoomed
 
 - Zooming keeps the point under the fingers fixed (anchor correction, measured from the host's top-left corner), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
@@ -183,6 +208,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 | `onIndexChange`   | `(index: number) => void`                  | —              | Fired when active panel changes (via `scrollTo` or pan snap).                                        |
 | `overscan`        | `number`                                   | `1`            | Number of panels to keep visible on each side of active. `0` mounts only the active panel.           |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to panel size) required to snap to the next panel.                            |
+| `dragThreshold`   | `number ≥ 0`                               | `10`           | Pixels a pointer must move before the pager moves; the drag direction is decided at that point. `0` follows from the first move with no direction lock. |
 | `resistance`      | `number ∈ [0, 1]`                          | `0.2`          | Edge rubber-band coefficient. `0` is a hard stop, `1` removes resistance.                            |
 | `enablePinchZoom` | `boolean`                                  | `true`         | Whether two-pointer gestures perform pinch zoom.                                                     |
 | `minZoom`         | `number > 0`                               | `1.0`          | Minimum zoom level.                                                                                  |
@@ -195,7 +221,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 
 `resistance` also damps the zoom rubber band when a pinch goes past `minZoom` / `maxZoom`.
 
-Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
+Invalid options (empty `panels`, `minZoom ≤ 0`, `maxZoom < minZoom`, `doubleTapZoom ∉ (minZoom, maxZoom]`, `snapThreshold ∉ (0,1]`, `dragThreshold` negative or not finite, `resistance ∉ [0,1]`) throw a `WebviewHeadlessError` at construction time.
 
 ### Instance Methods
 
@@ -238,7 +264,7 @@ The React hook and Vue composable read non-callback options (e.g. `panels`, `dir
 
 | Bundle | Minified | Gzip |
 | --- | --- | --- |
-| `@guksu/wvkit-core/scroll-container` | 16.4 KB | 6.5 KB |
+| `@guksu/wvkit-core/scroll-container` | 18.0 KB | 7.1 KB |
 
 Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB minified, 60 KB gzip).
 
@@ -256,6 +282,7 @@ Before 0.5 the same component pulled in a tree-shaken subset of Three.js (259 KB
 - **A wheel gesture moves one panel and cannot page while zoomed.** Trackpad momentum is ignored after the first step, and a fast mouse-wheel spin counts as one gesture until it pauses for 120 ms. While zoomed, the wheel pans inside the panel; use the arrow keys or zoom out to change panels.
 - **Keyboard shortcuts only work while the host has focus.** Focus inside a panel keeps its own key handling. The host's focus ring is not styled for you.
 - **`inert` on inactive panels blocks pointer events too.** With `minZoom` below 1, neighbouring panels that are visible cannot be clicked until they become active. Set `a11y: false` if you need that.
+- **The first `dragThreshold` pixels of a drag do not move the pager, and the direction is decided once.** A gesture that starts vertical cannot turn into paging halfway, and a curved swipe near 45° can be judged differently by the pager and by the browser, in which case neither moves. Lower `dragThreshold` for a faster start, or set `0` for the previous behavior.
 - **A fling moves at most one panel.** The settle duration follows the release velocity (120–400 ms), but there is no multi-panel momentum on the pager axis, by design (native pagers behave the same).
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
 - **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
