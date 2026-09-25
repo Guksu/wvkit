@@ -382,7 +382,7 @@ Every component is headless and small, but each has sharp edges that are easy to
 - With panels narrower than the host (`panelWidth`), peeking neighbours cannot be tapped while `a11y` is on (they are `inert`), and the first and last panels leave empty space at the edge.
 - A JavaScript carousel inside a panel (Swiper, Embla) needs `noDragSelector`, or one swipe moves both the carousel and the pager. A swipe that starts on the carousel never changes panels, even at its last slide.
 - `position: fixed` inside a panel scrolls with the panel. Text inside panels is not selectable. `<img>` needs `draggable="false"` on desktop.
-- Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position in Chromium; unverified in WebKit.
+- Every visible scrollable panel is its own compositor layer and panel DOM is never unmounted — keep `overscan` small and virtualize long lists inside panels yourself. Hidden panels keep their scroll position (checked by e2e in Chromium and Playwright's WebKit; not on a real iOS device).
 
 ### StableInput
 
