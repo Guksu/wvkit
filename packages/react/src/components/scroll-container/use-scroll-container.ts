@@ -8,7 +8,12 @@ import type {
 } from '@guksu/wvkit-core/scroll-container';
 
 /** setOptions 로 넘기지 않는 키 — 콜백은 ref 로 최신값을 부르고, initialIndex 는 마운트 때만 쓴다 */
-const SKIP_KEYS = new Set(['onIndexChange', 'onZoomChange', 'initialIndex']);
+const SKIP_KEYS = new Set([
+  'onIndexChange',
+  'onZoomChange',
+  'onPanelVisibilityChange',
+  'initialIndex',
+]);
 
 /**
  * 이전에 적용한 옵션과 비교해 바뀐 키만 모은다. 패널 배열은 요소를 하나씩 비교한다 (매 렌더 새 배열이어도
@@ -95,6 +100,8 @@ export function useScrollContainer(options: ScrollContainerOptions): {
         setActiveZoom(zoom);
         optionsRef.current.onZoomChange?.(zoom);
       },
+      onPanelVisibilityChange: (index, visible, panel) =>
+        optionsRef.current.onPanelVisibilityChange?.(index, visible, panel),
     };
 
     const instance = createScrollContainer(containerRef.current, wrappedOptions);

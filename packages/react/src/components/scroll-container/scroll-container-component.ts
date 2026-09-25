@@ -42,6 +42,7 @@ import { diffScrollContainerOptions } from './use-scroll-container';
  *    있어도 화면에 쓴 순서와 같다.
  *  - 패널 목록·옵션이 바뀌면 `setOptions` 로 넘긴다 (다시 마운트하지 않음). 패널이 하나도 없으면 인스턴스를 만들지 않는다.
  *  - SSR: 서버에서는 표시 요소만 그리고 패널 내용은 그리지 않는다 (포털은 브라우저에서만).
+ *  - `lazy`: 패널 내용은 core 가 그 패널을 처음 렌더 창에 넣을 때(onPanelVisibilityChange) 마운트하고 그 뒤로 유지한다.
  */
 
 /** 옵션 키 — props 에서 옵션과 DOM 속성을 나눈다 (`panels` 는 자식에서 온다) */
@@ -53,6 +54,7 @@ const OPTION_KEYS = [
   'gap',
   'align',
   'onIndexChange',
+  'onPanelVisibilityChange',
   'overscan',
   'snapThreshold',
   'dragThreshold',
@@ -77,6 +79,11 @@ export type _OptionKeysComplete = AssertNever<
 export type ScrollContainerProps = Omit<ScrollContainerOptions, 'panels'> &
   Omit<HTMLAttributes<HTMLDivElement>, (typeof OPTION_KEYS)[number] | 'children'> & {
     children?: ReactNode;
+    /**
+     * `true` 면 각 패널 내용을 그 패널이 처음 렌더 창(화면에 보이는 패널 + 양쪽 `overscan`)에 들어올 때
+     * 마운트하고, 그 뒤로는 유지한다. 기본값 `false` — 모든 패널 내용을 처음부터 마운트한다.
+     */
+    lazy?: boolean;
   };
 
 /** `ref` 로 받는 명령형 핸들 */
@@ -100,13 +107,22 @@ interface Registry {
 // 최상위 호출에 PURE 표시 — 훅만 가져오는 번들에서 컴포넌트 코드가 빠지게 (tree-shaking)
 const PanelRegistry = /*#__PURE__*/ createContext<Registry | null>(null);
 
+/** lazy 상태 — 등록부와 따로 둔다 (등록부가 바뀌면 ScrollPanel 이 다시 등록하므로) */
+interface LazyState {
+  lazy: boolean;
+  /** 한 번이라도 렌더 창에 들어온 패널 요소 */
+  shown: ReadonlySet<HTMLElement>;
+  version: number;
+}
+const PanelLazy = /*#__PURE__*/ createContext<LazyState | null>(null);
+
 const HOST_STYLE: CSSProperties = { position: 'relative', overflow: 'hidden', touchAction: 'none' };
 
 function ScrollContainerRender(
   props: ScrollContainerProps,
   ref: ForwardedRef<ScrollContainerHandle>,
 ) {
-  const { children, style, ...rest } = props;
+  const { children, style, lazy = false, ...rest } = props;
   const options: Record<string, unknown> = {};
   const attrs: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(rest)) {
@@ -124,6 +140,13 @@ function ScrollContainerRender(
   // 패널 등록부: 표시 요소 → 패널 요소. 바뀌면 다시 렌더해 아래 effect 가 동기화한다
   const entries = useRef(new Map<Element, HTMLElement>()).current;
   const [, bump] = useReducer((v: number) => v + 1, 0);
+  // 한 번이라도 렌더 창에 들어온 패널 — lazy 를 꺼 두어도 기록한다 (나중에 켜도 이미 본 패널은 그대로)
+  const shown = useRef(new Set<HTMLElement>()).current;
+  const [shownVersion, bumpShown] = useReducer((v: number) => v + 1, 0);
+  const lazyState = useMemo<LazyState>(
+    () => ({ lazy, shown, version: shownVersion }),
+    [lazy, shown, shownVersion],
+  );
   const registry = useMemo<Registry>(
     () => ({
       register(marker, panel) {
@@ -180,6 +203,13 @@ function ScrollContainerRender(
         ...next,
         onIndexChange: (i) => propsRef.current.onIndexChange?.(i),
         onZoomChange: (z) => propsRef.current.onZoomChange?.(z),
+        onPanelVisibilityChange: (i, visible, panel) => {
+          if (visible && !shown.has(panel)) {
+            shown.add(panel);
+            bumpShown();
+          }
+          propsRef.current.onPanelVisibilityChange?.(i, visible, panel);
+        },
       });
       appliedRef.current = next;
       return;
@@ -209,7 +239,11 @@ function ScrollContainerRender(
     createElement(
       PanelRegistry.Provider,
       { value: registry },
-      createElement('div', { hidden: true }, children),
+      createElement(
+        PanelLazy.Provider,
+        { value: lazyState },
+        createElement('div', { hidden: true }, children),
+      ),
     ),
   );
 }
@@ -219,6 +253,7 @@ export const ScrollContainer = /*#__PURE__*/ forwardRef(ScrollContainerRender);
 export function ScrollPanel(props: ScrollPanelProps) {
   const { children, label, style, ...attrs } = props;
   const registry = useContext(PanelRegistry);
+  const lazyState = useContext(PanelLazy);
   const markerRef = useRef<HTMLSpanElement>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   /** 우리가 aria-label 을 붙였는지 — label 을 거둘 때 core a11y 가 붙인 "n / N" 은 지우지 않게 */
@@ -256,12 +291,18 @@ export function ScrollPanel(props: ScrollPanelProps) {
     }
   }, [panel, label]);
 
+  // lazy: 렌더 창에 처음 들어오기 전에는 내용 없이 빈 내용 요소만 둔다
+  const showContent = !lazyState?.lazy || (panel !== null && lazyState.shown.has(panel));
   return createElement(
     'span',
     { ref: markerRef, hidden: true, 'data-scroll-panel': '' },
     panel
       ? createPortal(
-          createElement('div', { ...attrs, style: { height: '100%', ...style } }, children),
+          createElement(
+            'div',
+            { ...attrs, style: { height: '100%', ...style } },
+            showContent ? children : null,
+          ),
           panel,
         )
       : null,

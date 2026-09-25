@@ -107,6 +107,32 @@ test.describe('ScrollContainer · S8 virtualization', () => {
       .toBe(1);
     expect(await getVisiblePanelIndices(page)).toEqual([0]);
   });
+
+  // 숨긴(display:none) 패널의 스크롤 위치는 브라우저가 지킨다 — 라이브러리는 저장·복원하지 않는다.
+  // CI 는 chromium · webkit · mobile-safari · mobile-chrome 에서 돈다 (문서의 WebKit 확인 근거).
+  test('창 밖으로 나가 숨겨졌다가 돌아온 패널의 스크롤 위치가 그대로다', async ({ page }) => {
+    await gotoDemo(page);
+    const panel0 = (fn: string) =>
+      page.evaluate((f) => {
+        const p = document.querySelector('[data-panel-index="0"]') as HTMLElement | null;
+        if (!p) return null;
+        if (f === 'display') return getComputedStyle(p).display;
+        return p.scrollTop;
+      }, fn);
+    await page.evaluate(() => {
+      const p = document.querySelector('[data-panel-index="0"]') as HTMLElement | null;
+      if (p) p.scrollTop = 400;
+    });
+    expect(await panel0('scrollTop')).toBe(400);
+
+    await clickScrollTo(page, 5, false);
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('5');
+    expect(await panel0('display')).toBe('none'); // 창 밖 → 숨김
+
+    await clickScrollTo(page, 0, false);
+    await expect(page.getByTestId('row-activeIndex-value')).toHaveText('0');
+    await expect.poll(() => panel0('scrollTop')).toBe(400);
+  });
 });
 
 test.describe('ScrollContainer · S10 cleanup', () => {

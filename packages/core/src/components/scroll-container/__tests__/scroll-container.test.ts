@@ -911,3 +911,80 @@ describe('createScrollContainer — wheel (실제 연결)', () => {
     sc.destroy();
   });
 });
+
+describe('createScrollContainer — onPanelVisibilityChange', () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    root = makeRoot();
+  });
+  afterEach(() => {
+    root.remove();
+  });
+
+  it('생성 때는 창 안 패널만 true 로 알리고, 이동하면 나간 패널 false · 들어온 패널 true', () => {
+    const calls: Array<[number, boolean]> = [];
+    const panels = makePanels(5);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      overscan: 1,
+      onPanelVisibilityChange: (i, visible, panel) => {
+        expect(panel).toBe(panels[i]);
+        // 알릴 때는 이미 적용된 상태다
+        expect(panel.style.display).toBe(visible ? '' : 'none');
+        calls.push([i, visible]);
+      },
+    });
+    expect(calls).toEqual([
+      [0, true],
+      [1, true],
+    ]);
+    calls.length = 0;
+    sc.scrollTo(3, { animated: false });
+    expect(calls).toEqual([
+      [0, false],
+      [1, false],
+      [2, true],
+      [3, true],
+      [4, true],
+    ]);
+    sc.destroy();
+  });
+
+  it('콜백만 바꾸면 다시 배치하지 않고, 다음 알림부터 새 콜백을 부른다', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      overscan: 0,
+      onPanelVisibilityChange: first,
+    });
+    const transform = panels[0]!.style.transform;
+    sc.setOptions({ onPanelVisibilityChange: second });
+    expect(panels[0]!.style.transform).toBe(transform);
+    sc.scrollTo(1, { animated: false });
+    expect(second).toHaveBeenCalledWith(1, true, panels[1]);
+    expect(first).toHaveBeenCalledTimes(1); // 생성 때 한 번뿐
+    sc.destroy();
+  });
+
+  it('setPanels 로 창 안에 새 패널이 들어오면 true, 빠진 패널은 알리지 않는다', () => {
+    const calls: Array<[HTMLElement, boolean]> = [];
+    const panels = makePanels(3);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      overscan: 1,
+      onPanelVisibilityChange: (_i, visible, panel) => calls.push([panel, visible]),
+    });
+    calls.length = 0;
+    const added = document.createElement('div');
+    // 보던 패널(0) 앞에 새 패널을 넣고 마지막 패널을 뺀다 → 새 패널은 창 안(이웃)
+    sc.setPanels([added, panels[0]!, panels[1]!]);
+    expect(calls).toContainEqual([added, true]);
+    expect(calls.some(([p]) => p === panels[2])).toBe(false);
+    sc.destroy();
+  });
+});

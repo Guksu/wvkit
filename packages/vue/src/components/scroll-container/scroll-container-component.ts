@@ -37,6 +37,7 @@ import { diffScrollContainerOptions } from './use-scroll-container';
  *  - 패널 순서는 `ScrollPanel` 이 제자리에 남기는 숨은 표시 요소(span)의 DOM 순서다.
  *  - 패널 목록·옵션이 바뀌면 `setOptions` 로 넘긴다. 패널이 하나도 없으면 인스턴스를 만들지 않는다.
  *  - 불리언 옵션은 기본값을 `undefined` 로 둔다 — Vue 는 빠진 불리언 prop 을 `false` 로 바꾸므로 core 기본값이 사라진다.
+ *  - `lazy`: 패널 내용은 core 가 그 패널을 처음 렌더 창에 넣을 때(onPanelVisibilityChange) 마운트하고 그 뒤로 유지한다.
  */
 
 const scrollContainerProps = {
@@ -62,6 +63,11 @@ const scrollContainerProps = {
   wheel: { type: Boolean, default: undefined },
   keyboard: { type: Boolean, default: undefined },
   a11y: { type: Boolean, default: undefined },
+  /**
+   * `true` 면 각 패널 내용을 그 패널이 처음 렌더 창(화면에 보이는 패널 + 양쪽 `overscan`)에 들어올 때
+   * 마운트하고, 그 뒤로는 유지한다. 기본값 `false` — 모든 패널 내용을 처음부터 마운트한다. (core 옵션이 아니다)
+   */
+  lazy: { type: Boolean, default: false },
 };
 
 export type ScrollContainerProps = ExtractPublicPropTypes<typeof scrollContainerProps>;
@@ -76,6 +82,8 @@ export interface ScrollContainerHandle {
 
 interface Registry {
   register(marker: Element, panel: HTMLElement): () => void;
+  /** 이 패널의 내용을 그릴지 — lazy 면 렌더 창에 한 번이라도 들어온 패널만 (render 안에서 읽으면 반응한다) */
+  showContent(panel: HTMLElement): boolean;
 }
 
 // 최상위 호출에 PURE 표시 — 훅만 가져오는 번들에서 컴포넌트 코드가 빠지게 (tree-shaking)
@@ -89,6 +97,8 @@ export const ScrollContainer = /*#__PURE__*/ defineComponent({
   emits: {
     indexChange: (index: number) => typeof index === 'number',
     zoomChange: (zoom: number) => typeof zoom === 'number',
+    panelVisibilityChange: (index: number, visible: boolean, panel: HTMLElement) =>
+      typeof index === 'number' && typeof visible === 'boolean' && panel instanceof HTMLElement,
   },
   setup(props, { slots, emit, expose }) {
     const hostRef = ref<HTMLElement | null>(null);
@@ -99,6 +109,9 @@ export const ScrollContainer = /*#__PURE__*/ defineComponent({
     // 패널 등록부: 표시 요소 → 패널 요소. 바뀌면 version 이 올라 동기화한다
     const entries = new Map<Element, HTMLElement>();
     const version = ref(0);
+    // 한 번이라도 렌더 창에 들어온 패널 — lazy 를 꺼 두어도 기록한다 (나중에 켜도 이미 본 패널은 그대로)
+    const shown = new Set<HTMLElement>();
+    const shownVersion = ref(0);
     provide(REGISTRY, {
       register(marker, panel) {
         entries.set(marker, panel);
@@ -107,6 +120,11 @@ export const ScrollContainer = /*#__PURE__*/ defineComponent({
           entries.delete(marker);
           version.value++;
         };
+      },
+      showContent(panel) {
+        if (!props.lazy) return true;
+        void shownVersion.value; // 반응성 추적 — 새 패널이 창에 들어오면 다시 그린다
+        return shown.has(panel);
       },
     });
 
@@ -121,7 +139,7 @@ export const ScrollContainer = /*#__PURE__*/ defineComponent({
         .map(([, panel]) => panel);
       const options: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(props)) {
-        if (value !== undefined) options[key] = value;
+        if (key !== 'lazy' && value !== undefined) options[key] = value;
       }
       const next = { ...options, panels } as unknown as ScrollContainerOptions;
 
@@ -142,6 +160,13 @@ export const ScrollContainer = /*#__PURE__*/ defineComponent({
           ...next,
           onIndexChange: (i) => emit('indexChange', i),
           onZoomChange: (z) => emit('zoomChange', z),
+          onPanelVisibilityChange: (i, visible, panel) => {
+            if (visible && !shown.has(panel)) {
+              shown.add(panel);
+              shownVersion.value++;
+            }
+            emit('panelVisibilityChange', i, visible, panel);
+          },
         });
         applied = next;
         return;
@@ -224,7 +249,12 @@ export const ScrollPanel = /*#__PURE__*/ defineComponent({
         panel.value
           ? [
               h(Teleport, { to: panel.value }, [
-                h('div', mergeProps({ style: { height: '100%' } }, attrs), slots.default?.()),
+                // lazy: 렌더 창에 처음 들어오기 전에는 내용 없이 빈 내용 요소만 둔다
+                h(
+                  'div',
+                  mergeProps({ style: { height: '100%' } }, attrs),
+                  registry && !registry.showContent(panel.value) ? undefined : slots.default?.(),
+                ),
               ]),
             ]
           : undefined,

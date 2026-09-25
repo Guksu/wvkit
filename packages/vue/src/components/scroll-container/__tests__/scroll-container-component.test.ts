@@ -1,6 +1,6 @@
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createSSRApp, defineComponent, h, nextTick, ref } from 'vue';
+import { createSSRApp, defineComponent, h, nextTick, onMounted, ref } from 'vue';
 import { renderToString } from 'vue/server-renderer';
 import {
   ScrollContainer,
@@ -203,5 +203,77 @@ describe('ScrollContainer · ScrollPanel (Vue 컴포넌트)', () => {
     expect(sceneOf(host)).not.toBeNull();
     wrapper.unmount();
     expect(sceneOf(host)).toBeNull();
+  });
+
+  /** 마운트될 때 id 를 기록하는 패널 내용 */
+  const Probe = defineComponent({
+    props: { id: { type: String, required: true }, log: { type: Array, required: true } },
+    setup(props) {
+      onMounted(() => (props.log as string[]).push(props.id));
+      return () => h('p', null, props.id);
+    },
+  });
+
+  function makeLazyApp(opts: { lazy?: boolean; onVis?: (i: number, v: boolean) => void }) {
+    const log: string[] = [];
+    const sc = ref<ScrollContainerHandle | null>(null);
+    const App = defineComponent({
+      setup() {
+        return () =>
+          h(
+            ScrollContainer,
+            {
+              ref: sc,
+              direction: 'horizontal',
+              overscan: 0,
+              ...(opts.lazy !== undefined && { lazy: opts.lazy }),
+              ...(opts.onVis && {
+                onPanelVisibilityChange: (i: number, v: boolean) => opts.onVis?.(i, v),
+              }),
+            },
+            () => ['a', 'b', 'c', 'd'].map((id) => h(ScrollPanel, { key: id }, () => h(Probe, { id, log }))),
+          );
+      },
+    });
+    return { App, log, sc };
+  }
+
+  it('V11: lazy 면 패널 내용을 처음 렌더 창에 들어올 때 마운트하고, 그 뒤로는 유지한다', async () => {
+    const { App, log, sc } = makeLazyApp({ lazy: true });
+    const wrapper = mount(App, { attachTo: document.body });
+    await nextTick();
+    await nextTick();
+    expect(log).toEqual(['a']); // overscan 0 → 활성 패널만
+    sc.value?.scrollTo(2, { animated: false });
+    await nextTick();
+    expect(log).toEqual(['a', 'c']); // 건너뛴 b 는 마운트하지 않는다
+    sc.value?.scrollTo(0, { animated: false });
+    await nextTick();
+    expect(log).toEqual(['a', 'c']); // a 는 계속 마운트돼 있다
+    wrapper.unmount();
+  });
+
+  it('V12: lazy 를 켜지 않으면 지금처럼 모든 패널 내용을 처음부터 마운트한다', async () => {
+    const { App, log } = makeLazyApp({});
+    const wrapper = mount(App, { attachTo: document.body });
+    await nextTick();
+    await nextTick();
+    expect([...log].sort()).toEqual(['a', 'b', 'c', 'd']);
+    wrapper.unmount();
+  });
+
+  it('V13: panel-visibility-change 이벤트는 core 알림을 그대로 받는다', async () => {
+    const calls: Array<[number, boolean]> = [];
+    const { App, sc } = makeLazyApp({ onVis: (i, v) => calls.push([i, v]) });
+    const wrapper = mount(App, { attachTo: document.body });
+    await nextTick();
+    expect(calls).toEqual([[0, true]]);
+    sc.value?.scrollTo(1, { animated: false });
+    expect(calls).toEqual([
+      [0, true],
+      [0, false],
+      [1, true],
+    ]);
+    wrapper.unmount();
   });
 });

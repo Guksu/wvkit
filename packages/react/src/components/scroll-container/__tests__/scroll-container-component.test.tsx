@@ -231,4 +231,69 @@ describe('ScrollContainer · ScrollPanel (React 컴포넌트)', () => {
     });
     expect(panel()?.hasAttribute('aria-label')).toBe(false);
   });
+
+  /** 마운트될 때 id 를 기록하는 패널 내용 */
+  function Probe(props: { id: string; log: string[] }) {
+    React.useEffect(() => {
+      props.log.push(props.id);
+    }, [props.id, props.log]);
+    return h('p', null, props.id);
+  }
+
+  function LazyPager(props: {
+    lazy?: boolean;
+    log: string[];
+    handle: React.Ref<ScrollContainerHandle>;
+    onPanelVisibilityChange?: (i: number, visible: boolean, panel: HTMLElement) => void;
+  }) {
+    return sc(
+      {
+        direction: 'horizontal',
+        overscan: 0,
+        ref: props.handle,
+        ...(props.lazy !== undefined && { lazy: props.lazy }),
+        ...(props.onPanelVisibilityChange && {
+          onPanelVisibilityChange: props.onPanelVisibilityChange,
+        }),
+      },
+      ['a', 'b', 'c', 'd'].map((id) => h(ScrollPanel, { key: id }, h(Probe, { id, log: props.log }))),
+    );
+  }
+
+  it('C13: lazy 면 패널 내용을 처음 렌더 창에 들어올 때 마운트하고, 그 뒤로는 유지한다', () => {
+    const log: string[] = [];
+    const handle = React.createRef<ScrollContainerHandle>();
+    render(h(LazyPager, { lazy: true, log, handle }));
+    expect(log).toEqual(['a']); // overscan 0 → 활성 패널만
+    act(() => handle.current?.scrollTo(2, { animated: false }));
+    expect(log).toEqual(['a', 'c']); // 건너뛴 b 는 마운트하지 않는다
+    act(() => handle.current?.scrollTo(0, { animated: false }));
+    expect(log).toEqual(['a', 'c']); // a 는 계속 마운트돼 있어 다시 마운트되지 않는다
+  });
+
+  it('C14: lazy 를 켜지 않으면 지금처럼 모든 패널 내용을 처음부터 마운트한다', () => {
+    const log: string[] = [];
+    const handle = React.createRef<ScrollContainerHandle>();
+    render(h(LazyPager, { log, handle }));
+    expect([...log].sort()).toEqual(['a', 'b', 'c', 'd']);
+  });
+
+  it('C15: onPanelVisibilityChange prop 은 core 알림을 그대로 받는다', () => {
+    const calls: Array<[number, boolean]> = [];
+    const handle = React.createRef<ScrollContainerHandle>();
+    render(
+      h(LazyPager, {
+        log: [],
+        handle,
+        onPanelVisibilityChange: (i, visible) => calls.push([i, visible]),
+      }),
+    );
+    expect(calls).toEqual([[0, true]]);
+    act(() => handle.current?.scrollTo(1, { animated: false }));
+    expect(calls).toEqual([
+      [0, true],
+      [0, false],
+      [1, true],
+    ]);
+  });
 });
