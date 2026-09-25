@@ -147,10 +147,15 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
     const axisDelta = axis === 'x' ? dx : dy;
     const crossDelta = axis === 'x' ? dy : dx;
     if (axisDelta === 0 || Math.abs(crossDelta) > Math.abs(axisDelta)) return;
+    // 이 제스처로 이미 넘겼으면 남은 이벤트(트랙패드 관성)는 모두 소비한다 — 새 패널 안의 스크롤러 위에
+    // 떨어져도 그 스크롤러로 새지 않게. 네이티브 스크롤 검사보다 먼저 해야 한다
+    if (pagedThisGesture) {
+      ev.preventDefault();
+      return;
+    }
     if (canScrollNatively(ev.target, root, axis, axisDelta)) return;
     // 소비: 페이지 가로 스크롤·macOS 가로 스와이프 뒤로가기 방지
     ev.preventDefault();
-    if (pagedThisGesture) return;
     accum += axisDelta;
     if (Math.abs(accum) >= WHEEL_PAGE_THRESHOLD_PX) {
       pagedThisGesture = true;
