@@ -7,7 +7,8 @@
  *    한 제스처(이벤트 간격 `WHEEL_GESTURE_GAP_MS` 이내가 이어지는 동안)에 최대 한 패널 — 트랙패드 관성이
  *    여러 패널을 넘기지 않게 (네이티브 페이저·Swiper mousewheel 과 같은 규칙).
  *    교차 축 성분이 더 크면(세로 스크롤 의도) 손대지 않는다. 축 방향으로 더 스크롤할 수 있는 중첩 스크롤러
- *    (칩 줄 등) 위에서는 네이티브에 맡긴다.
+ *    (칩 줄 등) 위에서는 네이티브에 맡긴다 — 단, 이 제스처로 실제로 패널이 바뀌었으면 남은 축 방향 휠은
+ *    중첩 스크롤러 위에서도 소비한다 (새 패널 안으로 새지 않게). 첫·끝 패널이라 넘기지 못했으면 전과 같다.
  *  - 줌 상태(zoom > 1): 휠은 카메라 pan (양 축, 패널 범위 안). 그 방향으로 스크롤할 수 있는 조상이 있으면 네이티브 우선.
  *  - ctrl+휠 (트랙패드 핀치가 브라우저에서 이렇게 온다): 커서 아래 지점을 고정한 채 줌 `exp(−deltaY × 0.01)`.
  *
@@ -32,8 +33,11 @@ export interface DesktopInputOptions {
   minZoom: number;
   /** 축 방향 패널 크기(px) — deltaMode 2(페이지) 환산용 */
   getPanelSize: () => number;
-  /** 한 패널 이동 (+1 다음 / −1 이전). host 의 scrollTo 로 activeIndex·가상화·콜백까지 처리 */
-  step: (delta: 1 | -1) => void;
+  /**
+   * 한 패널 이동 (+1 다음 / −1 이전). host 의 scrollTo 로 activeIndex·가상화·콜백까지 처리.
+   * 활성 패널이 실제로 바뀌었으면 true (첫·끝 패널에서 더 가려 하면 false)
+   */
+  step: (delta: 1 | -1) => boolean;
   goToEdge: (edge: 'first' | 'last') => void;
   /** 줌 상태 휠 pan (화면 px) */
   panBy: (dxPx: number, dyPx: number) => void;
@@ -103,12 +107,15 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
   let accum = 0;
   let lastWheelTime = Number.NEGATIVE_INFINITY;
   let pagedThisGesture = false;
+  /** 이 제스처로 활성 패널이 실제로 바뀌었는지 — 남은 휠을 새 패널로 새지 않게 모두 소비할지 */
+  let changedPanelThisGesture = false;
 
   function onWheel(ev: WheelEvent): void {
     const now = performance.now();
     if (now - lastWheelTime > WHEEL_GESTURE_GAP_MS) {
       accum = 0;
       pagedThisGesture = false;
+      changedPanelThisGesture = false;
     }
     lastWheelTime = now;
 
@@ -147,19 +154,21 @@ export function createDesktopInput(opts: DesktopInputOptions): DesktopInput {
     const axisDelta = axis === 'x' ? dx : dy;
     const crossDelta = axis === 'x' ? dy : dx;
     if (axisDelta === 0 || Math.abs(crossDelta) > Math.abs(axisDelta)) return;
-    // 이 제스처로 이미 넘겼으면 남은 이벤트(트랙패드 관성)는 모두 소비한다 — 새 패널 안의 스크롤러 위에
-    // 떨어져도 그 스크롤러로 새지 않게. 네이티브 스크롤 검사보다 먼저 해야 한다
-    if (pagedThisGesture) {
+    // 이 제스처로 패널이 실제로 바뀌었으면 남은 이벤트(트랙패드 관성)는 모두 소비한다 — 새 패널 안의
+    // 스크롤러 위에 떨어져도 그 스크롤러로 새지 않게. 네이티브 스크롤 검사보다 먼저 해야 한다
+    if (changedPanelThisGesture) {
       ev.preventDefault();
       return;
     }
     if (canScrollNatively(ev.target, root, axis, axisDelta)) return;
     // 소비: 페이지 가로 스크롤·macOS 가로 스와이프 뒤로가기 방지
     ev.preventDefault();
+    // 첫·끝 패널이라 넘기지 못했어도 한 제스처에 한 번만 시도한다
+    if (pagedThisGesture) return;
     accum += axisDelta;
     if (Math.abs(accum) >= WHEEL_PAGE_THRESHOLD_PX) {
       pagedThisGesture = true;
-      step(accum > 0 ? 1 : -1);
+      changedPanelThisGesture = step(accum > 0 ? 1 : -1);
     }
   }
 

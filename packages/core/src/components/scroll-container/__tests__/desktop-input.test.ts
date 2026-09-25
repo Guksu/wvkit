@@ -7,7 +7,8 @@ import { canScrollNatively, createDesktopInput } from '../desktop-input';
  * 계약:
  *  - 페이저(zoom ≤ 1): 축 방향 휠을 제스처(이벤트 간격 120ms 이내) 단위로 누적, 40px 넘으면 한 패널. 한 제스처에 최대 한 패널.
  *    교차 축이 더 크면 무시, 축 방향으로 더 스크롤할 수 있는 중첩 스크롤러 위면 무시. 소비한 휠만 preventDefault.
- *    단, 넘긴 뒤 같은 제스처의 남은 축 방향 휠은 중첩 스크롤러 위에서도 소비한다 (새 패널로 새지 않게).
+ *    단, 이 제스처로 패널이 실제로 바뀌었으면 남은 축 방향 휠은 중첩 스크롤러 위에서도 소비한다 (새 패널로 새지 않게).
+ *    첫·끝 패널이라 넘기지 못했으면(step → false) 중첩 스크롤러는 전처럼 네이티브에 맡긴다.
  *  - 줌 상태(zoom > 1): 휠 = panBy(dx, dy) (스크롤 가능한 조상이 있는 축은 제외).
  *  - ctrl+휠: zoomBy(exp(−dy×0.01), 커서 로컬 좌표) → onZoom.
  *  - 키보드: 호스트에 포커스(target === root)일 때만. 축 화살표·Home·End·Escape(줌 상태만). 수정키 조합 무시.
@@ -72,7 +73,7 @@ describe('createDesktopInput', () => {
     now = 1000;
     zoom = 1;
     vi.spyOn(performance, 'now').mockImplementation(() => now);
-    step = vi.fn();
+    step = vi.fn(() => true); // 기본: 패널이 실제로 바뀜
     goToEdge = vi.fn();
     panBy = vi.fn();
     zoomBy = vi.fn((f: number) => Math.min(3, Math.max(1, zoom * f)));
@@ -160,7 +161,7 @@ describe('createDesktopInput', () => {
       chips.style.overflowX = 'auto';
       Object.defineProperty(chips, 'clientWidth', { value: 200, configurable: true });
       Object.defineProperty(chips, 'scrollWidth', { value: 800, configurable: true });
-      chips.scrollLeft = 0;
+      chips.scrollLeft = 300; // 양쪽으로 스크롤할 수 있다
       root.appendChild(chips);
       wheel({ deltaX: 100 }); // 호스트 위에서 넘긴다
       expect(step).toHaveBeenCalledTimes(1);
@@ -169,6 +170,9 @@ describe('createDesktopInput', () => {
         now += 16;
         expect(wheel({ deltaX: 60 }, chips).defaultPrevented).toBe(true);
       }
+      // 같은 제스처 안에서 방향을 바꿔도 소비한다 (한 제스처 = 한 번 넘김)
+      now += 16;
+      expect(wheel({ deltaX: -60 }, chips).defaultPrevented).toBe(true);
       expect(step).toHaveBeenCalledTimes(1);
       // 교차 축이 더 큰 휠(세로 스크롤 의도)은 넘긴 뒤에도 손대지 않는다
       now += 16;
@@ -176,6 +180,30 @@ describe('createDesktopInput', () => {
       // 조용해진 뒤(새 제스처)에는 칩 줄이 다시 네이티브로 스크롤된다
       now += 200;
       expect(wheel({ deltaX: 60 }, chips).defaultPrevented).toBe(false);
+      expect(step).toHaveBeenCalledTimes(1);
+      d.destroy();
+    });
+
+    it('W9: 끝 패널이라 넘기지 못하면(step → false) 같은 제스처라도 스크롤러는 네이티브에 맡긴다', () => {
+      step.mockImplementation(() => false); // 마지막 패널 — 더 갈 곳이 없다
+      const d = make({ direction: 'vertical' });
+      const list = document.createElement('div');
+      list.style.overflowY = 'auto';
+      Object.defineProperty(list, 'clientHeight', { value: 600, configurable: true });
+      Object.defineProperty(list, 'scrollHeight', { value: 1200, configurable: true });
+      list.scrollTop = 600; // 끝까지 내려와 있다
+      root.appendChild(list);
+      // 끝에서 더 내린다 → 네이티브로 갈 곳이 없어 페이저가 받지만, 넘기지 못한다
+      expect(wheel({ deltaY: 100 }, list).defaultPrevented).toBe(true);
+      expect(step).toHaveBeenCalledTimes(1);
+      // 같은 제스처 안에서 다시 올린다 → 목록이 네이티브로 스크롤돼야 한다
+      for (let i = 0; i < 3; i++) {
+        now += 16;
+        expect(wheel({ deltaY: -60 }, list).defaultPrevented).toBe(false);
+      }
+      // 한 제스처에 한 번만 시도한다 — 끝에서 더 내려도 다시 step 을 부르지 않는다
+      now += 16;
+      wheel({ deltaY: 100 }, list);
       expect(step).toHaveBeenCalledTimes(1);
       d.destroy();
     });

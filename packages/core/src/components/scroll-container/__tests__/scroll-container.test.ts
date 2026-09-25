@@ -852,3 +852,62 @@ describe('createScrollContainer — direction', () => {
     sc.destroy();
   });
 });
+
+describe('createScrollContainer — wheel (실제 연결)', () => {
+  let root: HTMLElement;
+  let now = 1000;
+  beforeEach(() => {
+    root = makeRoot();
+    now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    root.remove();
+  });
+
+  /** 가로로 스크롤되는 칩 줄 (패널 안) */
+  function chipRow(scrollLeft: number): HTMLElement {
+    const chips = document.createElement('div');
+    chips.style.overflowX = 'auto';
+    Object.defineProperty(chips, 'clientWidth', { value: 200, configurable: true });
+    Object.defineProperty(chips, 'scrollWidth', { value: 800, configurable: true });
+    chips.scrollLeft = scrollLeft;
+    return chips;
+  }
+
+  function wheelOn(target: HTMLElement, deltaX: number): WheelEvent {
+    const ev = new WheelEvent('wheel', { deltaX, bubbles: true, cancelable: true });
+    target.dispatchEvent(ev);
+    return ev;
+  }
+
+  it('휠로 넘긴 뒤 같은 제스처가 새 패널의 칩 줄에 떨어져도 칩 줄은 스크롤되지 않는다 (소비)', () => {
+    const panels = makePanels(2);
+    const chips = chipRow(0);
+    panels[1]!.appendChild(chips);
+    const sc = createScrollContainer(root, { direction: 'horizontal', panels, overscan: 1 });
+    wheelOn(panels[0]!, 100);
+    expect(sc.getActiveIndex()).toBe(1);
+    now += 16;
+    expect(wheelOn(chips, 60).defaultPrevented).toBe(true);
+    sc.destroy();
+  });
+
+  it('마지막 패널에서 더 넘기려다 못 넘기면, 같은 제스처라도 칩 줄은 반대 방향으로 네이티브 스크롤된다', () => {
+    const panels = makePanels(2);
+    const chips = chipRow(600); // 오른쪽 끝
+    panels[1]!.appendChild(chips);
+    const sc = createScrollContainer(root, {
+      direction: 'horizontal',
+      panels,
+      initialIndex: 1,
+      overscan: 1,
+    });
+    expect(wheelOn(chips, 100).defaultPrevented).toBe(true); // 끝이라 페이저가 받지만 넘길 곳이 없다
+    expect(sc.getActiveIndex()).toBe(1);
+    now += 16;
+    expect(wheelOn(chips, -60).defaultPrevented).toBe(false); // 되돌리는 휠은 칩 줄로
+    sc.destroy();
+  });
+});

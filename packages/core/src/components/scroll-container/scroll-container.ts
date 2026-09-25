@@ -305,7 +305,11 @@ export function createScrollContainer(
     ...desktopConfig(),
     getZoom: () => zoom,
     getPanelSize: () => panelSizes[activeIndex] ?? viewportAlongAxis(),
-    step: (delta) => scrollTo(activeIndex + delta),
+    step: (delta) => {
+      const before = activeIndex;
+      scrollTo(activeIndex + delta);
+      return activeIndex !== before;
+    },
     goToEdge: (edge) => scrollTo(edge === 'first' ? 0 : panels.length - 1),
     panBy: (dx, dy) => control?.panBy(dx, dy),
     zoomBy: (factor, sx, sy) => control?.zoomBy(factor, sx, sy) ?? zoom,
