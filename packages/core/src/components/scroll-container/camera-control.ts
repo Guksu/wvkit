@@ -154,8 +154,11 @@ export interface CameraControlOptions {
 export interface CameraControl {
   /** 지정 패널로 카메라 이동. animated=true면 easeOutCubic 트윈, false면 즉시. */
   animateToIndex(index: number, animated: boolean): void;
-  /** 지정 줌으로 변경. animated=true면 트윈, false면 즉시. */
-  animateToZoom(level: number, animated: boolean): void;
+  /**
+   * 지정 줌으로 변경. animated=true면 트윈, false면 즉시. 카메라는 패널 `index`(생략하면 카메라에
+   * 가장 가까운 패널)의 새 줌 범위 안으로 옮긴다.
+   */
+  animateToZoom(level: number, animated: boolean, index?: number): void;
   /** 진행 중인 RAF 트윈을 즉시 취소 (카메라 위치는 그대로). */
   cancelAnimation(): void;
   /**
@@ -366,12 +369,16 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
   }
 
   /**
-   * 주어진 줌에서 카메라가 머물 수 있는 위치 — 축은 가장 가까운 패널의 줌 범위 안으로, 교차 축은
-   * 교차 축 범위 안으로 클램프. zoom ≤ 1 이면 두 반폭 모두 0 이라 패널 중심으로 끌어온다
-   * (줌아웃 후 패널 사이에 걸치지 않게).
+   * 주어진 줌에서 카메라가 머물 수 있는 위치 — 축은 패널 `i`(생략하면 가장 가까운 패널)의 줌 범위
+   * 안으로, 교차 축은 교차 축 범위 안으로 클램프. zoom ≤ 1 이면 두 반폭 모두 0 이라 패널 중심으로
+   * 끌어온다 (줌아웃 후 패널 사이에 걸치지 않게).
    */
-  function clampIntoPanel(x: number, y: number, zoom: number): { x: number; y: number } {
-    const i = currentActiveIndex();
+  function clampIntoPanel(
+    x: number,
+    y: number,
+    zoom: number,
+    i: number = currentActiveIndex(),
+  ): { x: number; y: number } {
     if (!positions[i]) return { x, y };
     const r = rangeAt(i, zoom);
     const cb = crossBounds(zoom);
@@ -1018,10 +1025,12 @@ export function createCameraControl(opts: CameraControlOptions): CameraControl {
     startTween(tx, ty, targetZoom);
   }
 
-  function animateToZoom(level: number, animated: boolean): void {
+  function animateToZoom(level: number, animated: boolean, index?: number): void {
     const z = clamp(level, minZoom, maxZoom);
-    // 새 줌 기준 패널 범위 밖이면 가장자리로, zoom ≤ 1 이면 반폭이 0 이라 패널 중심으로 (양 축)
-    const { x, y } = clampIntoPanel(camera.position.x, camera.position.y, z);
+    // 새 줌 기준 패널 범위 밖이면 가장자리로, zoom ≤ 1 이면 반폭이 0 이라 패널 중심으로 (양 축).
+    // 스냅 트윈 도중이면 카메라는 아직 이전 패널 가까이에 있으므로, 호출자가 준 패널을 기준으로 한다.
+    const i = index === undefined ? currentActiveIndex() : clamp(index, 0, positions.length - 1);
+    const { x, y } = clampIntoPanel(camera.position.x, camera.position.y, z, i);
     if (!animated) {
       cancelAnimationInternal();
       targetZoom = z;

@@ -390,7 +390,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 
   Before this rule a flick had to travel about 130 px (a third of the screen) to page.
 - `scrollTo()` / `zoomTo()` with `animated: true` use a fixed 300 ms ease-out.
-- `zoomTo()` clamps the camera into the active panel's range (both axes) for the new zoom level, so zooming back to 1 lands on the panel center.
+- `zoomTo()` clamps the camera into the active panel's range (both axes) for the new zoom level, so zooming back to 1 lands on the panel center. This also holds during a snap animation (for example inside `onIndexChange`), while the camera is still closer to the previous panel.
 - A tap that interrupts a zoom tween does not leave the zoom at an intermediate value: the release continues to the zoom that was last committed (`zoomTo`, pinch, or double tap).
 
 ## API Reference
