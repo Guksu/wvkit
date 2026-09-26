@@ -1,5 +1,12 @@
 # @guksu/wvkit-react
 
+## 0.7.1
+
+### Patch Changes
+
+- Updated dependencies [cdb3da2]
+  - @guksu/wvkit-core@0.6.1
+
 ## 0.7.0
 
 ### Minor Changes
