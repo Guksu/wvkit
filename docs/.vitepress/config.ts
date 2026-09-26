@@ -31,6 +31,9 @@ const components = [
   { text: 'useScrollLock', slug: 'scroll-lock' },
 ];
 
+// 레시피: 컴포넌트를 조합한 예제. 코드 블록은 examples/ 의 예제 파일을 그대로 가져온다 (e2e 가 그 파일을 돌린다).
+const recipes = [{ text: 'Image viewer', ko: '이미지 뷰어', slug: 'image-viewer' }];
+
 export default defineConfig({
   title: 'wvkit',
   description: 'Headless UI components optimized for WebView environments',
@@ -58,6 +61,10 @@ export default defineConfig({
               link: `/components/${c.slug}/`,
             })),
           },
+          {
+            text: 'Recipes',
+            items: recipes.map((r) => ({ text: r.text, link: `/recipes/${r.slug}/` })),
+          },
         ],
       },
     },
@@ -74,6 +81,10 @@ export default defineConfig({
               text: c.text,
               link: `/ko/components/${c.slug}/`,
             })),
+          },
+          {
+            text: '레시피',
+            items: recipes.map((r) => ({ text: r.ko, link: `/ko/recipes/${r.slug}/` })),
           },
         ],
       },

@@ -358,4 +358,84 @@ describe('ScrollContainer — integration', () => {
       sc.destroy();
     });
   });
+
+  // --- 시나리오 8: 스냅 트윈 도중의 zoomTo 는 활성 패널에 정착한다 ---
+  // 트윈이 막 시작한 순간에는 카메라가 아직 이전 패널 가까이에 있다. zoomTo 가 "카메라에 가장 가까운
+  // 패널"로 클램프하면 activeIndex 와 화면이 어긋난다 (이미지 뷰어의 onIndexChange → zoomTo(1)).
+  describe('scenario 8 — zoomTo during a snap tween settles on the active panel', () => {
+    let rafQueue: Map<number, FrameRequestCallback>;
+    let rafIdSeq: number;
+    let now: number;
+
+    beforeEach(() => {
+      rafQueue = new Map();
+      rafIdSeq = 0;
+      vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+        rafIdSeq += 1;
+        rafQueue.set(rafIdSeq, cb);
+        return rafIdSeq;
+      });
+      vi.stubGlobal('cancelAnimationFrame', (id: number) => {
+        rafQueue.delete(id);
+      });
+      now = 1000;
+      vi.spyOn(performance, 'now').mockImplementation(() => now);
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    /** 트윈이 끝날 때까지 시간을 흘리며 프레임을 돌린다. */
+    function settle(): void {
+      for (let i = 0; i < 100 && rafQueue.size > 0; i++) {
+        now += 16;
+        const [id, cb] = rafQueue.entries().next().value as [number, FrameRequestCallback];
+        rafQueue.delete(id);
+        cb(now);
+      }
+    }
+
+    /** scene transform 의 translate x → 카메라 x (width 400: tx = 200 − x·zoom). */
+    function cameraX(zoom: number): number {
+      const m = sceneEl(root).style.transform.match(/translate\((-?[\d.]+)px/);
+      return (200 - Number(m?.[1])) / zoom;
+    }
+
+    it('onIndexChange → zoomTo(1) after a drag lands on the new panel, not the old one', () => {
+      let sc: ReturnType<typeof createScrollContainer> | null = null;
+      sc = createScrollContainer(root, {
+        direction: 'horizontal',
+        panels: makePanels(4),
+        onIndexChange: () => sc?.zoomTo(1),
+      });
+
+      // 40% 드래그 → 다음 패널로 스냅 결정. 릴리스 순간 카메라는 x=160 (패널 0 에 더 가깝다)
+      root.dispatchEvent(pointerEvent('pointerdown', { pointerId: 1, clientX: 300, clientY: 300 }));
+      root.dispatchEvent(pointerEvent('pointermove', { pointerId: 1, clientX: 140, clientY: 300 }));
+      root.dispatchEvent(pointerEvent('pointerup', { pointerId: 1, clientX: 140, clientY: 300 }));
+      settle();
+
+      expect(sc.getActiveIndex()).toBe(1);
+      expect(cameraX(1)).toBeCloseTo(400, 6); // 패널 1 중심
+      sc.destroy();
+    });
+
+    it('scrollTo(2) then zoomTo(2) clamps into panel 2, not the panel the camera started on', () => {
+      const sc = createScrollContainer(root, {
+        direction: 'horizontal',
+        panels: makePanels(4),
+      });
+
+      sc.scrollTo(2); // 트윈 시작 — 카메라는 아직 x=0
+      sc.zoomTo(2);
+      settle();
+
+      expect(sc.getActiveIndex()).toBe(2);
+      expect(sc.getZoom()).toBe(2);
+      // 패널 2(중심 800)의 zoom 2 범위는 800 ± 200·(1 − 1/2) = [700, 900]. 왼쪽에서 오므로 700
+      expect(cameraX(2)).toBeCloseTo(700, 6);
+      sc.destroy();
+    });
+  });
 });

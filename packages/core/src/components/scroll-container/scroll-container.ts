@@ -489,7 +489,8 @@ export function createScrollContainer(
       applyVirtualization();
       options.onZoomChange?.(zoom);
     }
-    control?.animateToZoom(next, animated);
+    // 활성 패널 기준 — 스냅 트윈 도중(onIndexChange 안 등)이면 카메라는 아직 이전 패널 가까이에 있다
+    control?.animateToZoom(next, animated, activeIndex);
   }
 
   function getZoom(): number {
