@@ -16,7 +16,12 @@ import type {
 } from '@guksu/wvkit-core/scroll-container';
 
 /** setOptions 로 넘기지 않는 키 — 콜백은 부를 때마다 최신 옵션에서 읽고, initialIndex 는 마운트 때만 쓴다 */
-const SKIP_KEYS = new Set(['onIndexChange', 'onZoomChange', 'initialIndex']);
+const SKIP_KEYS = new Set([
+  'onIndexChange',
+  'onZoomChange',
+  'onPanelVisibilityChange',
+  'initialIndex',
+]);
 
 /**
  * 옵션을 보통 객체로 읽는다 — reactive 프록시를 벗기고 패널 배열도 복사한다 (core 에 프록시를 넘기지 않게).
@@ -106,6 +111,8 @@ export function useScrollContainer(options: MaybeRefOrGetter<ScrollContainerOpti
         activeZoom.value = zoom;
         toValue(options).onZoomChange?.(zoom);
       },
+      onPanelVisibilityChange: (index, visible, panel) =>
+        toValue(options).onPanelVisibilityChange?.(index, visible, panel),
     };
 
     instance = createScrollContainer(containerRef.value, wrappedOptions);

@@ -218,14 +218,25 @@ export function createScrollContainer(
   // (전폭 패널이면 이전과 같이 |i − activeIndex| ≤ overscan)
   function applyVirtualization(): void {
     const { first, last } = visibleRange();
+    const changed: number[] = [];
     for (let i = 0; i < panels.length; i++) {
       const inWindow = i >= first - overscan && i <= last + overscan;
       if (panelInWindow[i] !== inWindow) {
+        // 한 번도 창에 들어온 적 없는 패널(첫 적용에서 창 밖)은 알리지 않는다
+        if (inWindow || panelInWindow[i] === true) changed.push(i);
         panelInWindow[i] = inWindow;
         renderer.setPanelVisible(i, inWindow);
       }
     }
     a11y?.setActive(activeIndex);
+    // 전부 적용한 뒤 알린다 — 콜백 안에서 읽는 상태가 이미 새 창 기준이게
+    const notify = options.onPanelVisibilityChange;
+    if (notify) {
+      for (const i of changed) {
+        const panel = panels[i];
+        if (panel) notify(i, panelInWindow[i] === true, panel);
+      }
+    }
   }
 
   function requestRender(): void {
@@ -353,6 +364,7 @@ export function createScrollContainer(
     'panelHeight',
     'onIndexChange',
     'onZoomChange',
+    'onPanelVisibilityChange',
     'initialIndex',
   ];
 

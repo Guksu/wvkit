@@ -217,6 +217,7 @@ const index = ref(0);
 - **Server-side rendering**: the server renders the host and one hidden marker per panel. Panel content is rendered in the browser after mount, because it is drawn into panel elements that only exist there. Content inside panels is not part of the server HTML.
 - **React needs `react-dom`** (panel content is rendered with `createPortal`). It is a peer dependency of `@guksu/wvkit-react`. Context and events still work through the portal, as with any React portal. Vue uses `Teleport`, so `provide` / `inject` also works.
 - **Vertical pager**: with `direction="vertical"` and `panelHeight`, the panel element gets that height. Without `panelHeight`, each panel is as tall as the host. Panels of a vertical pager must not scroll vertically ([not supported](#not-supported-a-vertical-pager-with-vertically-scrolling-panels)).
+- **Lazy panels**: `<ScrollContainer lazy>` mounts each panel's content the first time that panel enters the render window (the panels on screen plus `overscan` on each side). After that the content stays mounted. Panels that are never visited never mount, so their effects and requests do not run. The default is `false`: every panel's content mounts at once, as before. Content is never unmounted again, so state such as form input and scroll position is kept.
 
 Use the hooks (`useScrollContainer`) when you already have DOM elements, for example panels built by another library. Use the components when panels are React or Vue content.
 
@@ -233,7 +234,7 @@ panel.style.touchAction = 'pan-y'; // vertical pans stay native, horizontal pans
 Why: the browser decides what a touch does by reading `touch-action` from the touched element up to the nearest *scrollable* ancestor — which is the panel itself, so the host's `touch-action: none` is never consulted. With the default `auto` (or `manipulation`) on the panel, the browser also claims horizontal pans, fires `pointercancel`, and the pager never switches. With `pan-y`, vertical touches scroll the panel natively (momentum included), horizontal touches are delivered to the pager, and diagonal touches resolve by their dominant axis, like a native pager.
 
 - `direction: 'vertical'` does not support panels that scroll vertically. See [Not supported: a vertical pager with vertically scrolling panels](#not-supported-a-vertical-pager-with-vertically-scrolling-panels).
-- Add `loading="lazy"` to images inside panels. Panels outside the `overscan` window are detached from the document, so their lazy images are not fetched until the panel becomes visible.
+- Add `loading="lazy"` to images inside panels. A panel that has never been in the `overscan` window is not attached to the document, so its lazy images are not fetched until the panel is first shown. After that, a panel outside the window stays attached with `display: none`.
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
 ### Not supported: a vertical pager with vertically scrolling panels
@@ -406,6 +407,7 @@ WebView teams develop and QA in a desktop browser, so the pager also works witho
 | `gap`             | `number ≥ 0`                               | `0`            | Pixels between neighbouring panels (both directions).                                               |
 | `align`           | `'center' \| 'start'`                      | `'center'`     | Where the active panel rests: centered in the root, or with its start edge on the root's start edge. |
 | `onIndexChange`   | `(index: number) => void`                  | —              | Fired when active panel changes (via `scrollTo` or pan snap).                                        |
+| `onPanelVisibilityChange` | `(index: number, visible: boolean, panel: HTMLElement) => void` | — | Fired when a panel enters (`true`) or leaves (`false`) the render window (the panels on screen plus `overscan` on each side). A panel that has never entered reports nothing until it does. Removed panels do not report. Use it to fill panels lazily. |
 | `overscan`        | `number`                                   | `1`            | Number of extra panels to keep mounted on each side of the panels on screen. `0` mounts only the panels on screen (just the active one with full-width panels). |
 | `snapThreshold`   | `number ∈ (0, 1]`                          | `0.3`          | Drag fraction (relative to the step between two rest positions) required to snap to the next panel on a slow release. A quick flick (over 25 px, over 0.4 px/ms) pages regardless. |
 | `dragThreshold`   | `number ≥ 0`                               | `10`           | Pixels a pointer must move before the pager moves; the drag direction is decided at that point. `0` follows from the first move with no direction lock. |
@@ -452,7 +454,7 @@ The React hook passes changed options to `setOptions` on every render (the panel
 
 ### Component props and handle
 
-**`ScrollContainer`** takes every [option](#options) except `panels` as a prop, plus any `div` attribute (`className` / `class`, `style`, `data-*`, `aria-*`), which goes to the host element. In Vue, listen with `@index-change` and `@zoom-change` instead of the callback options. Changed props are applied without remounting, the same as the hooks.
+**`ScrollContainer`** takes every [option](#options) except `panels` as a prop, plus any `div` attribute (`className` / `class`, `style`, `data-*`, `aria-*`), which goes to the host element. In Vue, listen with `@index-change`, `@zoom-change` and `@panel-visibility-change` instead of the callback options. Changed props are applied without remounting, the same as the hooks. `lazy` (default `false`) is a component-only prop: see [Lazy panels](#components-scrollcontainer-·-scrollpanel).
 
 **`ScrollPanel`**
 
@@ -512,9 +514,9 @@ The React and Vue layers are measured by `size-limit` in CI (minified, brotli, w
 - **The first `dragThreshold` pixels of a drag do not move the pager, and the direction is decided once.** A gesture that starts vertical cannot turn into paging halfway, and a curved swipe near 45° can be judged differently by the pager and by the browser, in which case neither moves. Lower `dragThreshold` for a faster start, or set `0` for the previous behavior.
 - **A fling moves at most one panel.** The settle duration follows the release velocity (120–400 ms), but there is no multi-panel momentum on the pager axis, by design (native pagers behave the same).
 - **Text inside panels cannot be selected.** `CSS3DObject` sets `user-select: none` (and `draggable="false"`) on every panel element. Inputs inside panels still work.
-- **Panel DOM is never unmounted.** Virtualization only detaches or hides panels outside the `overscan` window; every panel stays in memory for the life of the instance. Virtualize long lists inside panels yourself.
+- **Panel DOM is never unmounted.** Virtualization only hides panels outside the `overscan` window (`display: none`); every panel stays in memory for the life of the instance. With the components, `lazy` only delays the first mount. Virtualize long lists inside panels yourself.
 - **Each visible scrollable panel is its own compositor layer** (browsers composite scroll containers). With `overscan: 1` three such layers are alive at once. Measured in headless Chromium, a 150-image feed panel became a 412 × 47,773 px layer. Keep `overscan` small on low-end devices.
-- **Scroll position of a hidden panel survives in Chromium** (verified across a `display: none` round-trip) **but is unverified in WebKit.** Test on iOS before relying on it.
+- **A hidden panel keeps its scroll position; the browser does this, not the library.** The e2e suite checks it across a `display: none` round-trip in Chromium and in Playwright's WebKit (desktop and iPhone emulation). It has not been checked on a real iOS device. A panel removed with `setPanels` and added back starts at the top, because Chromium, WebKit and Firefox reset the scroll position of an element taken out of the document.
 - **`scrollTo(index)` while zoomed lands on the panel center** (with `align: 'start'`, on its start edge), not on the edge you were looking at.
 - **A carousel inside a panel does not hand the swipe back at its ends.** With `noDragSelector`, a swipe that starts on the carousel never changes panels, even at its first or last slide. Pinch and double-tap zoom do not start on it either.
 - **Peeking neighbours are not interactive.** With `a11y: true` (default) every panel except the active one gets `inert`, so a tap on a peeking neighbour does nothing. Swipe to it, or set `a11y: false` and handle the tap yourself.

@@ -49,6 +49,13 @@ export interface ScrollContainerOptions {
   align?: 'center' | 'start';
   /** 활성 패널 인덱스가 변경될 때 호출. */
   onIndexChange?: (index: number) => void;
+  /**
+   * 패널이 렌더 창(쉴 때 화면에 보이는 패널 + 양쪽 `overscan` 장)에 들어오면 `true`, 나가면 `false` 로 불린다.
+   * 창 밖 패널은 `display: none` 이다. 한 번도 창에 들어온 적 없는 패널은 들어올 때까지 알리지 않는다
+   * (생성할 때는 창 안 패널만 `true` 로 알린다). 지연 로딩 — 처음 보일 때 내용 채우기 — 에 쓴다.
+   * `setPanels` 로 빠진 패널은 알리지 않는다.
+   */
+  onPanelVisibilityChange?: (index: number, visible: boolean, panel: HTMLElement) => void;
   /** 활성 패널 양쪽으로 미리 scene에 유지할 패널 수. 기본값 `1`. */
   overscan?: number;
   /**
