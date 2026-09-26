@@ -12,6 +12,7 @@ on:
       - 'examples/**'
       - 'docs/.vitepress/**'
       - 'docs/components/**'
+      - 'docs/recipes/**'
       - 'docs/ko/**'
       - 'docs/index.md'
       - 'docs/package.json'

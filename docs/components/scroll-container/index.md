@@ -234,7 +234,7 @@ panel.style.touchAction = 'pan-y'; // vertical pans stay native, horizontal pans
 Why: the browser decides what a touch does by reading `touch-action` from the touched element up to the nearest *scrollable* ancestor — which is the panel itself, so the host's `touch-action: none` is never consulted. With the default `auto` (or `manipulation`) on the panel, the browser also claims horizontal pans, fires `pointercancel`, and the pager never switches. With `pan-y`, vertical touches scroll the panel natively (momentum included), horizontal touches are delivered to the pager, and diagonal touches resolve by their dominant axis, like a native pager.
 
 - `direction: 'vertical'` does not support panels that scroll vertically. See [Not supported: a vertical pager with vertically scrolling panels](#not-supported-a-vertical-pager-with-vertically-scrolling-panels).
-- Add `loading="lazy"` to images inside panels. A panel that has never been in the `overscan` window is not attached to the document, so its lazy images are not fetched until the panel is first shown. After that, a panel outside the window stays attached with `display: none`.
+- Add `loading="lazy"` to images inside panels. A panel that has never been in the `overscan` window is not attached to the document, so its lazy images are not fetched until the panel is first shown. After that, a panel outside the window stays attached with `display: none`. The browser decides when an attached lazy image loads, so the next panel's images may not be ready before you swipe to it. To load them early, set `src` in `onPanelVisibilityChange`, or use `lazy` on the component (see the [Image viewer recipe](/recipes/image-viewer/#load-each-photo-just-before-it-is-needed)).
 - Desktop: a mouse drag that starts on an `<img>` begins native drag-and-drop and cancels the gesture. Set `draggable="false"` on images inside panels.
 
 ### Not supported: a vertical pager with vertically scrolling panels
@@ -352,6 +352,8 @@ Measured with real touches (Chrome DevTools Protocol, Pixel 7 emulation, `pan-y`
 Chromium made the same 45° split on its own: at 44° it left the touch to the page, at 46° it scrolled the panel and sent `pointercancel` after about 20 px.
 
 ## Pinch zoom and panning while zoomed
+
+For a full-screen photo viewer built on these rules, see the [Image viewer recipe](/recipes/image-viewer/).
 
 - Zooming keeps the point under the fingers fixed (anchor correction, measured from the host's top-left corner), and the camera stays where the gesture ends — it does not snap back to the panel center on release.
 - While zoomed, a one-finger pan moves along the pager axis all the way to the panel's edges: the pan bounds grow by `(panelSize / 2) × (1 − 1 / zoom)` on each side.

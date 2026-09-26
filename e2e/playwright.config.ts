@@ -37,13 +37,25 @@ export default defineConfig({
     },
   ],
 
-  webServer: {
-    command:
-      'pnpm --filter @wvkit/react-example build && pnpm --filter @wvkit/react-example preview --port 4173 --strictPort',
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 180_000,
-    stdout: 'pipe',
-    stderr: 'pipe',
-  },
+  webServer: [
+    {
+      command:
+        'pnpm --filter @wvkit/react-example build && pnpm --filter @wvkit/react-example preview --port 4173 --strictPort',
+      url: BASE_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+    {
+      // Vue 예제 — 문서 레시피(Vue) 예제 페이지 (recipe.*.spec.ts)
+      command:
+        'pnpm --filter @wvkit/vue-example build && pnpm --filter @wvkit/vue-example preview --port 4174 --strictPort',
+      url: 'http://localhost:4174/wvkit/vue/',
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  ],
 });

@@ -1,0 +1,42 @@
+/* Full-screen viewer. The pager inside needs a size, so it fills this box. */
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.image-viewer-pager {
+  height: 100%;
+  touch-action: none; /* the pager owns every gesture on the photos, pinch included */
+}
+
+/* One photo per panel, centered and scaled down to fit. Without a width the panel would
+   shrink to its photo, and a photo that has not loaded yet has no size. */
+.image-viewer-photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.image-viewer-photo img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none; /* iOS: no "Save Image" menu on a long press */
+}
+
+.image-viewer-count {
+  position: absolute;
+  top: max(12px, env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  color: #fff;
+  font: 600 14px / 1.4 system-ui, sans-serif;
+  pointer-events: none;
+}
